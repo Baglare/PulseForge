@@ -1,0 +1,4357 @@
+{
+  "schemaVersion": 1,
+  "displayName": "Verilmis Sozler",
+  "globalOffsetSeconds": 0.0,
+  "events": [
+    {
+      "eventId": "event-001",
+      "targetTimeSeconds": 0.75,
+      "action": "Guard",
+      "intensity": 0.693124
+    },
+    {
+      "eventId": "event-002",
+      "targetTimeSeconds": 1.09,
+      "action": "Guard",
+      "intensity": 0.356228
+    },
+    {
+      "eventId": "event-003",
+      "targetTimeSeconds": 1.56,
+      "action": "Strike",
+      "intensity": 0.375123
+    },
+    {
+      "eventId": "event-004",
+      "targetTimeSeconds": 2.04,
+      "action": "Guard",
+      "intensity": 0.528935
+    },
+    {
+      "eventId": "event-005",
+      "targetTimeSeconds": 2.33,
+      "action": "Strike",
+      "intensity": 0.676837
+    },
+    {
+      "eventId": "event-006",
+      "targetTimeSeconds": 2.83,
+      "action": "Strike",
+      "intensity": 0.406329
+    },
+    {
+      "eventId": "event-007",
+      "targetTimeSeconds": 3.28,
+      "action": "Guard",
+      "intensity": 0.644675
+    },
+    {
+      "eventId": "event-008",
+      "targetTimeSeconds": 3.64,
+      "action": "Strike",
+      "intensity": 0.362501
+    },
+    {
+      "eventId": "event-009",
+      "targetTimeSeconds": 4.07,
+      "action": "Guard",
+      "intensity": 0.384828
+    },
+    {
+      "eventId": "event-010",
+      "targetTimeSeconds": 4.56,
+      "action": "Strike",
+      "intensity": 0.524805
+    },
+    {
+      "eventId": "event-011",
+      "targetTimeSeconds": 4.89,
+      "action": "Guard",
+      "intensity": 0.673145
+    },
+    {
+      "eventId": "event-012",
+      "targetTimeSeconds": 5.33,
+      "action": "Guard",
+      "intensity": 0.713773
+    },
+    {
+      "eventId": "event-013",
+      "targetTimeSeconds": 5.59,
+      "action": "Strike",
+      "intensity": 0.417867
+    },
+    {
+      "eventId": "event-014",
+      "targetTimeSeconds": 5.82,
+      "action": "Guard",
+      "intensity": 0.653812
+    },
+    {
+      "eventId": "event-015",
+      "targetTimeSeconds": 6.61,
+      "action": "Strike",
+      "intensity": 0.478525
+    },
+    {
+      "eventId": "event-016",
+      "targetTimeSeconds": 6.8,
+      "action": "Strike",
+      "intensity": 0.364178
+    },
+    {
+      "eventId": "event-017",
+      "targetTimeSeconds": 7.08,
+      "action": "Guard",
+      "intensity": 0.698286
+    },
+    {
+      "eventId": "event-018",
+      "targetTimeSeconds": 7.38,
+      "action": "Strike",
+      "intensity": 0.523127
+    },
+    {
+      "eventId": "event-019",
+      "targetTimeSeconds": 7.7,
+      "action": "Guard",
+      "intensity": 0.525554
+    },
+    {
+      "eventId": "event-020",
+      "targetTimeSeconds": 8.35,
+      "action": "Strike",
+      "intensity": 0.532187
+    },
+    {
+      "eventId": "event-021",
+      "targetTimeSeconds": 8.97,
+      "action": "Guard",
+      "intensity": 0.379872
+    },
+    {
+      "eventId": "event-022",
+      "targetTimeSeconds": 10.37,
+      "action": "Guard",
+      "intensity": 0.83274
+    },
+    {
+      "eventId": "event-023",
+      "targetTimeSeconds": 10.56,
+      "action": "Strike",
+      "intensity": 0.701384
+    },
+    {
+      "eventId": "event-024",
+      "targetTimeSeconds": 10.9,
+      "action": "Guard",
+      "intensity": 0.829436
+    },
+    {
+      "eventId": "event-025",
+      "targetTimeSeconds": 11.1,
+      "action": "Strike",
+      "intensity": 0.687884
+    },
+    {
+      "eventId": "event-026",
+      "targetTimeSeconds": 11.3,
+      "action": "Strike",
+      "intensity": 0.399902
+    },
+    {
+      "eventId": "event-027",
+      "targetTimeSeconds": 11.5,
+      "action": "Guard",
+      "intensity": 0.520211
+    },
+    {
+      "eventId": "event-028",
+      "targetTimeSeconds": 11.83,
+      "action": "Strike",
+      "intensity": 0.639306
+    },
+    {
+      "eventId": "event-029",
+      "targetTimeSeconds": 12.04,
+      "action": "Guard",
+      "intensity": 0.468303
+    },
+    {
+      "eventId": "event-030",
+      "targetTimeSeconds": 12.58,
+      "action": "Strike",
+      "intensity": 0.748438
+    },
+    {
+      "eventId": "event-031",
+      "targetTimeSeconds": 12.84,
+      "action": "Guard",
+      "intensity": 0.543441
+    },
+    {
+      "eventId": "event-032",
+      "targetTimeSeconds": 14.55,
+      "action": "Guard",
+      "intensity": 0.883718
+    },
+    {
+      "eventId": "event-033",
+      "targetTimeSeconds": 14.87,
+      "action": "Strike",
+      "intensity": 0.940401
+    },
+    {
+      "eventId": "event-034",
+      "targetTimeSeconds": 15.12,
+      "action": "Guard",
+      "intensity": 0.840561
+    },
+    {
+      "eventId": "event-035",
+      "targetTimeSeconds": 15.45,
+      "action": "Strike",
+      "intensity": 0.865082
+    },
+    {
+      "eventId": "event-036",
+      "targetTimeSeconds": 15.75,
+      "action": "Strike",
+      "intensity": 0.747122
+    },
+    {
+      "eventId": "event-037",
+      "targetTimeSeconds": 15.99,
+      "action": "Guard",
+      "intensity": 0.524315
+    },
+    {
+      "eventId": "event-038",
+      "targetTimeSeconds": 16.42,
+      "action": "Strike",
+      "intensity": 0.847452
+    },
+    {
+      "eventId": "event-039",
+      "targetTimeSeconds": 16.73,
+      "action": "Guard",
+      "intensity": 0.73099
+    },
+    {
+      "eventId": "event-040",
+      "targetTimeSeconds": 17.18,
+      "action": "Strike",
+      "intensity": 0.412627
+    },
+    {
+      "eventId": "event-041",
+      "targetTimeSeconds": 17.48,
+      "action": "Guard",
+      "intensity": 0.360229
+    },
+    {
+      "eventId": "event-042",
+      "targetTimeSeconds": 17.98,
+      "action": "Guard",
+      "intensity": 0.472459
+    },
+    {
+      "eventId": "event-043",
+      "targetTimeSeconds": 18.44,
+      "action": "Strike",
+      "intensity": 0.503304
+    },
+    {
+      "eventId": "event-044",
+      "targetTimeSeconds": 18.74,
+      "action": "Guard",
+      "intensity": 0.516803
+    },
+    {
+      "eventId": "event-045",
+      "targetTimeSeconds": 19.03,
+      "action": "Strike",
+      "intensity": 0.352228
+    },
+    {
+      "eventId": "event-046",
+      "targetTimeSeconds": 19.26,
+      "action": "Strike",
+      "intensity": 0.437277
+    },
+    {
+      "eventId": "event-047",
+      "targetTimeSeconds": 19.69,
+      "action": "Guard",
+      "intensity": 0.407439
+    },
+    {
+      "eventId": "event-048",
+      "targetTimeSeconds": 20.01,
+      "action": "Strike",
+      "intensity": 0.522818
+    },
+    {
+      "eventId": "event-049",
+      "targetTimeSeconds": 20.49,
+      "action": "Guard",
+      "intensity": 0.877962
+    },
+    {
+      "eventId": "event-050",
+      "targetTimeSeconds": 20.97,
+      "action": "Strike",
+      "intensity": 0.813355
+    },
+    {
+      "eventId": "event-051",
+      "targetTimeSeconds": 21.21,
+      "action": "Guard",
+      "intensity": 0.743689
+    },
+    {
+      "eventId": "event-052",
+      "targetTimeSeconds": 21.42,
+      "action": "Guard",
+      "intensity": 0.710908
+    },
+    {
+      "eventId": "event-053",
+      "targetTimeSeconds": 21.63,
+      "action": "Strike",
+      "intensity": 0.700377
+    },
+    {
+      "eventId": "event-054",
+      "targetTimeSeconds": 21.84,
+      "action": "Guard",
+      "intensity": 0.642429
+    },
+    {
+      "eventId": "event-055",
+      "targetTimeSeconds": 22.04,
+      "action": "Strike",
+      "intensity": 0.607945
+    },
+    {
+      "eventId": "event-056",
+      "targetTimeSeconds": 22.25,
+      "action": "Strike",
+      "intensity": 0.462986
+    },
+    {
+      "eventId": "event-057",
+      "targetTimeSeconds": 22.66,
+      "action": "Guard",
+      "intensity": 0.875226
+    },
+    {
+      "eventId": "event-058",
+      "targetTimeSeconds": 22.87,
+      "action": "Strike",
+      "intensity": 0.635125
+    },
+    {
+      "eventId": "event-059",
+      "targetTimeSeconds": 23.1,
+      "action": "Guard",
+      "intensity": 0.497367
+    },
+    {
+      "eventId": "event-060",
+      "targetTimeSeconds": 23.51,
+      "action": "Strike",
+      "intensity": 0.54166
+    },
+    {
+      "eventId": "event-061",
+      "targetTimeSeconds": 23.81,
+      "action": "Guard",
+      "intensity": 0.439084
+    },
+    {
+      "eventId": "event-062",
+      "targetTimeSeconds": 24.14,
+      "action": "Guard",
+      "intensity": 0.505782
+    },
+    {
+      "eventId": "event-063",
+      "targetTimeSeconds": 24.6,
+      "action": "Strike",
+      "intensity": 0.820686
+    },
+    {
+      "eventId": "event-064",
+      "targetTimeSeconds": 24.81,
+      "action": "Guard",
+      "intensity": 0.626581
+    },
+    {
+      "eventId": "event-065",
+      "targetTimeSeconds": 25.07,
+      "action": "Strike",
+      "intensity": 0.691859
+    },
+    {
+      "eventId": "event-066",
+      "targetTimeSeconds": 25.28,
+      "action": "Strike",
+      "intensity": 0.736668
+    },
+    {
+      "eventId": "event-067",
+      "targetTimeSeconds": 25.54,
+      "action": "Guard",
+      "intensity": 0.764442
+    },
+    {
+      "eventId": "event-068",
+      "targetTimeSeconds": 26.03,
+      "action": "Strike",
+      "intensity": 0.801817
+    },
+    {
+      "eventId": "event-069",
+      "targetTimeSeconds": 26.33,
+      "action": "Guard",
+      "intensity": 0.559806
+    },
+    {
+      "eventId": "event-070",
+      "targetTimeSeconds": 26.57,
+      "action": "Strike",
+      "intensity": 0.721078
+    },
+    {
+      "eventId": "event-071",
+      "targetTimeSeconds": 26.82,
+      "action": "Guard",
+      "intensity": 0.800527
+    },
+    {
+      "eventId": "event-072",
+      "targetTimeSeconds": 27.02,
+      "action": "Guard",
+      "intensity": 0.401941
+    },
+    {
+      "eventId": "event-073",
+      "targetTimeSeconds": 27.29,
+      "action": "Strike",
+      "intensity": 0.637964
+    },
+    {
+      "eventId": "event-074",
+      "targetTimeSeconds": 27.59,
+      "action": "Guard",
+      "intensity": 0.636364
+    },
+    {
+      "eventId": "event-075",
+      "targetTimeSeconds": 27.94,
+      "action": "Strike",
+      "intensity": 0.426772
+    },
+    {
+      "eventId": "event-076",
+      "targetTimeSeconds": 28.15,
+      "action": "Strike",
+      "intensity": 0.384776
+    },
+    {
+      "eventId": "event-077",
+      "targetTimeSeconds": 28.54,
+      "action": "Guard",
+      "intensity": 0.61654
+    },
+    {
+      "eventId": "event-078",
+      "targetTimeSeconds": 28.87,
+      "action": "Strike",
+      "intensity": 0.524986
+    },
+    {
+      "eventId": "event-079",
+      "targetTimeSeconds": 29.14,
+      "action": "Guard",
+      "intensity": 0.452093
+    },
+    {
+      "eventId": "event-080",
+      "targetTimeSeconds": 29.38,
+      "action": "Strike",
+      "intensity": 0.488101
+    },
+    {
+      "eventId": "event-081",
+      "targetTimeSeconds": 29.82,
+      "action": "Guard",
+      "intensity": 0.635641
+    },
+    {
+      "eventId": "event-082",
+      "targetTimeSeconds": 30.12,
+      "action": "Guard",
+      "intensity": 0.556476
+    },
+    {
+      "eventId": "event-083",
+      "targetTimeSeconds": 30.57,
+      "action": "Strike",
+      "intensity": 0.795906
+    },
+    {
+      "eventId": "event-084",
+      "targetTimeSeconds": 30.96,
+      "action": "Guard",
+      "intensity": 0.783181
+    },
+    {
+      "eventId": "event-085",
+      "targetTimeSeconds": 31.3,
+      "action": "Strike",
+      "intensity": 0.781013
+    },
+    {
+      "eventId": "event-086",
+      "targetTimeSeconds": 31.53,
+      "action": "Strike",
+      "intensity": 0.602628
+    },
+    {
+      "eventId": "event-087",
+      "targetTimeSeconds": 31.85,
+      "action": "Guard",
+      "intensity": 0.804889
+    },
+    {
+      "eventId": "event-088",
+      "targetTimeSeconds": 32.06,
+      "action": "Strike",
+      "intensity": 0.636751
+    },
+    {
+      "eventId": "event-089",
+      "targetTimeSeconds": 32.34,
+      "action": "Guard",
+      "intensity": 0.586211
+    },
+    {
+      "eventId": "event-090",
+      "targetTimeSeconds": 32.67,
+      "action": "Strike",
+      "intensity": 0.641345
+    },
+    {
+      "eventId": "event-091",
+      "targetTimeSeconds": 32.87,
+      "action": "Guard",
+      "intensity": 0.61925
+    },
+    {
+      "eventId": "event-092",
+      "targetTimeSeconds": 33.17,
+      "action": "Guard",
+      "intensity": 0.771153
+    },
+    {
+      "eventId": "event-093",
+      "targetTimeSeconds": 33.6,
+      "action": "Strike",
+      "intensity": 0.660059
+    },
+    {
+      "eventId": "event-094",
+      "targetTimeSeconds": 33.9,
+      "action": "Guard",
+      "intensity": 0.565975
+    },
+    {
+      "eventId": "event-095",
+      "targetTimeSeconds": 34.38,
+      "action": "Strike",
+      "intensity": 0.431366
+    },
+    {
+      "eventId": "event-096",
+      "targetTimeSeconds": 35.03,
+      "action": "Strike",
+      "intensity": 0.802308
+    },
+    {
+      "eventId": "event-097",
+      "targetTimeSeconds": 35.32,
+      "action": "Guard",
+      "intensity": 0.770198
+    },
+    {
+      "eventId": "event-098",
+      "targetTimeSeconds": 35.54,
+      "action": "Strike",
+      "intensity": 0.735713
+    },
+    {
+      "eventId": "event-099",
+      "targetTimeSeconds": 35.79,
+      "action": "Guard",
+      "intensity": 0.747767
+    },
+    {
+      "eventId": "event-100",
+      "targetTimeSeconds": 36.12,
+      "action": "Strike",
+      "intensity": 0.677301
+    },
+    {
+      "eventId": "event-101",
+      "targetTimeSeconds": 36.31,
+      "action": "Guard",
+      "intensity": 0.728589
+    },
+    {
+      "eventId": "event-102",
+      "targetTimeSeconds": 36.73,
+      "action": "Guard",
+      "intensity": 0.787079
+    },
+    {
+      "eventId": "event-103",
+      "targetTimeSeconds": 36.94,
+      "action": "Strike",
+      "intensity": 0.568169
+    },
+    {
+      "eventId": "event-104",
+      "targetTimeSeconds": 37.17,
+      "action": "Guard",
+      "intensity": 0.442879
+    },
+    {
+      "eventId": "event-105",
+      "targetTimeSeconds": 37.38,
+      "action": "Strike",
+      "intensity": 0.559496
+    },
+    {
+      "eventId": "event-106",
+      "targetTimeSeconds": 37.72,
+      "action": "Strike",
+      "intensity": 0.39825
+    },
+    {
+      "eventId": "event-107",
+      "targetTimeSeconds": 38.21,
+      "action": "Guard",
+      "intensity": 0.435909
+    },
+    {
+      "eventId": "event-108",
+      "targetTimeSeconds": 38.41,
+      "action": "Strike",
+      "intensity": 0.375277
+    },
+    {
+      "eventId": "event-109",
+      "targetTimeSeconds": 38.65,
+      "action": "Guard",
+      "intensity": 0.740488
+    },
+    {
+      "eventId": "event-110",
+      "targetTimeSeconds": 38.96,
+      "action": "Strike",
+      "intensity": 0.623561
+    },
+    {
+      "eventId": "event-111",
+      "targetTimeSeconds": 39.48,
+      "action": "Guard",
+      "intensity": 0.490734
+    },
+    {
+      "eventId": "event-112",
+      "targetTimeSeconds": 39.91,
+      "action": "Guard",
+      "intensity": 0.619767
+    },
+    {
+      "eventId": "event-113",
+      "targetTimeSeconds": 40.74,
+      "action": "Strike",
+      "intensity": 0.819034
+    },
+    {
+      "eventId": "event-114",
+      "targetTimeSeconds": 41.0,
+      "action": "Guard",
+      "intensity": 0.835192
+    },
+    {
+      "eventId": "event-115",
+      "targetTimeSeconds": 41.36,
+      "action": "Strike",
+      "intensity": 0.797197
+    },
+    {
+      "eventId": "event-116",
+      "targetTimeSeconds": 41.55,
+      "action": "Strike",
+      "intensity": 0.578597
+    },
+    {
+      "eventId": "event-117",
+      "targetTimeSeconds": 41.89,
+      "action": "Guard",
+      "intensity": 0.752852
+    },
+    {
+      "eventId": "event-118",
+      "targetTimeSeconds": 42.26,
+      "action": "Strike",
+      "intensity": 0.753085
+    },
+    {
+      "eventId": "event-119",
+      "targetTimeSeconds": 42.45,
+      "action": "Guard",
+      "intensity": 0.759279
+    },
+    {
+      "eventId": "event-120",
+      "targetTimeSeconds": 42.89,
+      "action": "Strike",
+      "intensity": 0.671958
+    },
+    {
+      "eventId": "event-121",
+      "targetTimeSeconds": 43.09,
+      "action": "Guard",
+      "intensity": 0.626762
+    },
+    {
+      "eventId": "event-122",
+      "targetTimeSeconds": 43.43,
+      "action": "Guard",
+      "intensity": 0.549378
+    },
+    {
+      "eventId": "event-123",
+      "targetTimeSeconds": 43.7,
+      "action": "Strike",
+      "intensity": 0.541944
+    },
+    {
+      "eventId": "event-124",
+      "targetTimeSeconds": 44.01,
+      "action": "Guard",
+      "intensity": 0.544809
+    },
+    {
+      "eventId": "event-125",
+      "targetTimeSeconds": 44.2,
+      "action": "Strike",
+      "intensity": 0.370864
+    },
+    {
+      "eventId": "event-126",
+      "targetTimeSeconds": 44.49,
+      "action": "Strike",
+      "intensity": 0.381627
+    },
+    {
+      "eventId": "event-127",
+      "targetTimeSeconds": 45.03,
+      "action": "Guard",
+      "intensity": 0.774044
+    },
+    {
+      "eventId": "event-128",
+      "targetTimeSeconds": 45.25,
+      "action": "Strike",
+      "intensity": 0.732977
+    },
+    {
+      "eventId": "event-129",
+      "targetTimeSeconds": 45.57,
+      "action": "Guard",
+      "intensity": 0.666976
+    },
+    {
+      "eventId": "event-130",
+      "targetTimeSeconds": 45.77,
+      "action": "Strike",
+      "intensity": 0.553069
+    },
+    {
+      "eventId": "event-131",
+      "targetTimeSeconds": 46.23,
+      "action": "Guard",
+      "intensity": 0.802127
+    },
+    {
+      "eventId": "event-132",
+      "targetTimeSeconds": 46.7,
+      "action": "Guard",
+      "intensity": 0.619973
+    },
+    {
+      "eventId": "event-133",
+      "targetTimeSeconds": 47.05,
+      "action": "Strike",
+      "intensity": 0.616643
+    },
+    {
+      "eventId": "event-134",
+      "targetTimeSeconds": 47.51,
+      "action": "Guard",
+      "intensity": 0.606293
+    },
+    {
+      "eventId": "event-135",
+      "targetTimeSeconds": 47.8,
+      "action": "Strike",
+      "intensity": 0.419803
+    },
+    {
+      "eventId": "event-136",
+      "targetTimeSeconds": 48.12,
+      "action": "Strike",
+      "intensity": 0.437484
+    },
+    {
+      "eventId": "event-137",
+      "targetTimeSeconds": 48.76,
+      "action": "Guard",
+      "intensity": 0.484384
+    },
+    {
+      "eventId": "event-138",
+      "targetTimeSeconds": 49.06,
+      "action": "Strike",
+      "intensity": 0.666254
+    },
+    {
+      "eventId": "event-139",
+      "targetTimeSeconds": 49.39,
+      "action": "Guard",
+      "intensity": 0.563032
+    },
+    {
+      "eventId": "event-140",
+      "targetTimeSeconds": 49.6,
+      "action": "Strike",
+      "intensity": 0.41366
+    },
+    {
+      "eventId": "event-141",
+      "targetTimeSeconds": 50.03,
+      "action": "Guard",
+      "intensity": 0.695602
+    },
+    {
+      "eventId": "event-142",
+      "targetTimeSeconds": 50.28,
+      "action": "Guard",
+      "intensity": 0.53451
+    },
+    {
+      "eventId": "event-143",
+      "targetTimeSeconds": 50.79,
+      "action": "Strike",
+      "intensity": 0.842987
+    },
+    {
+      "eventId": "event-144",
+      "targetTimeSeconds": 51.29,
+      "action": "Guard",
+      "intensity": 0.842135
+    },
+    {
+      "eventId": "event-145",
+      "targetTimeSeconds": 52.07,
+      "action": "Strike",
+      "intensity": 0.81098
+    },
+    {
+      "eventId": "event-146",
+      "targetTimeSeconds": 52.71,
+      "action": "Strike",
+      "intensity": 0.837489
+    },
+    {
+      "eventId": "event-147",
+      "targetTimeSeconds": 52.9,
+      "action": "Guard",
+      "intensity": 0.609932
+    },
+    {
+      "eventId": "event-148",
+      "targetTimeSeconds": 53.34,
+      "action": "Strike",
+      "intensity": 0.852615
+    },
+    {
+      "eventId": "event-149",
+      "targetTimeSeconds": 53.96,
+      "action": "Guard",
+      "intensity": 0.740075
+    },
+    {
+      "eventId": "event-150",
+      "targetTimeSeconds": 54.15,
+      "action": "Strike",
+      "intensity": 0.42845
+    },
+    {
+      "eventId": "event-151",
+      "targetTimeSeconds": 54.69,
+      "action": "Guard",
+      "intensity": 0.760002
+    },
+    {
+      "eventId": "event-152",
+      "targetTimeSeconds": 55.08,
+      "action": "Guard",
+      "intensity": 0.815446
+    },
+    {
+      "eventId": "event-153",
+      "targetTimeSeconds": 55.32,
+      "action": "Strike",
+      "intensity": 0.807986
+    },
+    {
+      "eventId": "event-154",
+      "targetTimeSeconds": 55.51,
+      "action": "Guard",
+      "intensity": 0.728641
+    },
+    {
+      "eventId": "event-155",
+      "targetTimeSeconds": 55.92,
+      "action": "Strike",
+      "intensity": 0.852486
+    },
+    {
+      "eventId": "event-156",
+      "targetTimeSeconds": 56.14,
+      "action": "Strike",
+      "intensity": 0.582004
+    },
+    {
+      "eventId": "event-157",
+      "targetTimeSeconds": 56.5,
+      "action": "Guard",
+      "intensity": 0.695731
+    },
+    {
+      "eventId": "event-158",
+      "targetTimeSeconds": 56.88,
+      "action": "Strike",
+      "intensity": 0.530329
+    },
+    {
+      "eventId": "event-159",
+      "targetTimeSeconds": 57.13,
+      "action": "Guard",
+      "intensity": 0.575035
+    },
+    {
+      "eventId": "event-160",
+      "targetTimeSeconds": 57.9,
+      "action": "Strike",
+      "intensity": 0.643152
+    },
+    {
+      "eventId": "event-161",
+      "targetTimeSeconds": 58.11,
+      "action": "Guard",
+      "intensity": 0.526122
+    },
+    {
+      "eventId": "event-162",
+      "targetTimeSeconds": 58.39,
+      "action": "Guard",
+      "intensity": 0.687832
+    },
+    {
+      "eventId": "event-163",
+      "targetTimeSeconds": 58.69,
+      "action": "Strike",
+      "intensity": 0.541867
+    },
+    {
+      "eventId": "event-164",
+      "targetTimeSeconds": 59.03,
+      "action": "Guard",
+      "intensity": 0.609442
+    },
+    {
+      "eventId": "event-165",
+      "targetTimeSeconds": 59.28,
+      "action": "Strike",
+      "intensity": 0.670358
+    },
+    {
+      "eventId": "event-166",
+      "targetTimeSeconds": 59.65,
+      "action": "Strike",
+      "intensity": 0.683031
+    },
+    {
+      "eventId": "event-167",
+      "targetTimeSeconds": 60.29,
+      "action": "Guard",
+      "intensity": 0.819085
+    },
+    {
+      "eventId": "event-168",
+      "targetTimeSeconds": 60.92,
+      "action": "Strike",
+      "intensity": 0.867457
+    },
+    {
+      "eventId": "event-169",
+      "targetTimeSeconds": 61.32,
+      "action": "Guard",
+      "intensity": 0.840741
+    },
+    {
+      "eventId": "event-170",
+      "targetTimeSeconds": 61.55,
+      "action": "Strike",
+      "intensity": 0.816711
+    },
+    {
+      "eventId": "event-171",
+      "targetTimeSeconds": 61.97,
+      "action": "Guard",
+      "intensity": 0.802049
+    },
+    {
+      "eventId": "event-172",
+      "targetTimeSeconds": 62.19,
+      "action": "Guard",
+      "intensity": 0.795726
+    },
+    {
+      "eventId": "event-173",
+      "targetTimeSeconds": 62.4,
+      "action": "Strike",
+      "intensity": 0.680399
+    },
+    {
+      "eventId": "event-174",
+      "targetTimeSeconds": 62.81,
+      "action": "Guard",
+      "intensity": 0.787982
+    },
+    {
+      "eventId": "event-175",
+      "targetTimeSeconds": 63.02,
+      "action": "Strike",
+      "intensity": 0.508647
+    },
+    {
+      "eventId": "event-176",
+      "targetTimeSeconds": 63.45,
+      "action": "Strike",
+      "intensity": 0.882815
+    },
+    {
+      "eventId": "event-177",
+      "targetTimeSeconds": 64.07,
+      "action": "Guard",
+      "intensity": 0.873367
+    },
+    {
+      "eventId": "event-178",
+      "targetTimeSeconds": 64.27,
+      "action": "Strike",
+      "intensity": 0.531181
+    },
+    {
+      "eventId": "event-179",
+      "targetTimeSeconds": 64.74,
+      "action": "Guard",
+      "intensity": 0.877007
+    },
+    {
+      "eventId": "event-180",
+      "targetTimeSeconds": 65.39,
+      "action": "Strike",
+      "intensity": 0.855325
+    },
+    {
+      "eventId": "event-181",
+      "targetTimeSeconds": 65.64,
+      "action": "Guard",
+      "intensity": 0.73068
+    },
+    {
+      "eventId": "event-182",
+      "targetTimeSeconds": 65.99,
+      "action": "Guard",
+      "intensity": 0.859997
+    },
+    {
+      "eventId": "event-183",
+      "targetTimeSeconds": 66.22,
+      "action": "Strike",
+      "intensity": 0.670384
+    },
+    {
+      "eventId": "event-184",
+      "targetTimeSeconds": 66.45,
+      "action": "Guard",
+      "intensity": 0.667983
+    },
+    {
+      "eventId": "event-185",
+      "targetTimeSeconds": 66.69,
+      "action": "Strike",
+      "intensity": 0.738785
+    },
+    {
+      "eventId": "event-186",
+      "targetTimeSeconds": 66.87,
+      "action": "Strike",
+      "intensity": 0.532704
+    },
+    {
+      "eventId": "event-187",
+      "targetTimeSeconds": 67.23,
+      "action": "Guard",
+      "intensity": 0.830365
+    },
+    {
+      "eventId": "event-188",
+      "targetTimeSeconds": 67.87,
+      "action": "Strike",
+      "intensity": 0.824402
+    },
+    {
+      "eventId": "event-189",
+      "targetTimeSeconds": 68.11,
+      "action": "Guard",
+      "intensity": 0.51208
+    },
+    {
+      "eventId": "event-190",
+      "targetTimeSeconds": 68.49,
+      "action": "Strike",
+      "intensity": 0.79952
+    },
+    {
+      "eventId": "event-191",
+      "targetTimeSeconds": 69.13,
+      "action": "Guard",
+      "intensity": 0.784033
+    },
+    {
+      "eventId": "event-192",
+      "targetTimeSeconds": 69.41,
+      "action": "Guard",
+      "intensity": 0.43862
+    },
+    {
+      "eventId": "event-193",
+      "targetTimeSeconds": 69.76,
+      "action": "Strike",
+      "intensity": 0.839915
+    },
+    {
+      "eventId": "event-194",
+      "targetTimeSeconds": 70.22,
+      "action": "Guard",
+      "intensity": 0.520649
+    },
+    {
+      "eventId": "event-195",
+      "targetTimeSeconds": 70.4,
+      "action": "Strike",
+      "intensity": 0.825848
+    },
+    {
+      "eventId": "event-196",
+      "targetTimeSeconds": 70.83,
+      "action": "Strike",
+      "intensity": 0.832198
+    },
+    {
+      "eventId": "event-197",
+      "targetTimeSeconds": 71.04,
+      "action": "Guard",
+      "intensity": 0.876904
+    },
+    {
+      "eventId": "event-198",
+      "targetTimeSeconds": 71.24,
+      "action": "Strike",
+      "intensity": 0.681534
+    },
+    {
+      "eventId": "event-199",
+      "targetTimeSeconds": 71.71,
+      "action": "Guard",
+      "intensity": 0.901038
+    },
+    {
+      "eventId": "event-200",
+      "targetTimeSeconds": 72.09,
+      "action": "Strike",
+      "intensity": 0.83976
+    },
+    {
+      "eventId": "event-201",
+      "targetTimeSeconds": 72.3,
+      "action": "Guard",
+      "intensity": 0.861933
+    },
+    {
+      "eventId": "event-202",
+      "targetTimeSeconds": 72.57,
+      "action": "Guard",
+      "intensity": 0.827371
+    },
+    {
+      "eventId": "event-203",
+      "targetTimeSeconds": 72.91,
+      "action": "Strike",
+      "intensity": 0.893965
+    },
+    {
+      "eventId": "event-204",
+      "targetTimeSeconds": 73.24,
+      "action": "Guard",
+      "intensity": 0.863869
+    },
+    {
+      "eventId": "event-205",
+      "targetTimeSeconds": 73.55,
+      "action": "Strike",
+      "intensity": 0.85881
+    },
+    {
+      "eventId": "event-206",
+      "targetTimeSeconds": 73.74,
+      "action": "Strike",
+      "intensity": 0.906148
+    },
+    {
+      "eventId": "event-207",
+      "targetTimeSeconds": 74.19,
+      "action": "Guard",
+      "intensity": 0.890481
+    },
+    {
+      "eventId": "event-208",
+      "targetTimeSeconds": 74.59,
+      "action": "Strike",
+      "intensity": 0.830262
+    },
+    {
+      "eventId": "event-209",
+      "targetTimeSeconds": 74.83,
+      "action": "Guard",
+      "intensity": 0.871225
+    },
+    {
+      "eventId": "event-210",
+      "targetTimeSeconds": 75.45,
+      "action": "Strike",
+      "intensity": 0.885886
+    },
+    {
+      "eventId": "event-211",
+      "targetTimeSeconds": 75.76,
+      "action": "Guard",
+      "intensity": 0.715115
+    },
+    {
+      "eventId": "event-212",
+      "targetTimeSeconds": 76.08,
+      "action": "Guard",
+      "intensity": 0.865056
+    },
+    {
+      "eventId": "event-213",
+      "targetTimeSeconds": 76.34,
+      "action": "Strike",
+      "intensity": 0.551236
+    },
+    {
+      "eventId": "event-214",
+      "targetTimeSeconds": 76.72,
+      "action": "Guard",
+      "intensity": 0.870218
+    },
+    {
+      "eventId": "event-215",
+      "targetTimeSeconds": 76.95,
+      "action": "Strike",
+      "intensity": 0.528212
+    },
+    {
+      "eventId": "event-216",
+      "targetTimeSeconds": 77.34,
+      "action": "Strike",
+      "intensity": 0.865727
+    },
+    {
+      "eventId": "event-217",
+      "targetTimeSeconds": 77.96,
+      "action": "Guard",
+      "intensity": 0.859326
+    },
+    {
+      "eventId": "event-218",
+      "targetTimeSeconds": 78.31,
+      "action": "Strike",
+      "intensity": 0.636519
+    },
+    {
+      "eventId": "event-219",
+      "targetTimeSeconds": 78.61,
+      "action": "Guard",
+      "intensity": 0.867611
+    },
+    {
+      "eventId": "event-220",
+      "targetTimeSeconds": 78.84,
+      "action": "Strike",
+      "intensity": 0.504827
+    },
+    {
+      "eventId": "event-221",
+      "targetTimeSeconds": 79.23,
+      "action": "Guard",
+      "intensity": 0.864953
+    },
+    {
+      "eventId": "event-222",
+      "targetTimeSeconds": 79.53,
+      "action": "Guard",
+      "intensity": 0.671829
+    },
+    {
+      "eventId": "event-223",
+      "targetTimeSeconds": 79.86,
+      "action": "Strike",
+      "intensity": 0.879485
+    },
+    {
+      "eventId": "event-224",
+      "targetTimeSeconds": 80.23,
+      "action": "Guard",
+      "intensity": 0.627226
+    },
+    {
+      "eventId": "event-225",
+      "targetTimeSeconds": 80.48,
+      "action": "Strike",
+      "intensity": 0.888493
+    },
+    {
+      "eventId": "event-226",
+      "targetTimeSeconds": 80.81,
+      "action": "Strike",
+      "intensity": 0.722136
+    },
+    {
+      "eventId": "event-227",
+      "targetTimeSeconds": 81.13,
+      "action": "Guard",
+      "intensity": 0.848588
+    },
+    {
+      "eventId": "event-228",
+      "targetTimeSeconds": 81.33,
+      "action": "Strike",
+      "intensity": 0.746735
+    },
+    {
+      "eventId": "event-229",
+      "targetTimeSeconds": 81.76,
+      "action": "Guard",
+      "intensity": 0.87711
+    },
+    {
+      "eventId": "event-230",
+      "targetTimeSeconds": 82.13,
+      "action": "Strike",
+      "intensity": 0.858939
+    },
+    {
+      "eventId": "event-231",
+      "targetTimeSeconds": 82.44,
+      "action": "Guard",
+      "intensity": 0.897088
+    },
+    {
+      "eventId": "event-232",
+      "targetTimeSeconds": 83.0,
+      "action": "Guard",
+      "intensity": 0.908884
+    },
+    {
+      "eventId": "event-233",
+      "targetTimeSeconds": 83.35,
+      "action": "Strike",
+      "intensity": 0.765603
+    },
+    {
+      "eventId": "event-234",
+      "targetTimeSeconds": 83.65,
+      "action": "Guard",
+      "intensity": 0.883176
+    },
+    {
+      "eventId": "event-235",
+      "targetTimeSeconds": 83.89,
+      "action": "Strike",
+      "intensity": 0.90176
+    },
+    {
+      "eventId": "event-236",
+      "targetTimeSeconds": 84.28,
+      "action": "Strike",
+      "intensity": 0.900986
+    },
+    {
+      "eventId": "event-237",
+      "targetTimeSeconds": 84.92,
+      "action": "Guard",
+      "intensity": 0.951809
+    },
+    {
+      "eventId": "event-238",
+      "targetTimeSeconds": 85.23,
+      "action": "Strike",
+      "intensity": 0.845439
+    },
+    {
+      "eventId": "event-239",
+      "targetTimeSeconds": 85.54,
+      "action": "Guard",
+      "intensity": 0.85979
+    },
+    {
+      "eventId": "event-240",
+      "targetTimeSeconds": 85.77,
+      "action": "Strike",
+      "intensity": 0.889526
+    },
+    {
+      "eventId": "event-241",
+      "targetTimeSeconds": 86.19,
+      "action": "Guard",
+      "intensity": 0.885912
+    },
+    {
+      "eventId": "event-242",
+      "targetTimeSeconds": 86.82,
+      "action": "Guard",
+      "intensity": 0.876904
+    },
+    {
+      "eventId": "event-243",
+      "targetTimeSeconds": 87.13,
+      "action": "Strike",
+      "intensity": 0.579242
+    },
+    {
+      "eventId": "event-244",
+      "targetTimeSeconds": 87.44,
+      "action": "Guard",
+      "intensity": 0.851995
+    },
+    {
+      "eventId": "event-245",
+      "targetTimeSeconds": 87.64,
+      "action": "Strike",
+      "intensity": 0.46247
+    },
+    {
+      "eventId": "event-246",
+      "targetTimeSeconds": 88.06,
+      "action": "Strike",
+      "intensity": 0.904884
+    },
+    {
+      "eventId": "event-247",
+      "targetTimeSeconds": 88.52,
+      "action": "Guard",
+      "intensity": 0.669403
+    },
+    {
+      "eventId": "event-248",
+      "targetTimeSeconds": 88.7,
+      "action": "Strike",
+      "intensity": 0.85166
+    },
+    {
+      "eventId": "event-249",
+      "targetTimeSeconds": 88.9,
+      "action": "Guard",
+      "intensity": 0.574106
+    },
+    {
+      "eventId": "event-250",
+      "targetTimeSeconds": 89.34,
+      "action": "Strike",
+      "intensity": 0.845749
+    },
+    {
+      "eventId": "event-251",
+      "targetTimeSeconds": 89.63,
+      "action": "Guard",
+      "intensity": 0.729802
+    },
+    {
+      "eventId": "event-252",
+      "targetTimeSeconds": 89.97,
+      "action": "Guard",
+      "intensity": 0.820711
+    },
+    {
+      "eventId": "event-253",
+      "targetTimeSeconds": 90.19,
+      "action": "Strike",
+      "intensity": 0.471504
+    },
+    {
+      "eventId": "event-254",
+      "targetTimeSeconds": 90.61,
+      "action": "Guard",
+      "intensity": 0.846678
+    },
+    {
+      "eventId": "event-255",
+      "targetTimeSeconds": 91.02,
+      "action": "Strike",
+      "intensity": 0.791079
+    },
+    {
+      "eventId": "event-256",
+      "targetTimeSeconds": 91.23,
+      "action": "Strike",
+      "intensity": 0.893836
+    },
+    {
+      "eventId": "event-257",
+      "targetTimeSeconds": 91.44,
+      "action": "Guard",
+      "intensity": 0.731222
+    },
+    {
+      "eventId": "event-258",
+      "targetTimeSeconds": 91.71,
+      "action": "Strike",
+      "intensity": 0.860436
+    },
+    {
+      "eventId": "event-259",
+      "targetTimeSeconds": 91.89,
+      "action": "Guard",
+      "intensity": 0.798746
+    },
+    {
+      "eventId": "event-260",
+      "targetTimeSeconds": 92.11,
+      "action": "Strike",
+      "intensity": 0.830313
+    },
+    {
+      "eventId": "event-261",
+      "targetTimeSeconds": 92.29,
+      "action": "Guard",
+      "intensity": 0.807676
+    },
+    {
+      "eventId": "event-262",
+      "targetTimeSeconds": 92.5,
+      "action": "Guard",
+      "intensity": 0.877549
+    },
+    {
+      "eventId": "event-263",
+      "targetTimeSeconds": 92.87,
+      "action": "Strike",
+      "intensity": 0.877936
+    },
+    {
+      "eventId": "event-264",
+      "targetTimeSeconds": 93.16,
+      "action": "Guard",
+      "intensity": 0.860875
+    },
+    {
+      "eventId": "event-265",
+      "targetTimeSeconds": 93.46,
+      "action": "Strike",
+      "intensity": 0.794771
+    },
+    {
+      "eventId": "event-266",
+      "targetTimeSeconds": 93.76,
+      "action": "Strike",
+      "intensity": 0.872748
+    },
+    {
+      "eventId": "event-267",
+      "targetTimeSeconds": 93.98,
+      "action": "Guard",
+      "intensity": 0.81955
+    },
+    {
+      "eventId": "event-268",
+      "targetTimeSeconds": 94.4,
+      "action": "Strike",
+      "intensity": 0.865417
+    },
+    {
+      "eventId": "event-269",
+      "targetTimeSeconds": 94.77,
+      "action": "Guard",
+      "intensity": 0.806463
+    },
+    {
+      "eventId": "event-270",
+      "targetTimeSeconds": 95.04,
+      "action": "Strike",
+      "intensity": 0.868773
+    },
+    {
+      "eventId": "event-271",
+      "targetTimeSeconds": 95.24,
+      "action": "Guard",
+      "intensity": 0.805818
+    },
+    {
+      "eventId": "event-272",
+      "targetTimeSeconds": 95.42,
+      "action": "Guard",
+      "intensity": 0.799881
+    },
+    {
+      "eventId": "event-273",
+      "targetTimeSeconds": 95.66,
+      "action": "Strike",
+      "intensity": 0.834521
+    },
+    {
+      "eventId": "event-274",
+      "targetTimeSeconds": 95.85,
+      "action": "Guard",
+      "intensity": 0.819731
+    },
+    {
+      "eventId": "event-275",
+      "targetTimeSeconds": 96.29,
+      "action": "Strike",
+      "intensity": 0.832688
+    },
+    {
+      "eventId": "event-276",
+      "targetTimeSeconds": 96.53,
+      "action": "Strike",
+      "intensity": 0.608564
+    },
+    {
+      "eventId": "event-277",
+      "targetTimeSeconds": 96.91,
+      "action": "Guard",
+      "intensity": 0.86392
+    },
+    {
+      "eventId": "event-278",
+      "targetTimeSeconds": 97.23,
+      "action": "Strike",
+      "intensity": 0.738836
+    },
+    {
+      "eventId": "event-279",
+      "targetTimeSeconds": 97.55,
+      "action": "Guard",
+      "intensity": 0.825048
+    },
+    {
+      "eventId": "event-280",
+      "targetTimeSeconds": 98.16,
+      "action": "Strike",
+      "intensity": 0.977595
+    },
+    {
+      "eventId": "event-281",
+      "targetTimeSeconds": 98.81,
+      "action": "Guard",
+      "intensity": 0.825487
+    },
+    {
+      "eventId": "event-282",
+      "targetTimeSeconds": 99.45,
+      "action": "Guard",
+      "intensity": 0.84673
+    },
+    {
+      "eventId": "event-283",
+      "targetTimeSeconds": 99.76,
+      "action": "Strike",
+      "intensity": 0.671984
+    },
+    {
+      "eventId": "event-284",
+      "targetTimeSeconds": 100.08,
+      "action": "Guard",
+      "intensity": 0.850705
+    },
+    {
+      "eventId": "event-285",
+      "targetTimeSeconds": 100.38,
+      "action": "Strike",
+      "intensity": 0.618321
+    },
+    {
+      "eventId": "event-286",
+      "targetTimeSeconds": 100.69,
+      "action": "Strike",
+      "intensity": 0.830391
+    },
+    {
+      "eventId": "event-287",
+      "targetTimeSeconds": 100.93,
+      "action": "Guard",
+      "intensity": 0.54135
+    },
+    {
+      "eventId": "event-288",
+      "targetTimeSeconds": 101.29,
+      "action": "Strike",
+      "intensity": 0.850343
+    },
+    {
+      "eventId": "event-289",
+      "targetTimeSeconds": 101.65,
+      "action": "Guard",
+      "intensity": 0.874116
+    },
+    {
+      "eventId": "event-290",
+      "targetTimeSeconds": 101.96,
+      "action": "Strike",
+      "intensity": 0.874761
+    },
+    {
+      "eventId": "event-291",
+      "targetTimeSeconds": 102.3,
+      "action": "Guard",
+      "intensity": 0.83181
+    },
+    {
+      "eventId": "event-292",
+      "targetTimeSeconds": 102.53,
+      "action": "Guard",
+      "intensity": 0.85166
+    },
+    {
+      "eventId": "event-293",
+      "targetTimeSeconds": 102.75,
+      "action": "Strike",
+      "intensity": 0.80716
+    },
+    {
+      "eventId": "event-294",
+      "targetTimeSeconds": 103.24,
+      "action": "Guard",
+      "intensity": 0.871999
+    },
+    {
+      "eventId": "event-295",
+      "targetTimeSeconds": 103.43,
+      "action": "Strike",
+      "intensity": 0.880801
+    },
+    {
+      "eventId": "event-296",
+      "targetTimeSeconds": 103.88,
+      "action": "Strike",
+      "intensity": 0.861623
+    },
+    {
+      "eventId": "event-297",
+      "targetTimeSeconds": 104.39,
+      "action": "Guard",
+      "intensity": 0.856203
+    },
+    {
+      "eventId": "event-298",
+      "targetTimeSeconds": 104.8,
+      "action": "Strike",
+      "intensity": 0.766997
+    },
+    {
+      "eventId": "event-299",
+      "targetTimeSeconds": 105.14,
+      "action": "Guard",
+      "intensity": 0.80254
+    },
+    {
+      "eventId": "event-300",
+      "targetTimeSeconds": 105.78,
+      "action": "Strike",
+      "intensity": 0.855764
+    },
+    {
+      "eventId": "event-301",
+      "targetTimeSeconds": 106.13,
+      "action": "Guard",
+      "intensity": 0.838728
+    },
+    {
+      "eventId": "event-302",
+      "targetTimeSeconds": 106.39,
+      "action": "Guard",
+      "intensity": 0.796113
+    },
+    {
+      "eventId": "event-303",
+      "targetTimeSeconds": 107.02,
+      "action": "Strike",
+      "intensity": 0.826855
+    },
+    {
+      "eventId": "event-304",
+      "targetTimeSeconds": 107.66,
+      "action": "Guard",
+      "intensity": 0.838186
+    },
+    {
+      "eventId": "event-305",
+      "targetTimeSeconds": 107.96,
+      "action": "Strike",
+      "intensity": 0.810722
+    },
+    {
+      "eventId": "event-306",
+      "targetTimeSeconds": 108.3,
+      "action": "Strike",
+      "intensity": 0.85517
+    },
+    {
+      "eventId": "event-307",
+      "targetTimeSeconds": 108.92,
+      "action": "Guard",
+      "intensity": 0.868721
+    },
+    {
+      "eventId": "event-308",
+      "targetTimeSeconds": 109.21,
+      "action": "Strike",
+      "intensity": 0.528032
+    },
+    {
+      "eventId": "event-309",
+      "targetTimeSeconds": 109.55,
+      "action": "Guard",
+      "intensity": 0.836018
+    },
+    {
+      "eventId": "event-310",
+      "targetTimeSeconds": 109.85,
+      "action": "Strike",
+      "intensity": 0.7965
+    },
+    {
+      "eventId": "event-311",
+      "targetTimeSeconds": 110.18,
+      "action": "Guard",
+      "intensity": 0.860178
+    },
+    {
+      "eventId": "event-312",
+      "targetTimeSeconds": 110.85,
+      "action": "Guard",
+      "intensity": 0.862139
+    },
+    {
+      "eventId": "event-313",
+      "targetTimeSeconds": 111.32,
+      "action": "Strike",
+      "intensity": 0.898637
+    },
+    {
+      "eventId": "event-314",
+      "targetTimeSeconds": 111.63,
+      "action": "Guard",
+      "intensity": 0.903335
+    },
+    {
+      "eventId": "event-315",
+      "targetTimeSeconds": 112.08,
+      "action": "Strike",
+      "intensity": 0.877807
+    },
+    {
+      "eventId": "event-316",
+      "targetTimeSeconds": 112.37,
+      "action": "Strike",
+      "intensity": 0.796577
+    },
+    {
+      "eventId": "event-317",
+      "targetTimeSeconds": 112.71,
+      "action": "Guard",
+      "intensity": 0.866656
+    },
+    {
+      "eventId": "event-318",
+      "targetTimeSeconds": 113.35,
+      "action": "Strike",
+      "intensity": 0.963941
+    },
+    {
+      "eventId": "event-319",
+      "targetTimeSeconds": 113.55,
+      "action": "Guard",
+      "intensity": 0.715786
+    },
+    {
+      "eventId": "event-320",
+      "targetTimeSeconds": 113.98,
+      "action": "Strike",
+      "intensity": 0.866243
+    },
+    {
+      "eventId": "event-321",
+      "targetTimeSeconds": 114.61,
+      "action": "Guard",
+      "intensity": 0.866398
+    },
+    {
+      "eventId": "event-322",
+      "targetTimeSeconds": 114.9,
+      "action": "Guard",
+      "intensity": 0.740953
+    },
+    {
+      "eventId": "event-323",
+      "targetTimeSeconds": 115.23,
+      "action": "Strike",
+      "intensity": 0.867224
+    },
+    {
+      "eventId": "event-324",
+      "targetTimeSeconds": 115.89,
+      "action": "Guard",
+      "intensity": 0.932451
+    },
+    {
+      "eventId": "event-325",
+      "targetTimeSeconds": 116.52,
+      "action": "Strike",
+      "intensity": 0.858371
+    },
+    {
+      "eventId": "event-326",
+      "targetTimeSeconds": 116.71,
+      "action": "Strike",
+      "intensity": 0.875742
+    },
+    {
+      "eventId": "event-327",
+      "targetTimeSeconds": 117.12,
+      "action": "Guard",
+      "intensity": 0.849027
+    },
+    {
+      "eventId": "event-328",
+      "targetTimeSeconds": 117.44,
+      "action": "Strike",
+      "intensity": 0.831604
+    },
+    {
+      "eventId": "event-329",
+      "targetTimeSeconds": 117.77,
+      "action": "Guard",
+      "intensity": 0.855738
+    },
+    {
+      "eventId": "event-330",
+      "targetTimeSeconds": 118.37,
+      "action": "Strike",
+      "intensity": 0.91606
+    },
+    {
+      "eventId": "event-331",
+      "targetTimeSeconds": 118.7,
+      "action": "Guard",
+      "intensity": 0.581875
+    },
+    {
+      "eventId": "event-332",
+      "targetTimeSeconds": 119.03,
+      "action": "Guard",
+      "intensity": 0.835011
+    },
+    {
+      "eventId": "event-333",
+      "targetTimeSeconds": 119.65,
+      "action": "Strike",
+      "intensity": 0.858164
+    },
+    {
+      "eventId": "event-334",
+      "targetTimeSeconds": 119.95,
+      "action": "Guard",
+      "intensity": 0.765397
+    },
+    {
+      "eventId": "event-335",
+      "targetTimeSeconds": 120.28,
+      "action": "Strike",
+      "intensity": 0.885989
+    },
+    {
+      "eventId": "event-336",
+      "targetTimeSeconds": 120.59,
+      "action": "Strike",
+      "intensity": 0.680657
+    },
+    {
+      "eventId": "event-337",
+      "targetTimeSeconds": 120.9,
+      "action": "Guard",
+      "intensity": 0.939729
+    },
+    {
+      "eventId": "event-338",
+      "targetTimeSeconds": 121.25,
+      "action": "Strike",
+      "intensity": 0.869005
+    },
+    {
+      "eventId": "event-339",
+      "targetTimeSeconds": 121.49,
+      "action": "Guard",
+      "intensity": 0.839218
+    },
+    {
+      "eventId": "event-340",
+      "targetTimeSeconds": 122.18,
+      "action": "Strike",
+      "intensity": 0.898224
+    },
+    {
+      "eventId": "event-341",
+      "targetTimeSeconds": 122.52,
+      "action": "Guard",
+      "intensity": 0.80174
+    },
+    {
+      "eventId": "event-342",
+      "targetTimeSeconds": 122.81,
+      "action": "Guard",
+      "intensity": 0.883021
+    },
+    {
+      "eventId": "event-343",
+      "targetTimeSeconds": 123.44,
+      "action": "Strike",
+      "intensity": 0.893707
+    },
+    {
+      "eventId": "event-344",
+      "targetTimeSeconds": 123.77,
+      "action": "Guard",
+      "intensity": 0.590057
+    },
+    {
+      "eventId": "event-345",
+      "targetTimeSeconds": 124.07,
+      "action": "Strike",
+      "intensity": 0.894404
+    },
+    {
+      "eventId": "event-346",
+      "targetTimeSeconds": 124.29,
+      "action": "Strike",
+      "intensity": 0.586934
+    },
+    {
+      "eventId": "event-347",
+      "targetTimeSeconds": 124.71,
+      "action": "Guard",
+      "intensity": 0.884002
+    },
+    {
+      "eventId": "event-348",
+      "targetTimeSeconds": 125.02,
+      "action": "Strike",
+      "intensity": 0.907362
+    },
+    {
+      "eventId": "event-349",
+      "targetTimeSeconds": 125.34,
+      "action": "Guard",
+      "intensity": 0.86041
+    },
+    {
+      "eventId": "event-350",
+      "targetTimeSeconds": 125.97,
+      "action": "Strike",
+      "intensity": 0.898147
+    },
+    {
+      "eventId": "event-351",
+      "targetTimeSeconds": 126.6,
+      "action": "Guard",
+      "intensity": 0.902664
+    },
+    {
+      "eventId": "event-352",
+      "targetTimeSeconds": 126.79,
+      "action": "Guard",
+      "intensity": 0.820918
+    },
+    {
+      "eventId": "event-353",
+      "targetTimeSeconds": 127.23,
+      "action": "Strike",
+      "intensity": 0.889629
+    },
+    {
+      "eventId": "event-354",
+      "targetTimeSeconds": 127.53,
+      "action": "Guard",
+      "intensity": 0.807754
+    },
+    {
+      "eventId": "event-355",
+      "targetTimeSeconds": 127.86,
+      "action": "Strike",
+      "intensity": 0.877962
+    },
+    {
+      "eventId": "event-356",
+      "targetTimeSeconds": 128.16,
+      "action": "Strike",
+      "intensity": 0.439833
+    },
+    {
+      "eventId": "event-357",
+      "targetTimeSeconds": 128.5,
+      "action": "Guard",
+      "intensity": 0.886351
+    },
+    {
+      "eventId": "event-358",
+      "targetTimeSeconds": 128.81,
+      "action": "Strike",
+      "intensity": 0.70732
+    },
+    {
+      "eventId": "event-359",
+      "targetTimeSeconds": 129.11,
+      "action": "Guard",
+      "intensity": 0.88777
+    },
+    {
+      "eventId": "event-360",
+      "targetTimeSeconds": 129.34,
+      "action": "Strike",
+      "intensity": 0.577435
+    },
+    {
+      "eventId": "event-361",
+      "targetTimeSeconds": 129.75,
+      "action": "Guard",
+      "intensity": 0.864024
+    },
+    {
+      "eventId": "event-362",
+      "targetTimeSeconds": 130.06,
+      "action": "Guard",
+      "intensity": 0.64834
+    },
+    {
+      "eventId": "event-363",
+      "targetTimeSeconds": 130.39,
+      "action": "Strike",
+      "intensity": 0.896934
+    },
+    {
+      "eventId": "event-364",
+      "targetTimeSeconds": 131.03,
+      "action": "Guard",
+      "intensity": 0.962883
+    },
+    {
+      "eventId": "event-365",
+      "targetTimeSeconds": 131.72,
+      "action": "Strike",
+      "intensity": 0.883563
+    },
+    {
+      "eventId": "event-366",
+      "targetTimeSeconds": 131.9,
+      "action": "Strike",
+      "intensity": 0.72211
+    },
+    {
+      "eventId": "event-367",
+      "targetTimeSeconds": 132.29,
+      "action": "Guard",
+      "intensity": 0.884002
+    },
+    {
+      "eventId": "event-368",
+      "targetTimeSeconds": 132.59,
+      "action": "Strike",
+      "intensity": 0.845
+    },
+    {
+      "eventId": "event-369",
+      "targetTimeSeconds": 132.91,
+      "action": "Guard",
+      "intensity": 0.953874
+    },
+    {
+      "eventId": "event-370",
+      "targetTimeSeconds": 133.11,
+      "action": "Strike",
+      "intensity": 0.646095
+    },
+    {
+      "eventId": "event-371",
+      "targetTimeSeconds": 133.53,
+      "action": "Guard",
+      "intensity": 0.961127
+    },
+    {
+      "eventId": "event-372",
+      "targetTimeSeconds": 133.97,
+      "action": "Guard",
+      "intensity": 0.902173
+    },
+    {
+      "eventId": "event-373",
+      "targetTimeSeconds": 134.19,
+      "action": "Strike",
+      "intensity": 0.851143
+    },
+    {
+      "eventId": "event-374",
+      "targetTimeSeconds": 134.39,
+      "action": "Guard",
+      "intensity": 0.523773
+    },
+    {
+      "eventId": "event-375",
+      "targetTimeSeconds": 134.65,
+      "action": "Strike",
+      "intensity": 0.797868
+    },
+    {
+      "eventId": "event-376",
+      "targetTimeSeconds": 134.83,
+      "action": "Strike",
+      "intensity": 0.873729
+    },
+    {
+      "eventId": "event-377",
+      "targetTimeSeconds": 135.12,
+      "action": "Guard",
+      "intensity": 0.737623
+    },
+    {
+      "eventId": "event-378",
+      "targetTimeSeconds": 135.44,
+      "action": "Strike",
+      "intensity": 0.890429
+    },
+    {
+      "eventId": "event-379",
+      "targetTimeSeconds": 135.74,
+      "action": "Guard",
+      "intensity": 0.785091
+    },
+    {
+      "eventId": "event-380",
+      "targetTimeSeconds": 136.06,
+      "action": "Strike",
+      "intensity": 0.858397
+    },
+    {
+      "eventId": "event-381",
+      "targetTimeSeconds": 136.48,
+      "action": "Guard",
+      "intensity": 0.862862
+    },
+    {
+      "eventId": "event-382",
+      "targetTimeSeconds": 136.7,
+      "action": "Guard",
+      "intensity": 0.879252
+    },
+    {
+      "eventId": "event-383",
+      "targetTimeSeconds": 136.9,
+      "action": "Strike",
+      "intensity": 0.585127
+    },
+    {
+      "eventId": "event-384",
+      "targetTimeSeconds": 137.34,
+      "action": "Guard",
+      "intensity": 0.884673
+    },
+    {
+      "eventId": "event-385",
+      "targetTimeSeconds": 137.65,
+      "action": "Strike",
+      "intensity": 0.821099
+    },
+    {
+      "eventId": "event-386",
+      "targetTimeSeconds": 137.97,
+      "action": "Strike",
+      "intensity": 0.908652
+    },
+    {
+      "eventId": "event-387",
+      "targetTimeSeconds": 138.3,
+      "action": "Guard",
+      "intensity": 0.851634
+    },
+    {
+      "eventId": "event-388",
+      "targetTimeSeconds": 138.6,
+      "action": "Strike",
+      "intensity": 0.887512
+    },
+    {
+      "eventId": "event-389",
+      "targetTimeSeconds": 139.28,
+      "action": "Guard",
+      "intensity": 0.855248
+    },
+    {
+      "eventId": "event-390",
+      "targetTimeSeconds": 139.5,
+      "action": "Strike",
+      "intensity": 0.554618
+    },
+    {
+      "eventId": "event-391",
+      "targetTimeSeconds": 139.87,
+      "action": "Guard",
+      "intensity": 0.905064
+    },
+    {
+      "eventId": "event-392",
+      "targetTimeSeconds": 140.18,
+      "action": "Guard",
+      "intensity": 0.730912
+    },
+    {
+      "eventId": "event-393",
+      "targetTimeSeconds": 140.49,
+      "action": "Strike",
+      "intensity": 0.870244
+    },
+    {
+      "eventId": "event-394",
+      "targetTimeSeconds": 141.1,
+      "action": "Guard",
+      "intensity": 0.937226
+    },
+    {
+      "eventId": "event-395",
+      "targetTimeSeconds": 141.77,
+      "action": "Strike",
+      "intensity": 0.892055
+    },
+    {
+      "eventId": "event-396",
+      "targetTimeSeconds": 142.23,
+      "action": "Strike",
+      "intensity": 0.855428
+    },
+    {
+      "eventId": "event-397",
+      "targetTimeSeconds": 142.69,
+      "action": "Guard",
+      "intensity": 0.884208
+    },
+    {
+      "eventId": "event-398",
+      "targetTimeSeconds": 143.02,
+      "action": "Strike",
+      "intensity": 0.943524
+    },
+    {
+      "eventId": "event-399",
+      "targetTimeSeconds": 143.32,
+      "action": "Guard",
+      "intensity": 0.641939
+    },
+    {
+      "eventId": "event-400",
+      "targetTimeSeconds": 143.66,
+      "action": "Strike",
+      "intensity": 0.973465
+    },
+    {
+      "eventId": "event-401",
+      "targetTimeSeconds": 144.0,
+      "action": "Guard",
+      "intensity": 0.842651
+    },
+    {
+      "eventId": "event-402",
+      "targetTimeSeconds": 144.28,
+      "action": "Guard",
+      "intensity": 0.872128
+    },
+    {
+      "eventId": "event-403",
+      "targetTimeSeconds": 144.5,
+      "action": "Strike",
+      "intensity": 0.580972
+    },
+    {
+      "eventId": "event-404",
+      "targetTimeSeconds": 144.92,
+      "action": "Guard",
+      "intensity": 0.849569
+    },
+    {
+      "eventId": "event-405",
+      "targetTimeSeconds": 145.22,
+      "action": "Strike",
+      "intensity": 0.771746
+    },
+    {
+      "eventId": "event-406",
+      "targetTimeSeconds": 145.55,
+      "action": "Strike",
+      "intensity": 0.895772
+    },
+    {
+      "eventId": "event-407",
+      "targetTimeSeconds": 145.85,
+      "action": "Guard",
+      "intensity": 0.50875
+    },
+    {
+      "eventId": "event-408",
+      "targetTimeSeconds": 146.19,
+      "action": "Strike",
+      "intensity": 0.89412
+    },
+    {
+      "eventId": "event-409",
+      "targetTimeSeconds": 146.49,
+      "action": "Guard",
+      "intensity": 0.785736
+    },
+    {
+      "eventId": "event-410",
+      "targetTimeSeconds": 146.82,
+      "action": "Strike",
+      "intensity": 0.872954
+    },
+    {
+      "eventId": "event-411",
+      "targetTimeSeconds": 147.15,
+      "action": "Guard",
+      "intensity": 0.806463
+    },
+    {
+      "eventId": "event-412",
+      "targetTimeSeconds": 147.35,
+      "action": "Guard",
+      "intensity": 0.582985
+    },
+    {
+      "eventId": "event-413",
+      "targetTimeSeconds": 147.73,
+      "action": "Strike",
+      "intensity": 0.527928
+    },
+    {
+      "eventId": "event-414",
+      "targetTimeSeconds": 148.07,
+      "action": "Guard",
+      "intensity": 0.545119
+    },
+    {
+      "eventId": "event-415",
+      "targetTimeSeconds": 148.56,
+      "action": "Strike",
+      "intensity": 0.580507
+    },
+    {
+      "eventId": "event-416",
+      "targetTimeSeconds": 149.0,
+      "action": "Strike",
+      "intensity": 0.723659
+    },
+    {
+      "eventId": "event-417",
+      "targetTimeSeconds": 149.19,
+      "action": "Guard",
+      "intensity": 0.449796
+    },
+    {
+      "eventId": "event-418",
+      "targetTimeSeconds": 149.5,
+      "action": "Strike",
+      "intensity": 0.707217
+    },
+    {
+      "eventId": "event-419",
+      "targetTimeSeconds": 149.81,
+      "action": "Guard",
+      "intensity": 0.487481
+    },
+    {
+      "eventId": "event-420",
+      "targetTimeSeconds": 149.99,
+      "action": "Strike",
+      "intensity": 0.370683
+    },
+    {
+      "eventId": "event-421",
+      "targetTimeSeconds": 150.25,
+      "action": "Guard",
+      "intensity": 0.728873
+    },
+    {
+      "eventId": "event-422",
+      "targetTimeSeconds": 150.61,
+      "action": "Guard",
+      "intensity": 0.524521
+    },
+    {
+      "eventId": "event-423",
+      "targetTimeSeconds": 150.86,
+      "action": "Strike",
+      "intensity": 0.543338
+    },
+    {
+      "eventId": "event-424",
+      "targetTimeSeconds": 151.25,
+      "action": "Guard",
+      "intensity": 0.583062
+    },
+    {
+      "eventId": "event-425",
+      "targetTimeSeconds": 152.19,
+      "action": "Strike",
+      "intensity": 0.877549
+    },
+    {
+      "eventId": "event-426",
+      "targetTimeSeconds": 152.52,
+      "action": "Strike",
+      "intensity": 0.82035
+    },
+    {
+      "eventId": "event-427",
+      "targetTimeSeconds": 152.74,
+      "action": "Guard",
+      "intensity": 0.804502
+    },
+    {
+      "eventId": "event-428",
+      "targetTimeSeconds": 153.12,
+      "action": "Strike",
+      "intensity": 0.667596
+    },
+    {
+      "eventId": "event-429",
+      "targetTimeSeconds": 153.32,
+      "action": "Guard",
+      "intensity": 0.685613
+    },
+    {
+      "eventId": "event-430",
+      "targetTimeSeconds": 154.11,
+      "action": "Strike",
+      "intensity": 0.961282
+    },
+    {
+      "eventId": "event-431",
+      "targetTimeSeconds": 154.45,
+      "action": "Guard",
+      "intensity": 0.785014
+    },
+    {
+      "eventId": "event-432",
+      "targetTimeSeconds": 154.76,
+      "action": "Guard",
+      "intensity": 0.786227
+    },
+    {
+      "eventId": "event-433",
+      "targetTimeSeconds": 154.99,
+      "action": "Strike",
+      "intensity": 0.560167
+    },
+    {
+      "eventId": "event-434",
+      "targetTimeSeconds": 155.51,
+      "action": "Guard",
+      "intensity": 0.738527
+    },
+    {
+      "eventId": "event-435",
+      "targetTimeSeconds": 155.86,
+      "action": "Strike",
+      "intensity": 0.63053
+    },
+    {
+      "eventId": "event-436",
+      "targetTimeSeconds": 156.07,
+      "action": "Strike",
+      "intensity": 0.76408
+    },
+    {
+      "eventId": "event-437",
+      "targetTimeSeconds": 156.26,
+      "action": "Guard",
+      "intensity": 0.690052
+    },
+    {
+      "eventId": "event-438",
+      "targetTimeSeconds": 156.47,
+      "action": "Strike",
+      "intensity": 0.560296
+    },
+    {
+      "eventId": "event-439",
+      "targetTimeSeconds": 156.69,
+      "action": "Guard",
+      "intensity": 0.510118
+    },
+    {
+      "eventId": "event-440",
+      "targetTimeSeconds": 156.91,
+      "action": "Strike",
+      "intensity": 0.880879
+    },
+    {
+      "eventId": "event-441",
+      "targetTimeSeconds": 157.09,
+      "action": "Guard",
+      "intensity": 0.715167
+    },
+    {
+      "eventId": "event-442",
+      "targetTimeSeconds": 157.4,
+      "action": "Guard",
+      "intensity": 0.876878
+    },
+    {
+      "eventId": "event-443",
+      "targetTimeSeconds": 157.85,
+      "action": "Strike",
+      "intensity": 0.729028
+    },
+    {
+      "eventId": "event-444",
+      "targetTimeSeconds": 158.18,
+      "action": "Guard",
+      "intensity": 0.872851
+    },
+    {
+      "eventId": "event-445",
+      "targetTimeSeconds": 158.48,
+      "action": "Strike",
+      "intensity": 0.600356
+    },
+    {
+      "eventId": "event-446",
+      "targetTimeSeconds": 158.82,
+      "action": "Strike",
+      "intensity": 0.866243
+    },
+    {
+      "eventId": "event-447",
+      "targetTimeSeconds": 159.46,
+      "action": "Guard",
+      "intensity": 0.889732
+    },
+    {
+      "eventId": "event-448",
+      "targetTimeSeconds": 159.67,
+      "action": "Strike",
+      "intensity": 0.482061
+    },
+    {
+      "eventId": "event-449",
+      "targetTimeSeconds": 160.09,
+      "action": "Guard",
+      "intensity": 0.847194
+    },
+    {
+      "eventId": "event-450",
+      "targetTimeSeconds": 160.38,
+      "action": "Strike",
+      "intensity": 0.628181
+    },
+    {
+      "eventId": "event-451",
+      "targetTimeSeconds": 160.7,
+      "action": "Guard",
+      "intensity": 0.927546
+    },
+    {
+      "eventId": "event-452",
+      "targetTimeSeconds": 161.33,
+      "action": "Guard",
+      "intensity": 0.89079
+    },
+    {
+      "eventId": "event-453",
+      "targetTimeSeconds": 162.05,
+      "action": "Strike",
+      "intensity": 0.904238
+    },
+    {
+      "eventId": "event-454",
+      "targetTimeSeconds": 162.43,
+      "action": "Guard",
+      "intensity": 0.92845
+    },
+    {
+      "eventId": "event-455",
+      "targetTimeSeconds": 162.61,
+      "action": "Strike",
+      "intensity": 0.895282
+    },
+    {
+      "eventId": "event-456",
+      "targetTimeSeconds": 162.9,
+      "action": "Strike",
+      "intensity": 0.897579
+    },
+    {
+      "eventId": "event-457",
+      "targetTimeSeconds": 163.25,
+      "action": "Guard",
+      "intensity": 0.935987
+    },
+    {
+      "eventId": "event-458",
+      "targetTimeSeconds": 163.54,
+      "action": "Strike",
+      "intensity": 0.725156
+    },
+    {
+      "eventId": "event-459",
+      "targetTimeSeconds": 163.84,
+      "action": "Guard",
+      "intensity": 0.88013
+    },
+    {
+      "eventId": "event-460",
+      "targetTimeSeconds": 164.51,
+      "action": "Strike",
+      "intensity": 0.900315
+    },
+    {
+      "eventId": "event-461",
+      "targetTimeSeconds": 164.71,
+      "action": "Guard",
+      "intensity": 0.92925
+    },
+    {
+      "eventId": "event-462",
+      "targetTimeSeconds": 165.14,
+      "action": "Guard",
+      "intensity": 0.874374
+    },
+    {
+      "eventId": "event-463",
+      "targetTimeSeconds": 165.34,
+      "action": "Strike",
+      "intensity": 0.859481
+    },
+    {
+      "eventId": "event-464",
+      "targetTimeSeconds": 165.53,
+      "action": "Guard",
+      "intensity": 0.690052
+    },
+    {
+      "eventId": "event-465",
+      "targetTimeSeconds": 165.75,
+      "action": "Strike",
+      "intensity": 0.883305
+    },
+    {
+      "eventId": "event-466",
+      "targetTimeSeconds": 166.07,
+      "action": "Strike",
+      "intensity": 0.758169
+    },
+    {
+      "eventId": "event-467",
+      "targetTimeSeconds": 166.39,
+      "action": "Guard",
+      "intensity": 0.880827
+    },
+    {
+      "eventId": "event-468",
+      "targetTimeSeconds": 167.04,
+      "action": "Strike",
+      "intensity": 0.924242
+    },
+    {
+      "eventId": "event-469",
+      "targetTimeSeconds": 167.27,
+      "action": "Guard",
+      "intensity": 0.520624
+    },
+    {
+      "eventId": "event-470",
+      "targetTimeSeconds": 167.66,
+      "action": "Strike",
+      "intensity": 0.810387
+    },
+    {
+      "eventId": "event-471",
+      "targetTimeSeconds": 167.96,
+      "action": "Guard",
+      "intensity": 0.713283
+    },
+    {
+      "eventId": "event-472",
+      "targetTimeSeconds": 168.28,
+      "action": "Guard",
+      "intensity": 0.883847
+    },
+    {
+      "eventId": "event-473",
+      "targetTimeSeconds": 168.93,
+      "action": "Strike",
+      "intensity": 0.878633
+    },
+    {
+      "eventId": "event-474",
+      "targetTimeSeconds": 169.25,
+      "action": "Guard",
+      "intensity": 0.691936
+    },
+    {
+      "eventId": "event-475",
+      "targetTimeSeconds": 169.54,
+      "action": "Strike",
+      "intensity": 0.867947
+    },
+    {
+      "eventId": "event-476",
+      "targetTimeSeconds": 169.75,
+      "action": "Strike",
+      "intensity": 0.442027
+    },
+    {
+      "eventId": "event-477",
+      "targetTimeSeconds": 170.01,
+      "action": "Guard",
+      "intensity": 0.644081
+    },
+    {
+      "eventId": "event-478",
+      "targetTimeSeconds": 170.19,
+      "action": "Strike",
+      "intensity": 0.841722
+    },
+    {
+      "eventId": "event-479",
+      "targetTimeSeconds": 170.48,
+      "action": "Guard",
+      "intensity": 0.808967
+    },
+    {
+      "eventId": "event-480",
+      "targetTimeSeconds": 170.81,
+      "action": "Strike",
+      "intensity": 0.901709
+    },
+    {
+      "eventId": "event-481",
+      "targetTimeSeconds": 171.11,
+      "action": "Guard",
+      "intensity": 0.690207
+    },
+    {
+      "eventId": "event-482",
+      "targetTimeSeconds": 171.46,
+      "action": "Guard",
+      "intensity": 0.875355
+    },
+    {
+      "eventId": "event-483",
+      "targetTimeSeconds": 171.75,
+      "action": "Strike",
+      "intensity": 0.863198
+    },
+    {
+      "eventId": "event-484",
+      "targetTimeSeconds": 172.09,
+      "action": "Guard",
+      "intensity": 0.880466
+    },
+    {
+      "eventId": "event-485",
+      "targetTimeSeconds": 172.3,
+      "action": "Strike",
+      "intensity": 0.882556
+    },
+    {
+      "eventId": "event-486",
+      "targetTimeSeconds": 172.73,
+      "action": "Strike",
+      "intensity": 0.893655
+    },
+    {
+      "eventId": "event-487",
+      "targetTimeSeconds": 173.17,
+      "action": "Guard",
+      "intensity": 0.870476
+    },
+    {
+      "eventId": "event-488",
+      "targetTimeSeconds": 173.49,
+      "action": "Strike",
+      "intensity": 0.866708
+    },
+    {
+      "eventId": "event-489",
+      "targetTimeSeconds": 173.97,
+      "action": "Guard",
+      "intensity": 0.904651
+    },
+    {
+      "eventId": "event-490",
+      "targetTimeSeconds": 174.44,
+      "action": "Strike",
+      "intensity": 0.901941
+    },
+    {
+      "eventId": "event-491",
+      "targetTimeSeconds": 174.63,
+      "action": "Guard",
+      "intensity": 0.903748
+    },
+    {
+      "eventId": "event-492",
+      "targetTimeSeconds": 174.91,
+      "action": "Guard",
+      "intensity": 0.783723
+    },
+    {
+      "eventId": "event-493",
+      "targetTimeSeconds": 175.12,
+      "action": "Strike",
+      "intensity": 0.910769
+    },
+    {
+      "eventId": "event-494",
+      "targetTimeSeconds": 175.54,
+      "action": "Guard",
+      "intensity": 0.942207
+    },
+    {
+      "eventId": "event-495",
+      "targetTimeSeconds": 175.87,
+      "action": "Strike",
+      "intensity": 0.905993
+    },
+    {
+      "eventId": "event-496",
+      "targetTimeSeconds": 176.17,
+      "action": "Strike",
+      "intensity": 0.838186
+    },
+    {
+      "eventId": "event-497",
+      "targetTimeSeconds": 176.35,
+      "action": "Guard",
+      "intensity": 0.912575
+    },
+    {
+      "eventId": "event-498",
+      "targetTimeSeconds": 176.53,
+      "action": "Strike",
+      "intensity": 0.869057
+    },
+    {
+      "eventId": "event-499",
+      "targetTimeSeconds": 176.74,
+      "action": "Guard",
+      "intensity": 0.850498
+    },
+    {
+      "eventId": "event-500",
+      "targetTimeSeconds": 177.12,
+      "action": "Strike",
+      "intensity": 0.871122
+    },
+    {
+      "eventId": "event-501",
+      "targetTimeSeconds": 177.31,
+      "action": "Guard",
+      "intensity": 0.634247
+    },
+    {
+      "eventId": "event-502",
+      "targetTimeSeconds": 177.75,
+      "action": "Guard",
+      "intensity": 0.891771
+    },
+    {
+      "eventId": "event-503",
+      "targetTimeSeconds": 178.06,
+      "action": "Strike",
+      "intensity": 0.785194
+    },
+    {
+      "eventId": "event-504",
+      "targetTimeSeconds": 178.39,
+      "action": "Guard",
+      "intensity": 0.85708
+    },
+    {
+      "eventId": "event-505",
+      "targetTimeSeconds": 178.69,
+      "action": "Strike",
+      "intensity": 0.756001
+    },
+    {
+      "eventId": "event-506",
+      "targetTimeSeconds": 179.0,
+      "action": "Strike",
+      "intensity": 0.92561
+    },
+    {
+      "eventId": "event-507",
+      "targetTimeSeconds": 179.33,
+      "action": "Guard",
+      "intensity": 0.683832
+    },
+    {
+      "eventId": "event-508",
+      "targetTimeSeconds": 179.65,
+      "action": "Strike",
+      "intensity": 0.839993
+    },
+    {
+      "eventId": "event-509",
+      "targetTimeSeconds": 179.92,
+      "action": "Guard",
+      "intensity": 0.604615
+    },
+    {
+      "eventId": "event-510",
+      "targetTimeSeconds": 180.3,
+      "action": "Strike",
+      "intensity": 0.898276
+    },
+    {
+      "eventId": "event-511",
+      "targetTimeSeconds": 180.58,
+      "action": "Guard",
+      "intensity": 0.802179
+    },
+    {
+      "eventId": "event-512",
+      "targetTimeSeconds": 180.93,
+      "action": "Guard",
+      "intensity": 0.833075
+    },
+    {
+      "eventId": "event-513",
+      "targetTimeSeconds": 181.54,
+      "action": "Strike",
+      "intensity": 0.916809
+    },
+    {
+      "eventId": "event-514",
+      "targetTimeSeconds": 181.86,
+      "action": "Guard",
+      "intensity": 0.830726
+    },
+    {
+      "eventId": "event-515",
+      "targetTimeSeconds": 182.18,
+      "action": "Strike",
+      "intensity": 0.951293
+    },
+    {
+      "eventId": "event-516",
+      "targetTimeSeconds": 182.37,
+      "action": "Strike",
+      "intensity": 0.885938
+    },
+    {
+      "eventId": "event-517",
+      "targetTimeSeconds": 182.82,
+      "action": "Guard",
+      "intensity": 0.92241
+    },
+    {
+      "eventId": "event-518",
+      "targetTimeSeconds": 183.25,
+      "action": "Strike",
+      "intensity": 0.865572
+    },
+    {
+      "eventId": "event-519",
+      "targetTimeSeconds": 183.47,
+      "action": "Guard",
+      "intensity": 0.866347
+    },
+    {
+      "eventId": "event-520",
+      "targetTimeSeconds": 183.78,
+      "action": "Strike",
+      "intensity": 0.840664
+    },
+    {
+      "eventId": "event-521",
+      "targetTimeSeconds": 184.06,
+      "action": "Guard",
+      "intensity": 0.920164
+    },
+    {
+      "eventId": "event-522",
+      "targetTimeSeconds": 184.42,
+      "action": "Guard",
+      "intensity": 0.84611
+    },
+    {
+      "eventId": "event-523",
+      "targetTimeSeconds": 184.73,
+      "action": "Strike",
+      "intensity": 0.956817
+    },
+    {
+      "eventId": "event-524",
+      "targetTimeSeconds": 184.91,
+      "action": "Guard",
+      "intensity": 0.762144
+    },
+    {
+      "eventId": "event-525",
+      "targetTimeSeconds": 185.39,
+      "action": "Strike",
+      "intensity": 0.901451
+    },
+    {
+      "eventId": "event-526",
+      "targetTimeSeconds": 185.57,
+      "action": "Strike",
+      "intensity": 0.794564
+    },
+    {
+      "eventId": "event-527",
+      "targetTimeSeconds": 185.97,
+      "action": "Guard",
+      "intensity": 0.880362
+    },
+    {
+      "eventId": "event-528",
+      "targetTimeSeconds": 186.28,
+      "action": "Strike",
+      "intensity": 0.845981
+    },
+    {
+      "eventId": "event-529",
+      "targetTimeSeconds": 186.59,
+      "action": "Guard",
+      "intensity": 0.915905
+    },
+    {
+      "eventId": "event-530",
+      "targetTimeSeconds": 186.88,
+      "action": "Strike",
+      "intensity": 0.705952
+    },
+    {
+      "eventId": "event-531",
+      "targetTimeSeconds": 187.23,
+      "action": "Guard",
+      "intensity": 0.882298
+    },
+    {
+      "eventId": "event-532",
+      "targetTimeSeconds": 187.44,
+      "action": "Guard",
+      "intensity": 0.55596
+    },
+    {
+      "eventId": "event-533",
+      "targetTimeSeconds": 187.88,
+      "action": "Strike",
+      "intensity": 0.867018
+    },
+    {
+      "eventId": "event-534",
+      "targetTimeSeconds": 188.17,
+      "action": "Guard",
+      "intensity": 0.820557
+    },
+    {
+      "eventId": "event-535",
+      "targetTimeSeconds": 188.51,
+      "action": "Strike",
+      "intensity": 0.867844
+    },
+    {
+      "eventId": "event-536",
+      "targetTimeSeconds": 189.16,
+      "action": "Strike",
+      "intensity": 0.913169
+    },
+    {
+      "eventId": "event-537",
+      "targetTimeSeconds": 189.44,
+      "action": "Guard",
+      "intensity": 0.773347
+    },
+    {
+      "eventId": "event-538",
+      "targetTimeSeconds": 189.76,
+      "action": "Strike",
+      "intensity": 0.883537
+    },
+    {
+      "eventId": "event-539",
+      "targetTimeSeconds": 189.96,
+      "action": "Guard",
+      "intensity": 0.363765
+    },
+    {
+      "eventId": "event-540",
+      "targetTimeSeconds": 190.39,
+      "action": "Strike",
+      "intensity": 0.868437
+    },
+    {
+      "eventId": "event-541",
+      "targetTimeSeconds": 190.73,
+      "action": "Guard",
+      "intensity": 0.72082
+    },
+    {
+      "eventId": "event-542",
+      "targetTimeSeconds": 191.02,
+      "action": "Guard",
+      "intensity": 0.908859
+    },
+    {
+      "eventId": "event-543",
+      "targetTimeSeconds": 191.32,
+      "action": "Strike",
+      "intensity": 0.740024
+    },
+    {
+      "eventId": "event-544",
+      "targetTimeSeconds": 191.66,
+      "action": "Guard",
+      "intensity": 0.912963
+    },
+    {
+      "eventId": "event-545",
+      "targetTimeSeconds": 191.96,
+      "action": "Strike",
+      "intensity": 0.841412
+    },
+    {
+      "eventId": "event-546",
+      "targetTimeSeconds": 192.23,
+      "action": "Strike",
+      "intensity": 0.958908
+    },
+    {
+      "eventId": "event-547",
+      "targetTimeSeconds": 192.59,
+      "action": "Guard",
+      "intensity": 0.883434
+    },
+    {
+      "eventId": "event-548",
+      "targetTimeSeconds": 192.94,
+      "action": "Strike",
+      "intensity": 0.857751
+    },
+    {
+      "eventId": "event-549",
+      "targetTimeSeconds": 193.22,
+      "action": "Guard",
+      "intensity": 0.890687
+    },
+    {
+      "eventId": "event-550",
+      "targetTimeSeconds": 193.57,
+      "action": "Strike",
+      "intensity": 0.905632
+    },
+    {
+      "eventId": "event-551",
+      "targetTimeSeconds": 193.86,
+      "action": "Guard",
+      "intensity": 0.859429
+    },
+    {
+      "eventId": "event-552",
+      "targetTimeSeconds": 194.2,
+      "action": "Guard",
+      "intensity": 0.92765
+    },
+    {
+      "eventId": "event-553",
+      "targetTimeSeconds": 194.4,
+      "action": "Strike",
+      "intensity": 0.785788
+    },
+    {
+      "eventId": "event-554",
+      "targetTimeSeconds": 194.81,
+      "action": "Guard",
+      "intensity": 0.915312
+    },
+    {
+      "eventId": "event-555",
+      "targetTimeSeconds": 195.12,
+      "action": "Strike",
+      "intensity": 0.792551
+    },
+    {
+      "eventId": "event-556",
+      "targetTimeSeconds": 195.44,
+      "action": "Strike",
+      "intensity": 0.906355
+    },
+    {
+      "eventId": "event-557",
+      "targetTimeSeconds": 195.98,
+      "action": "Guard",
+      "intensity": 0.901038
+    },
+    {
+      "eventId": "event-558",
+      "targetTimeSeconds": 196.29,
+      "action": "Strike",
+      "intensity": 0.894585
+    },
+    {
+      "eventId": "event-559",
+      "targetTimeSeconds": 196.71,
+      "action": "Guard",
+      "intensity": 0.944272
+    },
+    {
+      "eventId": "event-560",
+      "targetTimeSeconds": 197.08,
+      "action": "Strike",
+      "intensity": 0.92863
+    },
+    {
+      "eventId": "event-561",
+      "targetTimeSeconds": 197.34,
+      "action": "Guard",
+      "intensity": 0.905038
+    },
+    {
+      "eventId": "event-562",
+      "targetTimeSeconds": 197.56,
+      "action": "Guard",
+      "intensity": 0.662098
+    },
+    {
+      "eventId": "event-563",
+      "targetTimeSeconds": 197.96,
+      "action": "Strike",
+      "intensity": 0.878504
+    },
+    {
+      "eventId": "event-564",
+      "targetTimeSeconds": 198.28,
+      "action": "Guard",
+      "intensity": 0.899076
+    },
+    {
+      "eventId": "event-565",
+      "targetTimeSeconds": 198.61,
+      "action": "Strike",
+      "intensity": 0.929482
+    },
+    {
+      "eventId": "event-566",
+      "targetTimeSeconds": 199.25,
+      "action": "Strike",
+      "intensity": 0.953823
+    },
+    {
+      "eventId": "event-567",
+      "targetTimeSeconds": 199.54,
+      "action": "Guard",
+      "intensity": 0.738423
+    },
+    {
+      "eventId": "event-568",
+      "targetTimeSeconds": 199.89,
+      "action": "Strike",
+      "intensity": 0.897889
+    },
+    {
+      "eventId": "event-569",
+      "targetTimeSeconds": 200.09,
+      "action": "Guard",
+      "intensity": 0.674643
+    },
+    {
+      "eventId": "event-570",
+      "targetTimeSeconds": 200.51,
+      "action": "Strike",
+      "intensity": 0.882479
+    },
+    {
+      "eventId": "event-571",
+      "targetTimeSeconds": 200.8,
+      "action": "Guard",
+      "intensity": 0.759512
+    },
+    {
+      "eventId": "event-572",
+      "targetTimeSeconds": 201.13,
+      "action": "Guard",
+      "intensity": 0.873651
+    },
+    {
+      "eventId": "event-573",
+      "targetTimeSeconds": 201.77,
+      "action": "Strike",
+      "intensity": 0.938207
+    },
+    {
+      "eventId": "event-574",
+      "targetTimeSeconds": 202.07,
+      "action": "Guard",
+      "intensity": 0.870373
+    },
+    {
+      "eventId": "event-575",
+      "targetTimeSeconds": 202.4,
+      "action": "Strike",
+      "intensity": 0.896469
+    },
+    {
+      "eventId": "event-576",
+      "targetTimeSeconds": 202.61,
+      "action": "Strike",
+      "intensity": 0.819963
+    },
+    {
+      "eventId": "event-577",
+      "targetTimeSeconds": 203.03,
+      "action": "Guard",
+      "intensity": 0.911311
+    },
+    {
+      "eventId": "event-578",
+      "targetTimeSeconds": 203.68,
+      "action": "Strike",
+      "intensity": 0.920861
+    },
+    {
+      "eventId": "event-579",
+      "targetTimeSeconds": 203.86,
+      "action": "Guard",
+      "intensity": 0.813923
+    },
+    {
+      "eventId": "event-580",
+      "targetTimeSeconds": 204.27,
+      "action": "Strike",
+      "intensity": 0.961127
+    },
+    {
+      "eventId": "event-581",
+      "targetTimeSeconds": 204.86,
+      "action": "Guard",
+      "intensity": 0.947421
+    },
+    {
+      "eventId": "event-582",
+      "targetTimeSeconds": 205.07,
+      "action": "Guard",
+      "intensity": 0.789763
+    },
+    {
+      "eventId": "event-583",
+      "targetTimeSeconds": 205.55,
+      "action": "Strike",
+      "intensity": 0.915983
+    },
+    {
+      "eventId": "event-584",
+      "targetTimeSeconds": 205.88,
+      "action": "Guard",
+      "intensity": 0.767642
+    },
+    {
+      "eventId": "event-585",
+      "targetTimeSeconds": 206.18,
+      "action": "Strike",
+      "intensity": 0.906949
+    },
+    {
+      "eventId": "event-586",
+      "targetTimeSeconds": 206.83,
+      "action": "Strike",
+      "intensity": 0.943214
+    },
+    {
+      "eventId": "event-587",
+      "targetTimeSeconds": 207.13,
+      "action": "Guard",
+      "intensity": 0.861649
+    },
+    {
+      "eventId": "event-588",
+      "targetTimeSeconds": 207.44,
+      "action": "Strike",
+      "intensity": 0.907491
+    },
+    {
+      "eventId": "event-589",
+      "targetTimeSeconds": 208.08,
+      "action": "Guard",
+      "intensity": 0.884699
+    },
+    {
+      "eventId": "event-590",
+      "targetTimeSeconds": 208.37,
+      "action": "Strike",
+      "intensity": 0.881163
+    },
+    {
+      "eventId": "event-591",
+      "targetTimeSeconds": 208.71,
+      "action": "Guard",
+      "intensity": 0.935058
+    },
+    {
+      "eventId": "event-592",
+      "targetTimeSeconds": 209.31,
+      "action": "Guard",
+      "intensity": 0.961747
+    },
+    {
+      "eventId": "event-593",
+      "targetTimeSeconds": 209.67,
+      "action": "Strike",
+      "intensity": 0.785917
+    },
+    {
+      "eventId": "event-594",
+      "targetTimeSeconds": 209.99,
+      "action": "Guard",
+      "intensity": 0.87249
+    },
+    {
+      "eventId": "event-595",
+      "targetTimeSeconds": 210.21,
+      "action": "Strike",
+      "intensity": 0.43942
+    },
+    {
+      "eventId": "event-596",
+      "targetTimeSeconds": 210.44,
+      "action": "Strike",
+      "intensity": 0.800888
+    },
+    {
+      "eventId": "event-597",
+      "targetTimeSeconds": 210.62,
+      "action": "Guard",
+      "intensity": 0.892907
+    },
+    {
+      "eventId": "event-598",
+      "targetTimeSeconds": 210.91,
+      "action": "Strike",
+      "intensity": 0.792293
+    },
+    {
+      "eventId": "event-599",
+      "targetTimeSeconds": 211.24,
+      "action": "Guard",
+      "intensity": 0.887925
+    },
+    {
+      "eventId": "event-600",
+      "targetTimeSeconds": 211.51,
+      "action": "Strike",
+      "intensity": 0.890145
+    },
+    {
+      "eventId": "event-601",
+      "targetTimeSeconds": 211.87,
+      "action": "Guard",
+      "intensity": 0.953384
+    },
+    {
+      "eventId": "event-602",
+      "targetTimeSeconds": 212.2,
+      "action": "Guard",
+      "intensity": 0.804966
+    },
+    {
+      "eventId": "event-603",
+      "targetTimeSeconds": 212.52,
+      "action": "Strike",
+      "intensity": 0.921352
+    },
+    {
+      "eventId": "event-604",
+      "targetTimeSeconds": 212.71,
+      "action": "Guard",
+      "intensity": 0.752878
+    },
+    {
+      "eventId": "event-605",
+      "targetTimeSeconds": 213.15,
+      "action": "Strike",
+      "intensity": 0.95612
+    },
+    {
+      "eventId": "event-606",
+      "targetTimeSeconds": 213.44,
+      "action": "Strike",
+      "intensity": 0.822957
+    },
+    {
+      "eventId": "event-607",
+      "targetTimeSeconds": 213.76,
+      "action": "Guard",
+      "intensity": 0.92623
+    },
+    {
+      "eventId": "event-608",
+      "targetTimeSeconds": 213.94,
+      "action": "Strike",
+      "intensity": 0.710469
+    },
+    {
+      "eventId": "event-609",
+      "targetTimeSeconds": 214.42,
+      "action": "Guard",
+      "intensity": 1.0
+    },
+    {
+      "eventId": "event-610",
+      "targetTimeSeconds": 214.7,
+      "action": "Strike",
+      "intensity": 0.82177
+    },
+    {
+      "eventId": "event-611",
+      "targetTimeSeconds": 215.03,
+      "action": "Guard",
+      "intensity": 0.868876
+    },
+    {
+      "eventId": "event-612",
+      "targetTimeSeconds": 215.65,
+      "action": "Guard",
+      "intensity": 0.894301
+    },
+    {
+      "eventId": "event-613",
+      "targetTimeSeconds": 215.85,
+      "action": "Strike",
+      "intensity": 0.721646
+    },
+    {
+      "eventId": "event-614",
+      "targetTimeSeconds": 216.29,
+      "action": "Guard",
+      "intensity": 0.909994
+    },
+    {
+      "eventId": "event-615",
+      "targetTimeSeconds": 216.59,
+      "action": "Strike",
+      "intensity": 0.601285
+    },
+    {
+      "eventId": "event-616",
+      "targetTimeSeconds": 216.91,
+      "action": "Strike",
+      "intensity": 0.96869
+    },
+    {
+      "eventId": "event-617",
+      "targetTimeSeconds": 217.26,
+      "action": "Guard",
+      "intensity": 0.865133
+    },
+    {
+      "eventId": "event-618",
+      "targetTimeSeconds": 217.55,
+      "action": "Strike",
+      "intensity": 0.917144
+    },
+    {
+      "eventId": "event-619",
+      "targetTimeSeconds": 217.77,
+      "action": "Guard",
+      "intensity": 0.564942
+    },
+    {
+      "eventId": "event-620",
+      "targetTimeSeconds": 218.18,
+      "action": "Strike",
+      "intensity": 0.91144
+    },
+    {
+      "eventId": "event-621",
+      "targetTimeSeconds": 218.5,
+      "action": "Guard",
+      "intensity": 0.462934
+    },
+    {
+      "eventId": "event-622",
+      "targetTimeSeconds": 218.82,
+      "action": "Guard",
+      "intensity": 0.901218
+    },
+    {
+      "eventId": "event-623",
+      "targetTimeSeconds": 219.46,
+      "action": "Strike",
+      "intensity": 0.922539
+    },
+    {
+      "eventId": "event-624",
+      "targetTimeSeconds": 219.77,
+      "action": "Guard",
+      "intensity": 0.746786
+    },
+    {
+      "eventId": "event-625",
+      "targetTimeSeconds": 220.08,
+      "action": "Strike",
+      "intensity": 0.891048
+    },
+    {
+      "eventId": "event-626",
+      "targetTimeSeconds": 220.33,
+      "action": "Strike",
+      "intensity": 0.374503
+    },
+    {
+      "eventId": "event-627",
+      "targetTimeSeconds": 220.71,
+      "action": "Guard",
+      "intensity": 0.944814
+    },
+    {
+      "eventId": "event-628",
+      "targetTimeSeconds": 220.9,
+      "action": "Strike",
+      "intensity": 0.495406
+    },
+    {
+      "eventId": "event-629",
+      "targetTimeSeconds": 221.34,
+      "action": "Guard",
+      "intensity": 0.908213
+    },
+    {
+      "eventId": "event-630",
+      "targetTimeSeconds": 221.97,
+      "action": "Strike",
+      "intensity": 0.931883
+    },
+    {
+      "eventId": "event-631",
+      "targetTimeSeconds": 222.22,
+      "action": "Guard",
+      "intensity": 0.470678
+    },
+    {
+      "eventId": "event-632",
+      "targetTimeSeconds": 222.6,
+      "action": "Guard",
+      "intensity": 0.925301
+    },
+    {
+      "eventId": "event-633",
+      "targetTimeSeconds": 222.82,
+      "action": "Strike",
+      "intensity": 0.671777
+    },
+    {
+      "eventId": "event-634",
+      "targetTimeSeconds": 223.22,
+      "action": "Guard",
+      "intensity": 0.93005
+    },
+    {
+      "eventId": "event-635",
+      "targetTimeSeconds": 223.54,
+      "action": "Strike",
+      "intensity": 0.760209
+    },
+    {
+      "eventId": "event-636",
+      "targetTimeSeconds": 223.87,
+      "action": "Strike",
+      "intensity": 0.904909
+    },
+    {
+      "eventId": "event-637",
+      "targetTimeSeconds": 224.49,
+      "action": "Guard",
+      "intensity": 0.938155
+    },
+    {
+      "eventId": "event-638",
+      "targetTimeSeconds": 224.82,
+      "action": "Strike",
+      "intensity": 0.878168
+    },
+    {
+      "eventId": "event-639",
+      "targetTimeSeconds": 225.15,
+      "action": "Guard",
+      "intensity": 0.884312
+    },
+    {
+      "eventId": "event-640",
+      "targetTimeSeconds": 225.77,
+      "action": "Strike",
+      "intensity": 0.920706
+    },
+    {
+      "eventId": "event-641",
+      "targetTimeSeconds": 226.06,
+      "action": "Guard",
+      "intensity": 0.792577
+    },
+    {
+      "eventId": "event-642",
+      "targetTimeSeconds": 226.38,
+      "action": "Guard",
+      "intensity": 0.917635
+    },
+    {
+      "eventId": "event-643",
+      "targetTimeSeconds": 226.7,
+      "action": "Strike",
+      "intensity": 0.879407
+    },
+    {
+      "eventId": "event-644",
+      "targetTimeSeconds": 227.01,
+      "action": "Guard",
+      "intensity": 0.915905
+    },
+    {
+      "eventId": "event-645",
+      "targetTimeSeconds": 227.33,
+      "action": "Strike",
+      "intensity": 0.85277
+    },
+    {
+      "eventId": "event-646",
+      "targetTimeSeconds": 227.67,
+      "action": "Strike",
+      "intensity": 0.878969
+    },
+    {
+      "eventId": "event-647",
+      "targetTimeSeconds": 227.96,
+      "action": "Guard",
+      "intensity": 0.83243
+    },
+    {
+      "eventId": "event-648",
+      "targetTimeSeconds": 228.29,
+      "action": "Strike",
+      "intensity": 0.927185
+    },
+    {
+      "eventId": "event-649",
+      "targetTimeSeconds": 228.59,
+      "action": "Guard",
+      "intensity": 0.850008
+    },
+    {
+      "eventId": "event-650",
+      "targetTimeSeconds": 228.93,
+      "action": "Strike",
+      "intensity": 0.913814
+    },
+    {
+      "eventId": "event-651",
+      "targetTimeSeconds": 229.23,
+      "action": "Guard",
+      "intensity": 0.664344
+    },
+    {
+      "eventId": "event-652",
+      "targetTimeSeconds": 229.54,
+      "action": "Guard",
+      "intensity": 0.961876
+    },
+    {
+      "eventId": "event-653",
+      "targetTimeSeconds": 229.86,
+      "action": "Strike",
+      "intensity": 0.866785
+    },
+    {
+      "eventId": "event-654",
+      "targetTimeSeconds": 230.2,
+      "action": "Guard",
+      "intensity": 0.903645
+    },
+    {
+      "eventId": "event-655",
+      "targetTimeSeconds": 230.4,
+      "action": "Strike",
+      "intensity": 0.674746
+    },
+    {
+      "eventId": "event-656",
+      "targetTimeSeconds": 230.81,
+      "action": "Strike",
+      "intensity": 0.89936
+    },
+    {
+      "eventId": "event-657",
+      "targetTimeSeconds": 231.11,
+      "action": "Guard",
+      "intensity": 0.758918
+    },
+    {
+      "eventId": "event-658",
+      "targetTimeSeconds": 231.44,
+      "action": "Strike",
+      "intensity": 0.943266
+    },
+    {
+      "eventId": "event-659",
+      "targetTimeSeconds": 231.75,
+      "action": "Guard",
+      "intensity": 0.729957
+    },
+    {
+      "eventId": "event-660",
+      "targetTimeSeconds": 232.09,
+      "action": "Strike",
+      "intensity": 0.950054
+    },
+    {
+      "eventId": "event-661",
+      "targetTimeSeconds": 232.39,
+      "action": "Guard",
+      "intensity": 0.892004
+    },
+    {
+      "eventId": "event-662",
+      "targetTimeSeconds": 232.71,
+      "action": "Guard",
+      "intensity": 0.887719
+    },
+    {
+      "eventId": "event-663",
+      "targetTimeSeconds": 233.33,
+      "action": "Strike",
+      "intensity": 0.955217
+    },
+    {
+      "eventId": "event-664",
+      "targetTimeSeconds": 233.64,
+      "action": "Guard",
+      "intensity": 0.795519
+    },
+    {
+      "eventId": "event-665",
+      "targetTimeSeconds": 233.98,
+      "action": "Strike",
+      "intensity": 0.931057
+    },
+    {
+      "eventId": "event-666",
+      "targetTimeSeconds": 234.28,
+      "action": "Strike",
+      "intensity": 0.665531
+    },
+    {
+      "eventId": "event-667",
+      "targetTimeSeconds": 234.63,
+      "action": "Guard",
+      "intensity": 0.943627
+    },
+    {
+      "eventId": "event-668",
+      "targetTimeSeconds": 234.91,
+      "action": "Strike",
+      "intensity": 0.83656
+    },
+    {
+      "eventId": "event-669",
+      "targetTimeSeconds": 235.24,
+      "action": "Guard",
+      "intensity": 0.884931
+    },
+    {
+      "eventId": "event-670",
+      "targetTimeSeconds": 235.87,
+      "action": "Strike",
+      "intensity": 0.924088
+    },
+    {
+      "eventId": "event-671",
+      "targetTimeSeconds": 236.16,
+      "action": "Guard",
+      "intensity": 0.777735
+    },
+    {
+      "eventId": "event-672",
+      "targetTimeSeconds": 236.49,
+      "action": "Guard",
+      "intensity": 0.952506
+    },
+    {
+      "eventId": "event-673",
+      "targetTimeSeconds": 236.81,
+      "action": "Strike",
+      "intensity": 0.828816
+    },
+    {
+      "eventId": "event-674",
+      "targetTimeSeconds": 237.13,
+      "action": "Guard",
+      "intensity": 0.968381
+    },
+    {
+      "eventId": "event-675",
+      "targetTimeSeconds": 237.44,
+      "action": "Strike",
+      "intensity": 0.81493
+    },
+    {
+      "eventId": "event-676",
+      "targetTimeSeconds": 237.76,
+      "action": "Strike",
+      "intensity": 0.875252
+    },
+    {
+      "eventId": "event-677",
+      "targetTimeSeconds": 237.96,
+      "action": "Guard",
+      "intensity": 0.626658
+    },
+    {
+      "eventId": "event-678",
+      "targetTimeSeconds": 238.39,
+      "action": "Strike",
+      "intensity": 0.896495
+    },
+    {
+      "eventId": "event-679",
+      "targetTimeSeconds": 238.7,
+      "action": "Guard",
+      "intensity": 0.885241
+    },
+    {
+      "eventId": "event-680",
+      "targetTimeSeconds": 239.03,
+      "action": "Strike",
+      "intensity": 0.909349
+    },
+    {
+      "eventId": "event-681",
+      "targetTimeSeconds": 239.33,
+      "action": "Guard",
+      "intensity": 0.663079
+    },
+    {
+      "eventId": "event-682",
+      "targetTimeSeconds": 239.63,
+      "action": "Guard",
+      "intensity": 0.945744
+    },
+    {
+      "eventId": "event-683",
+      "targetTimeSeconds": 239.98,
+      "action": "Strike",
+      "intensity": 0.820634
+    },
+    {
+      "eventId": "event-684",
+      "targetTimeSeconds": 240.28,
+      "action": "Guard",
+      "intensity": 0.832765
+    },
+    {
+      "eventId": "event-685",
+      "targetTimeSeconds": 240.93,
+      "action": "Strike",
+      "intensity": 0.921481
+    },
+    {
+      "eventId": "event-686",
+      "targetTimeSeconds": 241.24,
+      "action": "Strike",
+      "intensity": 0.887925
+    },
+    {
+      "eventId": "event-687",
+      "targetTimeSeconds": 241.55,
+      "action": "Guard",
+      "intensity": 0.902173
+    },
+    {
+      "eventId": "event-688",
+      "targetTimeSeconds": 241.87,
+      "action": "Strike",
+      "intensity": 0.84913
+    },
+    {
+      "eventId": "event-689",
+      "targetTimeSeconds": 242.17,
+      "action": "Guard",
+      "intensity": 0.906897
+    },
+    {
+      "eventId": "event-690",
+      "targetTimeSeconds": 242.49,
+      "action": "Strike",
+      "intensity": 0.826209
+    },
+    {
+      "eventId": "event-691",
+      "targetTimeSeconds": 242.83,
+      "action": "Guard",
+      "intensity": 0.93307
+    },
+    {
+      "eventId": "event-692",
+      "targetTimeSeconds": 243.15,
+      "action": "Guard",
+      "intensity": 0.600072
+    },
+    {
+      "eventId": "event-693",
+      "targetTimeSeconds": 243.39,
+      "action": "Strike",
+      "intensity": 0.591942
+    },
+    {
+      "eventId": "event-694",
+      "targetTimeSeconds": 243.78,
+      "action": "Guard",
+      "intensity": 0.602524
+    },
+    {
+      "eventId": "event-695",
+      "targetTimeSeconds": 244.13,
+      "action": "Strike",
+      "intensity": 0.547674
+    },
+    {
+      "eventId": "event-696",
+      "targetTimeSeconds": 244.48,
+      "action": "Strike",
+      "intensity": 0.457178
+    },
+    {
+      "eventId": "event-697",
+      "targetTimeSeconds": 244.79,
+      "action": "Guard",
+      "intensity": 0.361365
+    },
+    {
+      "eventId": "event-698",
+      "targetTimeSeconds": 246.57,
+      "action": "Strike",
+      "intensity": 0.688374
+    },
+    {
+      "eventId": "event-699",
+      "targetTimeSeconds": 246.76,
+      "action": "Guard",
+      "intensity": 0.525166
+    },
+    {
+      "eventId": "event-700",
+      "targetTimeSeconds": 247.1,
+      "action": "Strike",
+      "intensity": 0.414976
+    },
+    {
+      "eventId": "event-701",
+      "targetTimeSeconds": 247.28,
+      "action": "Guard",
+      "intensity": 0.395153
+    },
+    {
+      "eventId": "event-702",
+      "targetTimeSeconds": 247.88,
+      "action": "Guard",
+      "intensity": 0.823318
+    },
+    {
+      "eventId": "event-703",
+      "targetTimeSeconds": 248.08,
+      "action": "Strike",
+      "intensity": 0.755769
+    },
+    {
+      "eventId": "event-704",
+      "targetTimeSeconds": 248.28,
+      "action": "Guard",
+      "intensity": 0.711553
+    },
+    {
+      "eventId": "event-705",
+      "targetTimeSeconds": 248.51,
+      "action": "Strike",
+      "intensity": 0.571344
+    },
+    {
+      "eventId": "event-706",
+      "targetTimeSeconds": 248.7,
+      "action": "Strike",
+      "intensity": 0.571292
+    },
+    {
+      "eventId": "event-707",
+      "targetTimeSeconds": 248.88,
+      "action": "Guard",
+      "intensity": 0.559419
+    },
+    {
+      "eventId": "event-708",
+      "targetTimeSeconds": 249.14,
+      "action": "Strike",
+      "intensity": 0.449667
+    },
+    {
+      "eventId": "event-709",
+      "targetTimeSeconds": 249.34,
+      "action": "Guard",
+      "intensity": 0.36996
+    },
+    {
+      "eventId": "event-710",
+      "targetTimeSeconds": 251.66,
+      "action": "Strike",
+      "intensity": 0.484616
+    },
+    {
+      "eventId": "event-711",
+      "targetTimeSeconds": 252.0,
+      "action": "Guard",
+      "intensity": 0.412756
+    },
+    {
+      "eventId": "event-712",
+      "targetTimeSeconds": 252.44,
+      "action": "Guard",
+      "intensity": 0.42463
+    },
+    {
+      "eventId": "event-713",
+      "targetTimeSeconds": 252.64,
+      "action": "Strike",
+      "intensity": 0.406355
+    },
+    {
+      "eventId": "event-714",
+      "targetTimeSeconds": 252.94,
+      "action": "Guard",
+      "intensity": 0.869134
+    },
+    {
+      "eventId": "event-715",
+      "targetTimeSeconds": 253.19,
+      "action": "Strike",
+      "intensity": 0.645553
+    },
+    {
+      "eventId": "event-716",
+      "targetTimeSeconds": 253.39,
+      "action": "Strike",
+      "intensity": 0.575035
+    },
+    {
+      "eventId": "event-717",
+      "targetTimeSeconds": 253.83,
+      "action": "Guard",
+      "intensity": 0.484229
+    },
+    {
+      "eventId": "event-718",
+      "targetTimeSeconds": 254.02,
+      "action": "Strike",
+      "intensity": 0.457385
+    },
+    {
+      "eventId": "event-719",
+      "targetTimeSeconds": 254.24,
+      "action": "Guard",
+      "intensity": 0.401089
+    },
+    {
+      "eventId": "event-720",
+      "targetTimeSeconds": 256.73,
+      "action": "Strike",
+      "intensity": 0.559522
+    },
+    {
+      "eventId": "event-721",
+      "targetTimeSeconds": 256.96,
+      "action": "Guard",
+      "intensity": 0.399541
+    },
+    {
+      "eventId": "event-722",
+      "targetTimeSeconds": 257.98,
+      "action": "Guard",
+      "intensity": 0.868902
+    },
+    {
+      "eventId": "event-723",
+      "targetTimeSeconds": 258.17,
+      "action": "Strike",
+      "intensity": 0.547958
+    },
+    {
+      "eventId": "event-724",
+      "targetTimeSeconds": 258.52,
+      "action": "Guard",
+      "intensity": 0.455604
+    },
+    {
+      "eventId": "event-725",
+      "targetTimeSeconds": 258.71,
+      "action": "Strike",
+      "intensity": 0.418848
+    }
+  ]
+}
