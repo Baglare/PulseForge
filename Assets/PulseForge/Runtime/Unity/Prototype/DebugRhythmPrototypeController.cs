@@ -14,6 +14,7 @@ namespace PulseForge.Runtime.Unity.Prototype
         private const double GoodWindowSeconds = 0.100d;
         private const float RhythmLaneHeight = 96f;
 
+        [SerializeField] private TextAsset debugBeatMapJson = null;
         [SerializeField] private DebugBeatMapAsset debugBeatMapAsset = null;
         [SerializeField] private AudioClip debugAudioClip = null;
         [SerializeField] private bool useAudioClockWhenClipAssigned = true;
@@ -172,12 +173,17 @@ namespace PulseForge.Runtime.Unity.Prototype
                 session = null;
                 scoreTracker = new ScoreTracker();
                 combatFeedbackRenderer.Clear();
-                lastFeedback = "Beat map error: " + exception.Message;
+                lastFeedback = FormatBeatMapError(exception);
             }
         }
 
         private IReadOnlyList<BeatEventData> CreateSessionBeatEvents()
         {
+            if (debugBeatMapJson != null)
+            {
+                return DebugBeatMapJsonParser.BuildBeatEvents(debugBeatMapJson.text);
+            }
+
             if (debugBeatMapAsset != null)
             {
                 return debugBeatMapAsset.BuildBeatEvents();
@@ -464,12 +470,17 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private string GetBeatMapSourceName()
         {
+            if (debugBeatMapJson != null)
+            {
+                return "JSON: " + debugBeatMapJson.name;
+            }
+
             if (debugBeatMapAsset == null)
             {
                 return "Default Hardcoded Beat Map";
             }
 
-            return debugBeatMapAsset.name;
+            return "ScriptableObject: " + debugBeatMapAsset.name;
         }
 
         private string GetEventCountText()
@@ -485,6 +496,16 @@ namespace PulseForge.Runtime.Unity.Prototype
         private static double GetPresentationTimeSeconds()
         {
             return Time.realtimeSinceStartupAsDouble;
+        }
+
+        private string FormatBeatMapError(Exception exception)
+        {
+            if (debugBeatMapJson != null)
+            {
+                return "Beat map JSON error: " + exception.Message;
+            }
+
+            return "Beat map error: " + exception.Message;
         }
 
         private double GetCountdownRemainingSeconds()
