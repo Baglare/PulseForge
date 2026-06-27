@@ -17,6 +17,9 @@ namespace PulseForge.Runtime.Unity.Prototype
         [SerializeField] private DebugBeatMapAsset debugBeatMapAsset = null;
         [SerializeField] private AudioClip debugAudioClip = null;
         [SerializeField] private bool useAudioClockWhenClipAssigned = true;
+        [SerializeField] private float startCountdownSeconds = 1.0f;
+        [SerializeField] private bool rejectAmbiguousSimultaneousActions = true;
+        [SerializeField] private float simultaneousInputWindowSeconds = 0.035f;
 
         private RhythmSession session;
         private ScoreTracker scoreTracker;
@@ -25,6 +28,14 @@ namespace PulseForge.Runtime.Unity.Prototype
         private Vector2 eventListScroll;
         private readonly DebugRhythmLaneRenderer rhythmLaneRenderer = new DebugRhythmLaneRenderer();
         private readonly DebugCombatFeedbackRenderer combatFeedbackRenderer = new DebugCombatFeedbackRenderer();
+        private bool isCountdownActive;
+        private double countdownStartedAtSeconds;
+        private double countdownDurationSeconds;
+        private bool hasPendingInput;
+        private RhythmAction pendingInputAction;
+        private double pendingInputSongTimeSeconds;
+        private double pendingInputDeadlineRealtimeSeconds;
+        private bool pendingInputIsAmbiguous;
 
         private void Start()
         {
@@ -33,7 +44,19 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private void Update()
         {
+            if (isCountdownActive)
+            {
+                UpdateCountdown();
+                return;
+            }
+
             if (!IsSessionRunning || session == null || session.IsComplete)
+            {
+                return;
+            }
+
+            ProcessPendingInputBuffer(GetPresentationTimeSeconds(), false);
+            if (hasPendingInput || !IsSessionRunning || session == null || session.IsComplete)
             {
                 return;
             }
@@ -71,6 +94,11 @@ namespace PulseForge.Runtime.Unity.Prototype
             GUILayout.Label("Running: " + (IsSessionRunning ? "Yes" : "No"));
             GUILayout.Label("Clock: " + GetClockName());
             GUILayout.Label("Audio clip: " + GetAudioClipStatus());
+            if (isCountdownActive)
+            {
+                GUILayout.Label("Starting in: " + FormatCountdownSeconds(GetCountdownRemainingSeconds()));
+            }
+
             GUILayout.Label("Current time: " + FormatSeconds(CurrentTimeSeconds));
 
             ScoreSnapshot snapshot = GetSnapshot();
@@ -132,13 +160,15 @@ namespace PulseForge.Runtime.Unity.Prototype
                     new BeatEventTimeoutProcessor(new HitJudge()));
                 scoreTracker = new ScoreTracker();
                 combatFeedbackRenderer.Clear();
-                RestartClock();
-                lastFeedback = "Session started";
-                StopIfComplete();
+                ClearPendingInput();
+                PrepareClockForCountdown();
+                StartCountdownOrGameplay();
             }
             catch (Exception exception)
             {
                 StopClock();
+                isCountdownActive = false;
+                ClearPendingInput();
                 session = null;
                 scoreTracker = new ScoreTracker();
                 combatFeedbackRenderer.Clear();
@@ -156,11 +186,51 @@ namespace PulseForge.Runtime.Unity.Prototype
             return CreateDebugEventData();
         }
 
-        private void RestartClock()
+        private void PrepareClockForCountdown()
         {
             StopClock();
             songClock = CreateSongClock();
+        }
+
+        private void StartCountdownOrGameplay()
+        {
+            countdownDurationSeconds = Mathf.Max(0f, startCountdownSeconds);
+            countdownStartedAtSeconds = GetPresentationTimeSeconds();
+            ClearPendingInput();
+
+            if (countdownDurationSeconds <= 0d)
+            {
+                StartGameplayClock();
+                return;
+            }
+
+            isCountdownActive = true;
+            lastFeedback = "Starting in " + FormatCountdownSeconds(countdownDurationSeconds);
+        }
+
+        private void UpdateCountdown()
+        {
+            if (GetCountdownRemainingSeconds() > 0d)
+            {
+                return;
+            }
+
+            StartGameplayClock();
+        }
+
+        private void StartGameplayClock()
+        {
+            isCountdownActive = false;
+            ClearPendingInput();
+
+            if (songClock == null)
+            {
+                songClock = CreateSongClock();
+            }
+
             songClock.Start();
+            lastFeedback = "Session started";
+            StopIfComplete();
         }
 
         private void StopClock()
@@ -213,12 +283,88 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private void HandleInput(RhythmAction action)
         {
+            if (!IsSessionRunning || session == null || isCountdownActive)
+            {
+                return;
+            }
+
+            QueueInput(action, CurrentTimeSeconds, GetPresentationTimeSeconds());
+        }
+
+        private void QueueInput(RhythmAction action, double songTimeSeconds, double realtimeSeconds)
+        {
+            ProcessPendingInputBuffer(realtimeSeconds, false);
+            if (!IsSessionRunning || session == null || session.IsComplete)
+            {
+                return;
+            }
+
+            double inputWindowSeconds = Mathf.Max(0f, simultaneousInputWindowSeconds);
+            if (!rejectAmbiguousSimultaneousActions || inputWindowSeconds <= 0d)
+            {
+                ResolveInput(action, songTimeSeconds);
+                return;
+            }
+
+            if (!hasPendingInput)
+            {
+                hasPendingInput = true;
+                pendingInputAction = action;
+                pendingInputSongTimeSeconds = songTimeSeconds;
+                pendingInputDeadlineRealtimeSeconds = realtimeSeconds + inputWindowSeconds;
+                pendingInputIsAmbiguous = false;
+                return;
+            }
+
+            if (pendingInputAction != action && realtimeSeconds <= pendingInputDeadlineRealtimeSeconds)
+            {
+                pendingInputIsAmbiguous = true;
+            }
+        }
+
+        private void ProcessPendingInputBuffer(double realtimeSeconds, bool force)
+        {
+            if (!hasPendingInput)
+            {
+                return;
+            }
+
+            if (!force && realtimeSeconds <= pendingInputDeadlineRealtimeSeconds)
+            {
+                return;
+            }
+
+            if (pendingInputIsAmbiguous)
+            {
+                ClearPendingInput();
+                combatFeedbackRenderer.Clear();
+                lastFeedback = "Ambiguous input ignored";
+                return;
+            }
+
+            RhythmAction action = pendingInputAction;
+            double songTimeSeconds = pendingInputSongTimeSeconds;
+            ClearPendingInput();
+            ResolveInput(action, songTimeSeconds);
+        }
+
+        private void ClearPendingInput()
+        {
+            hasPendingInput = false;
+            pendingInputAction = RhythmAction.Guard;
+            pendingInputSongTimeSeconds = 0d;
+            pendingInputDeadlineRealtimeSeconds = 0d;
+            pendingInputIsAmbiguous = false;
+        }
+
+        private void ResolveInput(RhythmAction action, double songTimeSeconds)
+        {
             if (!IsSessionRunning || session == null)
             {
                 return;
             }
 
-            RhythmInputResolveResult result = session.ResolveInput(action, CurrentTimeSeconds);
+            RhythmInputResolveResult result = session.ResolveInput(action, songTimeSeconds);
             if (!result.HasMatch)
             {
                 lastFeedback = "No match";
@@ -303,7 +449,7 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private bool IsSessionRunning
         {
-            get { return songClock != null && songClock.IsRunning; }
+            get { return !isCountdownActive && songClock != null && songClock.IsRunning; }
         }
 
         private string GetClockName()
@@ -339,6 +485,18 @@ namespace PulseForge.Runtime.Unity.Prototype
         private static double GetPresentationTimeSeconds()
         {
             return Time.realtimeSinceStartupAsDouble;
+        }
+
+        private double GetCountdownRemainingSeconds()
+        {
+            if (!isCountdownActive)
+            {
+                return 0d;
+            }
+
+            double elapsedSeconds = GetPresentationTimeSeconds() - countdownStartedAtSeconds;
+            double remainingSeconds = countdownDurationSeconds - elapsedSeconds;
+            return remainingSeconds < 0d ? 0d : remainingSeconds;
         }
 
         private static IReadOnlyList<BeatEventData> CreateDebugEventData()
@@ -378,6 +536,11 @@ namespace PulseForge.Runtime.Unity.Prototype
         private static string FormatSeconds(double seconds)
         {
             return seconds.ToString("0.000", CultureInfo.InvariantCulture) + "s";
+        }
+
+        private static string FormatCountdownSeconds(double seconds)
+        {
+            return seconds.ToString("0.0", CultureInfo.InvariantCulture) + "s";
         }
     }
 }

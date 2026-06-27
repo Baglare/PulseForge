@@ -8,6 +8,7 @@
 /[Uu]ser[Ss]ettings/
 /[Mm]emoryCaptures/
 /[Rr]ecordings/
+.codex-compile-temp/
 
 # IDE generated files
 .vs/
