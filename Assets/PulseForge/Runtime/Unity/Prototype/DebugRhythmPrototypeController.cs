@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using PulseForge.Domain.Rhythm;
+using PulseForge.Runtime.Unity.BeatMaps;
 using PulseForge.Runtime.Unity.Timing;
 using UnityEngine;
 
@@ -18,6 +19,7 @@ namespace PulseForge.Runtime.Unity.Prototype
         private const float LaneTargetWidth = 600f;
         private const float LaneMarkerSize = 28f;
 
+        [SerializeField] private DebugBeatMapAsset debugBeatMapAsset = null;
         [SerializeField] private AudioClip debugAudioClip = null;
         [SerializeField] private bool useAudioClockWhenClipAssigned = true;
 
@@ -65,6 +67,8 @@ namespace PulseForge.Runtime.Unity.Prototype
             }
 
             GUILayout.Space(8f);
+            GUILayout.Label("Beat map: " + GetBeatMapSourceName());
+            GUILayout.Label("Event count: " + GetEventCountText());
             GUILayout.Label("Running: " + (IsSessionRunning ? "Yes" : "No"));
             GUILayout.Label("Clock: " + GetClockName());
             GUILayout.Label("Audio clip: " + GetAudioClipStatus());
@@ -113,25 +117,50 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private void RestartSession()
         {
-            session = new RhythmSession(
-                CreateDebugEventData(),
-                new JudgementWindows(PerfectWindowSeconds, GoodWindowSeconds),
-                new RhythmInputResolver(new BeatEventMatcher(), new HitJudge()),
-                new BeatEventTimeoutProcessor(new HitJudge()));
-            scoreTracker = new ScoreTracker();
-            RestartClock();
-            lastFeedback = "Session started";
+            try
+            {
+                session = new RhythmSession(
+                    CreateSessionBeatEvents(),
+                    new JudgementWindows(PerfectWindowSeconds, GoodWindowSeconds),
+                    new RhythmInputResolver(new BeatEventMatcher(), new HitJudge()),
+                    new BeatEventTimeoutProcessor(new HitJudge()));
+                scoreTracker = new ScoreTracker();
+                RestartClock();
+                lastFeedback = "Session started";
+                StopIfComplete();
+            }
+            catch (Exception exception)
+            {
+                StopClock();
+                session = null;
+                scoreTracker = new ScoreTracker();
+                lastFeedback = "Beat map error: " + exception.Message;
+            }
+        }
+
+        private IReadOnlyList<BeatEventData> CreateSessionBeatEvents()
+        {
+            if (debugBeatMapAsset != null)
+            {
+                return debugBeatMapAsset.BuildBeatEvents();
+            }
+
+            return CreateDebugEventData();
         }
 
         private void RestartClock()
+        {
+            StopClock();
+            songClock = CreateSongClock();
+            songClock.Start();
+        }
+
+        private void StopClock()
         {
             if (songClock != null)
             {
                 songClock.Stop();
             }
-
-            songClock = CreateSongClock();
-            songClock.Start();
         }
 
         private ISongClock CreateSongClock()
@@ -373,6 +402,26 @@ namespace PulseForge.Runtime.Unity.Prototype
         private string GetAudioClipStatus()
         {
             return debugAudioClip == null ? "None" : debugAudioClip.name;
+        }
+
+        private string GetBeatMapSourceName()
+        {
+            if (debugBeatMapAsset == null)
+            {
+                return "Default Hardcoded Beat Map";
+            }
+
+            return debugBeatMapAsset.name;
+        }
+
+        private string GetEventCountText()
+        {
+            if (session == null)
+            {
+                return "0";
+            }
+
+            return session.TotalEventCount.ToString(CultureInfo.InvariantCulture);
         }
 
         private static IReadOnlyList<BeatEventData> CreateDebugEventData()
