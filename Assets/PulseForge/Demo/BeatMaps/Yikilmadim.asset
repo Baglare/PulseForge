@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 272a763a28534df7addfa247b0108d44, type: 3}
+  m_Name: Yikilmadim
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.BeatMaps.DebugBeatMapAsset
+  displayName: Debug Beat Map
+  description: 
+  globalOffsetSeconds: 0
+  events:
+  - eventId: event-001
+    targetTimeSeconds: 1
+    action: 0
+    intensity: 1
+  - eventId: event-002
+    targetTimeSeconds: 1.5
+    action: 0
+    intensity: 1
+  - eventId: event-003
+    targetTimeSeconds: 2
+    action: 1
+    intensity: 1
+  - eventId: event-004
+    targetTimeSeconds: 2.5
+    action: 0
+    intensity: 1
+  - eventId: event-005
+    targetTimeSeconds: 3
+    action: 1
+    intensity: 1
+  - eventId: event-006
+    targetTimeSeconds: 3.25
+    action: 1
+    intensity: 1
+  - eventId: event-007
+    targetTimeSeconds: 3.75
+    action: 0
+    intensity: 1
+  - eventId: event-008
+    targetTimeSeconds: 4.25
+    action: 1
+    intensity: 1
+  - eventId: event-009
+    targetTimeSeconds: 4.75
+    action: 0
+    intensity: 1
+  - eventId: event-010
+    targetTimeSeconds: 5.25
+    action: 1
+    intensity: 1
