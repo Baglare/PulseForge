@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using PulseForge.Domain.Rhythm;
+using PulseForge.Runtime.Unity.Timing;
 using UnityEngine;
 
 namespace PulseForge.Runtime.Unity.Prototype
@@ -19,9 +20,7 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private RhythmSession session;
         private ScoreTracker scoreTracker;
-        private double sessionStartTime;
-        private double stoppedTimeSeconds;
-        private bool isRunning;
+        private ISongClock songClock;
         private string lastFeedback = "Press Start / Restart";
         private Vector2 eventListScroll;
 
@@ -32,7 +31,7 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private void Update()
         {
-            if (!isRunning || session == null || session.IsComplete)
+            if (!IsSessionRunning || session == null || session.IsComplete)
             {
                 return;
             }
@@ -63,7 +62,8 @@ namespace PulseForge.Runtime.Unity.Prototype
             }
 
             GUILayout.Space(8f);
-            GUILayout.Label("Running: " + (isRunning ? "Yes" : "No"));
+            GUILayout.Label("Running: " + (IsSessionRunning ? "Yes" : "No"));
+            GUILayout.Label("Clock: " + GetClockName());
             GUILayout.Label("Current time: " + FormatSeconds(CurrentTimeSeconds));
 
             ScoreSnapshot snapshot = GetSnapshot();
@@ -88,7 +88,7 @@ namespace PulseForge.Runtime.Unity.Prototype
 
             GUILayout.Space(8f);
             bool previousGuiEnabled = GUI.enabled;
-            GUI.enabled = isRunning;
+            GUI.enabled = IsSessionRunning;
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("Guard (Space)"))
             {
@@ -115,15 +115,18 @@ namespace PulseForge.Runtime.Unity.Prototype
                 new RhythmInputResolver(new BeatEventMatcher(), new HitJudge()),
                 new BeatEventTimeoutProcessor(new HitJudge()));
             scoreTracker = new ScoreTracker();
-            sessionStartTime = Time.realtimeSinceStartupAsDouble;
-            stoppedTimeSeconds = 0d;
-            isRunning = true;
+            if (songClock == null)
+            {
+                songClock = new RealtimeSongClock();
+            }
+
+            songClock.Restart();
             lastFeedback = "Session started";
         }
 
         private void HandleKeyboardEvent(Event currentEvent)
         {
-            if (!isRunning || currentEvent == null || currentEvent.type != EventType.KeyDown)
+            if (!IsSessionRunning || currentEvent == null || currentEvent.type != EventType.KeyDown)
             {
                 return;
             }
@@ -142,7 +145,7 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private void HandleInput(RhythmAction action)
         {
-            if (!isRunning || session == null)
+            if (!IsSessionRunning || session == null)
             {
                 return;
             }
@@ -171,8 +174,7 @@ namespace PulseForge.Runtime.Unity.Prototype
                 return;
             }
 
-            stoppedTimeSeconds = CurrentTimeSeconds;
-            isRunning = false;
+            songClock.Stop();
             lastFeedback = "Session complete";
         }
 
@@ -318,18 +320,23 @@ namespace PulseForge.Runtime.Unity.Prototype
         {
             get
             {
-                if (session == null)
+                if (songClock == null)
                 {
                     return 0d;
                 }
 
-                if (!isRunning)
-                {
-                    return stoppedTimeSeconds;
-                }
-
-                return Time.realtimeSinceStartupAsDouble - sessionStartTime;
+                return songClock.CurrentTimeSeconds;
             }
+        }
+
+        private bool IsSessionRunning
+        {
+            get { return songClock != null && songClock.IsRunning; }
+        }
+
+        private string GetClockName()
+        {
+            return songClock == null ? "None" : songClock.GetType().Name;
         }
 
         private static IReadOnlyList<BeatEventData> CreateDebugEventData()
