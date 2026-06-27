@@ -18,6 +18,9 @@ namespace PulseForge.Runtime.Unity.Prototype
         private const float LaneTargetWidth = 600f;
         private const float LaneMarkerSize = 28f;
 
+        [SerializeField] private AudioClip debugAudioClip = null;
+        [SerializeField] private bool useAudioClockWhenClipAssigned = true;
+
         private RhythmSession session;
         private ScoreTracker scoreTracker;
         private ISongClock songClock;
@@ -64,6 +67,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             GUILayout.Space(8f);
             GUILayout.Label("Running: " + (IsSessionRunning ? "Yes" : "No"));
             GUILayout.Label("Clock: " + GetClockName());
+            GUILayout.Label("Audio clip: " + GetAudioClipStatus());
             GUILayout.Label("Current time: " + FormatSeconds(CurrentTimeSeconds));
 
             ScoreSnapshot snapshot = GetSnapshot();
@@ -115,13 +119,40 @@ namespace PulseForge.Runtime.Unity.Prototype
                 new RhythmInputResolver(new BeatEventMatcher(), new HitJudge()),
                 new BeatEventTimeoutProcessor(new HitJudge()));
             scoreTracker = new ScoreTracker();
-            if (songClock == null)
+            RestartClock();
+            lastFeedback = "Session started";
+        }
+
+        private void RestartClock()
+        {
+            if (songClock != null)
             {
-                songClock = new RealtimeSongClock();
+                songClock.Stop();
             }
 
-            songClock.Restart();
-            lastFeedback = "Session started";
+            songClock = CreateSongClock();
+            songClock.Start();
+        }
+
+        private ISongClock CreateSongClock()
+        {
+            if (useAudioClockWhenClipAssigned && debugAudioClip != null)
+            {
+                return new DspAudioSongClock(GetOrAddAudioSource(), debugAudioClip);
+            }
+
+            return new RealtimeSongClock();
+        }
+
+        private AudioSource GetOrAddAudioSource()
+        {
+            AudioSource audioSource = GetComponent<AudioSource>();
+            if (audioSource == null)
+            {
+                audioSource = gameObject.AddComponent<AudioSource>();
+            }
+
+            return audioSource;
         }
 
         private void HandleKeyboardEvent(Event currentEvent)
@@ -337,6 +368,11 @@ namespace PulseForge.Runtime.Unity.Prototype
         private string GetClockName()
         {
             return songClock == null ? "None" : songClock.GetType().Name;
+        }
+
+        private string GetAudioClipStatus()
+        {
+            return debugAudioClip == null ? "None" : debugAudioClip.name;
         }
 
         private static IReadOnlyList<BeatEventData> CreateDebugEventData()

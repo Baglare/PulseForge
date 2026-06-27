@@ -369,6 +369,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1edc91ba8c6041399b16f7e16f063445, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.Prototype.DebugRhythmPrototypeController
+  debugAudioClip: {fileID: 8300000, guid: 8db0e1826af631f4389cfc9880210d86, type: 3}
+  useAudioClockWhenClipAssigned: 1
 --- !u!4 &828938743
 Transform:
   m_ObjectHideFlags: 0
