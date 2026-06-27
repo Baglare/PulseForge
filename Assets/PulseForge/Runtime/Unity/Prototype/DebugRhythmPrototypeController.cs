@@ -18,6 +18,8 @@ namespace PulseForge.Runtime.Unity.Prototype
         private const float LaneHitLineOffset = 120f;
         private const float LaneTargetWidth = 600f;
         private const float LaneMarkerSize = 28f;
+        private const double CombatFeedbackDurationSeconds = 0.35d;
+        private const float CombatPanelHeight = 118f;
 
         [SerializeField] private DebugBeatMapAsset debugBeatMapAsset = null;
         [SerializeField] private AudioClip debugAudioClip = null;
@@ -27,6 +29,10 @@ namespace PulseForge.Runtime.Unity.Prototype
         private ScoreTracker scoreTracker;
         private ISongClock songClock;
         private string lastFeedback = "Press Start / Restart";
+        private string combatFeedbackText = string.Empty;
+        private double combatFeedbackUntilTime;
+        private RhythmAction? lastCombatAction;
+        private HitGrade? lastCombatGrade;
         private Vector2 eventListScroll;
 
         private void Start()
@@ -45,6 +51,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             for (int i = 0; i < timedOutResults.Count; i++)
             {
                 RecordResult(timedOutResults[i]);
+                ShowCombatFeedback(timedOutResults[i], null);
                 lastFeedback = FormatFeedback(timedOutResults[i]);
             }
 
@@ -88,6 +95,9 @@ namespace PulseForge.Runtime.Unity.Prototype
             GUILayout.Label("Last feedback: " + lastFeedback);
 
             GUILayout.Space(8f);
+            DrawCombatDebugPanel();
+
+            GUILayout.Space(8f);
             DrawRhythmLane();
 
             GUILayout.Space(8f);
@@ -125,6 +135,7 @@ namespace PulseForge.Runtime.Unity.Prototype
                     new RhythmInputResolver(new BeatEventMatcher(), new HitJudge()),
                     new BeatEventTimeoutProcessor(new HitJudge()));
                 scoreTracker = new ScoreTracker();
+                ClearCombatFeedback();
                 RestartClock();
                 lastFeedback = "Session started";
                 StopIfComplete();
@@ -134,6 +145,7 @@ namespace PulseForge.Runtime.Unity.Prototype
                 StopClock();
                 session = null;
                 scoreTracker = new ScoreTracker();
+                ClearCombatFeedback();
                 lastFeedback = "Beat map error: " + exception.Message;
             }
         }
@@ -218,6 +230,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             }
 
             RecordResult(result.HitResult);
+            ShowCombatFeedback(result.HitResult, action);
             lastFeedback = FormatFeedback(result.HitResult);
             StopIfComplete();
         }
@@ -225,6 +238,22 @@ namespace PulseForge.Runtime.Unity.Prototype
         private void RecordResult(HitResult result)
         {
             scoreTracker.Record(result);
+        }
+
+        private void ShowCombatFeedback(HitResult result, RhythmAction? action)
+        {
+            lastCombatGrade = result.Grade;
+            lastCombatAction = result.Grade == HitGrade.Miss ? null : action;
+            combatFeedbackText = FormatCombatFeedbackText(result.Grade, action);
+            combatFeedbackUntilTime = GetPresentationTimeSeconds() + CombatFeedbackDurationSeconds;
+        }
+
+        private void ClearCombatFeedback()
+        {
+            combatFeedbackText = string.Empty;
+            combatFeedbackUntilTime = 0d;
+            lastCombatAction = null;
+            lastCombatGrade = null;
         }
 
         private void StopIfComplete()
@@ -258,6 +287,42 @@ namespace PulseForge.Runtime.Unity.Prototype
                     + "  "
                     + beatEvent.Data.EventId);
             }
+        }
+
+        private void DrawCombatDebugPanel()
+        {
+            GUILayout.Label("Combat Debug");
+
+            Rect panelRect = GUILayoutUtility.GetRect(720f, CombatPanelHeight);
+            Color previousColor = GUI.color;
+
+            GUI.color = new Color(0.12f, 0.12f, 0.12f, 1f);
+            GUI.Box(panelRect, GUIContent.none);
+
+            Rect playerRect = new Rect(panelRect.x + 24f, panelRect.y + 44f, 150f, 48f);
+            Rect enemyRect = new Rect(panelRect.xMax - 174f, panelRect.y + 44f, 150f, 48f);
+            Rect feedbackRect = new Rect(panelRect.center.x - 150f, panelRect.y + 34f, 300f, 42f);
+
+            GUI.color = new Color(0.28f, 0.48f, 0.95f, 1f);
+            GUI.Box(playerRect, "PLAYER");
+
+            GUI.color = new Color(0.95f, 0.32f, 0.28f, 1f);
+            GUI.Box(enemyRect, "ENEMY");
+
+            if (IsCombatFeedbackActive())
+            {
+                Color feedbackColor = GetCombatFeedbackColor();
+                feedbackColor.a = GetCombatFeedbackAlpha();
+                GUI.color = feedbackColor;
+                GUI.Box(feedbackRect, combatFeedbackText);
+            }
+            else
+            {
+                GUI.color = new Color(0.35f, 0.35f, 0.35f, 1f);
+                GUI.Box(feedbackRect, string.Empty);
+            }
+
+            GUI.color = previousColor;
         }
 
         private void DrawRhythmLane()
@@ -424,6 +489,48 @@ namespace PulseForge.Runtime.Unity.Prototype
             return session.TotalEventCount.ToString(CultureInfo.InvariantCulture);
         }
 
+        private bool IsCombatFeedbackActive()
+        {
+            return !string.IsNullOrEmpty(combatFeedbackText)
+                && GetPresentationTimeSeconds() <= combatFeedbackUntilTime;
+        }
+
+        private float GetCombatFeedbackAlpha()
+        {
+            if (!IsCombatFeedbackActive())
+            {
+                return 0f;
+            }
+
+            double remainingSeconds = combatFeedbackUntilTime - GetPresentationTimeSeconds();
+            return Mathf.Clamp01((float)(remainingSeconds / CombatFeedbackDurationSeconds));
+        }
+
+        private Color GetCombatFeedbackColor()
+        {
+            if (lastCombatGrade == HitGrade.Miss)
+            {
+                return new Color(1f, 0.35f, 0.25f, 1f);
+            }
+
+            if (lastCombatAction == RhythmAction.Guard)
+            {
+                return new Color(0.25f, 0.9f, 1f, 1f);
+            }
+
+            if (lastCombatAction == RhythmAction.Strike)
+            {
+                return new Color(1f, 0.86f, 0.25f, 1f);
+            }
+
+            return Color.white;
+        }
+
+        private static double GetPresentationTimeSeconds()
+        {
+            return Time.realtimeSinceStartupAsDouble;
+        }
+
         private static IReadOnlyList<BeatEventData> CreateDebugEventData()
         {
             return new[]
@@ -449,6 +556,26 @@ namespace PulseForge.Runtime.Unity.Prototype
             }
 
             return result.Grade + " " + result.EventId + " " + FormatSignedMilliseconds(result.TimingErrorSeconds);
+        }
+
+        private static string FormatCombatFeedbackText(HitGrade grade, RhythmAction? action)
+        {
+            if (grade == HitGrade.Miss)
+            {
+                return "MISS / HIT TAKEN";
+            }
+
+            if (action == RhythmAction.Guard)
+            {
+                return grade == HitGrade.Perfect ? "PERFECT PARRY" : "GOOD PARRY";
+            }
+
+            if (action == RhythmAction.Strike)
+            {
+                return grade == HitGrade.Perfect ? "PERFECT SLASH" : "GOOD SLASH";
+            }
+
+            return grade.ToString().ToUpperInvariant();
         }
 
         private static string FormatSignedMilliseconds(double timingErrorSeconds)
