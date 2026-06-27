@@ -13,6 +13,11 @@ namespace PulseForge.Runtime.Unity.Prototype
         private const double PerfectWindowSeconds = 0.045d;
         private const double GoodWindowSeconds = 0.100d;
         private const float RhythmLaneHeight = 96f;
+        private const float LayoutMargin = 10f;
+        private const float PanelGap = 10f;
+        private const float RightPanelPreferredWidth = 360f;
+        private const float RightPanelMinWidth = 300f;
+        private const float MainAreaMinWidth = 260f;
 
         [SerializeField] private TextAsset debugBeatMapJson = null;
         [SerializeField] private DebugBeatMapAsset debugBeatMapAsset = null;
@@ -29,6 +34,7 @@ namespace PulseForge.Runtime.Unity.Prototype
         private ISongClock songClock;
         private string lastFeedback = "Press Start / Restart";
         private Vector2 eventListScroll;
+        private Vector2 rightPanelScroll;
         private readonly DebugRhythmLaneRenderer rhythmLaneRenderer = new DebugRhythmLaneRenderer();
         private readonly DebugCombatFeedbackRenderer combatFeedbackRenderer = new DebugCombatFeedbackRenderer();
         private bool isCountdownActive;
@@ -82,34 +88,86 @@ namespace PulseForge.Runtime.Unity.Prototype
         {
             HandleKeyboardEvent(Event.current);
 
-            float panelWidth = Mathf.Min(780f, Screen.width - 20f);
-            GUILayout.BeginArea(new Rect(10f, 10f, panelWidth, Screen.height - 20f), GUI.skin.box);
+            CalculateHudRects(out Rect mainAreaRect, out Rect rightPanelRect);
+            DrawMainArea(mainAreaRect);
+            DrawRightPanel(rightPanelRect);
+        }
+
+        private static void CalculateHudRects(out Rect mainAreaRect, out Rect rightPanelRect)
+        {
+            float contentWidth = Mathf.Max(1f, Screen.width - LayoutMargin * 2f);
+            float contentHeight = Mathf.Max(1f, Screen.height - LayoutMargin * 2f);
+            float rightPanelWidth = CalculateRightPanelWidth(contentWidth);
+            float mainAreaWidth = Mathf.Max(1f, contentWidth - PanelGap - rightPanelWidth);
+
+            mainAreaRect = new Rect(LayoutMargin, LayoutMargin, mainAreaWidth, contentHeight);
+            rightPanelRect = new Rect(mainAreaRect.xMax + PanelGap, LayoutMargin, rightPanelWidth, contentHeight);
+        }
+
+        private static float CalculateRightPanelWidth(float contentWidth)
+        {
+            float maximumWidthWithReadableMainArea = contentWidth - PanelGap - MainAreaMinWidth;
+            if (maximumWidthWithReadableMainArea >= RightPanelMinWidth)
+            {
+                return Mathf.Min(RightPanelPreferredWidth, maximumWidthWithReadableMainArea);
+            }
+
+            return Mathf.Max(1f, Mathf.Min(RightPanelMinWidth, contentWidth * 0.45f));
+        }
+
+        private void DrawMainArea(Rect area)
+        {
+            GUILayout.BeginArea(area, GUI.skin.box);
             eventListScroll = GUILayout.BeginScrollView(eventListScroll);
 
             GUILayout.Label("PulseForge Debug Rhythm Prototype");
-
-            if (GUILayout.Button("Start / Restart"))
-            {
-                RestartSession();
-            }
+            GUILayout.Space(8f);
+            DrawRuntimeSummary();
 
             GUILayout.Space(8f);
-            GUILayout.Label("Beat map: " + GetBeatMapSourceName());
-            GUILayout.Label("Event count: " + GetEventCountText());
-            GUILayout.Label("Running: " + (IsSessionRunning ? "Yes" : "No"));
-            GUILayout.Label("Clock: " + GetClockName());
-            GUILayout.Label("Audio clip: " + GetAudioClipStatus());
-            if (isCountdownActive)
-            {
-                GUILayout.Label("Starting in: " + FormatCountdownSeconds(GetCountdownRemainingSeconds()));
-            }
+            GUILayout.Label("Rhythm lane");
+            Rect rhythmLaneRect = GUILayoutUtility.GetRect(1f, RhythmLaneHeight, GUILayout.ExpandWidth(true));
+            rhythmLaneRenderer.Draw(rhythmLaneRect, session == null ? null : session.Events, CurrentTimeSeconds);
 
-            GUILayout.Label("Current time: " + FormatSeconds(CurrentTimeSeconds));
+            GUILayout.Space(8f);
+            GUILayout.Label("Combat Debug");
+            Rect combatPanelRect = GUILayoutUtility.GetRect(1f, DebugCombatFeedbackRenderer.PanelHeight, GUILayout.ExpandWidth(true));
+            combatFeedbackRenderer.Draw(combatPanelRect, GetPresentationTimeSeconds(), IsSessionRunning);
 
+            GUILayout.Space(8f);
+            GUILayout.Label("Events");
+            DrawEventList();
+
+            GUILayout.EndScrollView();
+            GUILayout.EndArea();
+        }
+
+        private void DrawRightPanel(Rect area)
+        {
+            GUILayout.BeginArea(area, GUI.skin.box);
+            rightPanelScroll = GUILayout.BeginScrollView(rightPanelScroll);
+
+            DrawSessionControls();
+            DrawManualInputControls();
+            DrawSourceInfo();
+            DrawTimingCalibrationPanel();
+            DrawLastFeedbackPanel();
+
+            GUILayout.EndScrollView();
+            GUILayout.EndArea();
+        }
+
+        private void DrawRuntimeSummary()
+        {
             ScoreSnapshot snapshot = GetSnapshot();
+            GUILayout.BeginVertical(GUI.skin.box);
+            GUILayout.Label("Status: " + GetSessionStatusText());
             GUILayout.Label("Score: " + snapshot.TotalScore.ToString(CultureInfo.InvariantCulture));
-            GUILayout.Label("Current combo: " + snapshot.CurrentCombo.ToString(CultureInfo.InvariantCulture));
-            GUILayout.Label("Max combo: " + snapshot.MaxCombo.ToString(CultureInfo.InvariantCulture));
+            GUILayout.Label(
+                "Combo: "
+                + snapshot.CurrentCombo.ToString(CultureInfo.InvariantCulture)
+                + " / Max "
+                + snapshot.MaxCombo.ToString(CultureInfo.InvariantCulture));
             GUILayout.Label(
                 "Perfect / Good / Miss: "
                 + snapshot.PerfectCount.ToString(CultureInfo.InvariantCulture)
@@ -117,25 +175,33 @@ namespace PulseForge.Runtime.Unity.Prototype
                 + snapshot.GoodCount.ToString(CultureInfo.InvariantCulture)
                 + " / "
                 + snapshot.MissCount.ToString(CultureInfo.InvariantCulture));
-            GUILayout.Label("Last feedback: " + lastFeedback);
+            GUILayout.EndVertical();
+        }
 
-            DrawTimingCalibrationPanel();
+        private void DrawSessionControls()
+        {
+            GUILayout.Label("Session Controls");
+            GUILayout.BeginVertical(GUI.skin.box);
+            if (GUILayout.Button("Start / Restart"))
+            {
+                RestartSession();
+            }
 
+            GUILayout.Label("Status: " + GetSessionStatusText());
+            if (isCountdownActive)
+            {
+                GUILayout.Label("Starting in: " + FormatCountdownSeconds(GetCountdownRemainingSeconds()));
+            }
+
+            GUILayout.Label("Current time: " + FormatSeconds(CurrentTimeSeconds));
+            GUILayout.EndVertical();
+        }
+
+        private void DrawManualInputControls()
+        {
             GUILayout.Space(8f);
-            GUILayout.Label("Combat Debug");
-            Rect combatPanelRect = GUILayoutUtility.GetRect(720f, DebugCombatFeedbackRenderer.PanelHeight);
-            combatFeedbackRenderer.Draw(combatPanelRect, GetPresentationTimeSeconds(), IsSessionRunning);
-
-            GUILayout.Space(8f);
-            GUILayout.Label("Rhythm lane");
-            Rect rhythmLaneRect = GUILayoutUtility.GetRect(720f, RhythmLaneHeight);
-            rhythmLaneRenderer.Draw(rhythmLaneRect, session == null ? null : session.Events, CurrentTimeSeconds);
-
-            GUILayout.Space(8f);
-            GUILayout.Label("Events");
-            DrawEventList();
-
-            GUILayout.Space(8f);
+            GUILayout.Label("Manual Inputs");
+            GUILayout.BeginVertical(GUI.skin.box);
             bool previousGuiEnabled = GUI.enabled;
             GUI.enabled = IsSessionRunning;
             GUILayout.BeginHorizontal();
@@ -151,9 +217,65 @@ namespace PulseForge.Runtime.Unity.Prototype
 
             GUILayout.EndHorizontal();
             GUI.enabled = previousGuiEnabled;
+            GUILayout.Label("Space = Guard");
+            GUILayout.Label("J = Strike");
+            GUILayout.Label("Ambiguous input: " + GetAmbiguousInputStatusText());
+            GUILayout.EndVertical();
+        }
 
-            GUILayout.EndScrollView();
-            GUILayout.EndArea();
+        private void DrawSourceInfo()
+        {
+            GUILayout.Space(8f);
+            GUILayout.Label("Source Info");
+            GUILayout.BeginVertical(GUI.skin.box);
+            GUILayout.Label("Active clock: " + GetClockName());
+            GUILayout.Label("Audio clip: " + GetAudioClipStatus());
+            GUILayout.Label("Beatmap source:");
+            GUILayout.Label(GetBeatMapSourceName());
+            GUILayout.Label("Event count: " + GetEventCountText());
+            GUILayout.EndVertical();
+        }
+
+        private void DrawLastFeedbackPanel()
+        {
+            GUILayout.Space(8f);
+            GUILayout.Label("Last Feedback");
+            GUILayout.BeginVertical(GUI.skin.box);
+            GUILayout.Label(lastFeedback);
+            GUILayout.Label("Last timing: " + GetLastInputTimingErrorText());
+            GUILayout.EndVertical();
+        }
+
+        private string GetSessionStatusText()
+        {
+            if (isCountdownActive)
+            {
+                return "Waiting";
+            }
+
+            if (session != null && session.IsComplete)
+            {
+                return "Complete";
+            }
+
+            if (IsSessionRunning)
+            {
+                return "Running";
+            }
+
+            return "Waiting";
+        }
+
+        private string GetAmbiguousInputStatusText()
+        {
+            if (!rejectAmbiguousSimultaneousActions)
+            {
+                return "Off";
+            }
+
+            return "On ("
+                + (Mathf.Max(0f, simultaneousInputWindowSeconds) * 1000f).ToString("0", CultureInfo.InvariantCulture)
+                + " ms)";
         }
 
         private void RestartSession()
@@ -599,7 +721,7 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private string GetAudioClipStatus()
         {
-            return debugAudioClip == null ? "None" : debugAudioClip.name;
+            return debugAudioClip == null ? "Not assigned" : "Assigned: " + debugAudioClip.name;
         }
 
         private string GetBeatMapSourceName()

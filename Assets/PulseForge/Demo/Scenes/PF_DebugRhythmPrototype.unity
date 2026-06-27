@@ -148,13 +148,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1edc91ba8c6041399b16f7e16f063445, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.Prototype.DebugRhythmPrototypeController
-  debugBeatMapJson: {fileID: 4900000, guid: dc82eb22cbe229449aef00b6611dc4a8, type: 3}
+  debugBeatMapJson: {fileID: 4900000, guid: b4b33f71a2c94a09a994a6d6c90f6f87, type: 3}
   debugBeatMapAsset: {fileID: 0}
-  debugAudioClip: {fileID: 8300000, guid: 1c3a6287f4361834b9ed91015c91b9c2, type: 3}
+  debugAudioClip: {fileID: 8300000, guid: b6c559ae053cda14686717601101f293, type: 3}
   useAudioClockWhenClipAssigned: 1
   startCountdownSeconds: 3
   rejectAmbiguousSimultaneousActions: 1
   simultaneousInputWindowSeconds: 0.035
+  debugBeatMapOffsetSeconds: 0
+  inputTimingOffsetSeconds: 0
 --- !u!4 &473293104
 Transform:
   m_ObjectHideFlags: 0
