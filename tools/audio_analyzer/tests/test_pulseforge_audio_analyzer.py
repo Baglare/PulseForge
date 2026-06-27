@@ -1,3 +1,6 @@
+import contextlib
+import csv
+import io
 import json
 import struct
 import sys
@@ -191,6 +194,189 @@ class PulseForgeAudioAnalyzerTests(unittest.TestCase):
             for actual_time, expected_time in zip(actual_times, expected_times):
                 self.assertAlmostEqual(actual_time, expected_time, delta=0.04)
 
+    def test_report_output_file_is_created(self):
+        with tempfile.TemporaryDirectory() as temp_directory:
+            report_path = Path(temp_directory) / "reports" / "analysis.json"
+            beatmap_path = Path(temp_directory) / "beatmap.json"
+            with temporary_click_wav([0.10, 0.30]) as wav_path:
+                exit_code, _, _ = run_analyzer_main(
+                    [
+                        str(wav_path),
+                        "--output",
+                        str(beatmap_path),
+                        "--report-output",
+                        str(report_path),
+                        "--frame-ms",
+                        "10",
+                        "--threshold-ratio",
+                        "0.5",
+                        "--min-gap-seconds",
+                        "0.05",
+                    ]
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertTrue(report_path.exists())
+
+    def test_report_output_contains_detected_event_count(self):
+        with tempfile.TemporaryDirectory() as temp_directory:
+            report_path = Path(temp_directory) / "analysis.json"
+            beatmap_path = Path(temp_directory) / "beatmap.json"
+            with temporary_click_wav([0.10, 0.30, 0.70]) as wav_path:
+                exit_code, _, _ = run_analyzer_main(
+                    [
+                        str(wav_path),
+                        "--output",
+                        str(beatmap_path),
+                        "--report-output",
+                        str(report_path),
+                        "--frame-ms",
+                        "10",
+                        "--threshold-ratio",
+                        "0.5",
+                        "--min-gap-seconds",
+                        "0.05",
+                    ]
+                )
+
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(report["detectedEventCount"], 3)
+
+    def test_report_output_contains_sample_rate_and_duration(self):
+        with tempfile.TemporaryDirectory() as temp_directory:
+            report_path = Path(temp_directory) / "analysis.json"
+            beatmap_path = Path(temp_directory) / "beatmap.json"
+            with temporary_click_wav([0.10], sample_rate=1000, duration_seconds=1.0) as wav_path:
+                exit_code, _, _ = run_analyzer_main(
+                    [
+                        str(wav_path),
+                        "--output",
+                        str(beatmap_path),
+                        "--report-output",
+                        str(report_path),
+                        "--frame-ms",
+                        "10",
+                    ]
+                )
+
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(report["sampleRate"], 1000)
+            self.assertAlmostEqual(report["durationSeconds"], 1.0)
+
+    def test_debug_csv_output_file_is_created(self):
+        with tempfile.TemporaryDirectory() as temp_directory:
+            csv_path = Path(temp_directory) / "debug" / "frames.csv"
+            beatmap_path = Path(temp_directory) / "beatmap.json"
+            with temporary_click_wav([0.10, 0.30]) as wav_path:
+                exit_code, _, _ = run_analyzer_main(
+                    [
+                        str(wav_path),
+                        "--output",
+                        str(beatmap_path),
+                        "--debug-csv-output",
+                        str(csv_path),
+                        "--frame-ms",
+                        "10",
+                        "--threshold-ratio",
+                        "0.5",
+                        "--min-gap-seconds",
+                        "0.05",
+                    ]
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertTrue(csv_path.exists())
+
+    def test_debug_csv_header_contains_expected_columns(self):
+        with tempfile.TemporaryDirectory() as temp_directory:
+            csv_path = Path(temp_directory) / "frames.csv"
+            beatmap_path = Path(temp_directory) / "beatmap.json"
+            with temporary_click_wav([0.10]) as wav_path:
+                run_analyzer_main(
+                    [
+                        str(wav_path),
+                        "--output",
+                        str(beatmap_path),
+                        "--debug-csv-output",
+                        str(csv_path),
+                        "--frame-ms",
+                        "10",
+                    ]
+                )
+
+            header = csv_path.read_text(encoding="utf-8").splitlines()[0]
+            self.assertEqual(
+                header,
+                "frameIndex,timeSeconds,amplitude,isLocalPeak,isSelectedPeak",
+            )
+
+    def test_debug_csv_marks_at_least_one_selected_peak(self):
+        with tempfile.TemporaryDirectory() as temp_directory:
+            csv_path = Path(temp_directory) / "frames.csv"
+            beatmap_path = Path(temp_directory) / "beatmap.json"
+            with temporary_click_wav([0.10, 0.30]) as wav_path:
+                exit_code, _, _ = run_analyzer_main(
+                    [
+                        str(wav_path),
+                        "--output",
+                        str(beatmap_path),
+                        "--debug-csv-output",
+                        str(csv_path),
+                        "--frame-ms",
+                        "10",
+                        "--threshold-ratio",
+                        "0.5",
+                        "--min-gap-seconds",
+                        "0.05",
+                    ]
+                )
+
+            rows = list(csv.DictReader(io.StringIO(csv_path.read_text(encoding="utf-8"))))
+            self.assertEqual(exit_code, 0)
+            self.assertTrue(any(row["isSelectedPeak"] == "true" for row in rows))
+
+    def test_cli_without_output_keeps_stdout_beatmap_json(self):
+        with temporary_click_wav([0.10, 0.30]) as wav_path:
+            exit_code, stdout, stderr = run_analyzer_main(
+                [
+                    str(wav_path),
+                    "--frame-ms",
+                    "10",
+                    "--threshold-ratio",
+                    "0.5",
+                    "--min-gap-seconds",
+                    "0.05",
+                ]
+            )
+
+        document = json.loads(stdout)
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr, "")
+        self.assertEqual(document["schemaVersion"], 1)
+        self.assertEqual(len(document["events"]), 2)
+
+    def test_summary_writes_to_stderr_without_polluting_stdout_json(self):
+        with temporary_click_wav([0.10]) as wav_path:
+            exit_code, stdout, stderr = run_analyzer_main(
+                [
+                    str(wav_path),
+                    "--summary",
+                    "--frame-ms",
+                    "10",
+                    "--threshold-ratio",
+                    "0.5",
+                    "--min-gap-seconds",
+                    "0.05",
+                ]
+            )
+
+        document = json.loads(stdout)
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(document["schemaVersion"], 1)
+        self.assertIn("Detected 1 events", stderr)
+
 
 class temporary_click_wav:
     def __init__(self, click_times, sample_rate=1000, duration_seconds=1.0):
@@ -226,6 +412,15 @@ def write_click_wav(path, click_times, sample_rate, duration_seconds):
         wav_file.setsampwidth(2)
         wav_file.setframerate(sample_rate)
         wav_file.writeframes(b"".join(struct.pack("<h", sample) for sample in samples))
+
+
+def run_analyzer_main(arguments):
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+        exit_code = analyzer.main(arguments)
+
+    return exit_code, stdout.getvalue(), stderr.getvalue()
 
 
 if __name__ == "__main__":

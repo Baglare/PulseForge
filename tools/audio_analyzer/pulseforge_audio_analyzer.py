@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import csv
+import io
 import json
 import sys
 import wave
@@ -28,9 +30,38 @@ class FrameAmplitude:
 
 
 @dataclass(frozen=True)
+class WavAnalysis:
+    input_path: Path
+    sample_rate: int
+    channel_count: int
+    sample_width_bytes: int
+    frame_count: int
+    frame_ms: float
+    frame_amplitudes: list[FrameAmplitude]
+
+    @property
+    def duration_seconds(self) -> float:
+        return self.frame_count / self.sample_rate
+
+
+@dataclass(frozen=True)
 class DetectedPeak:
     time_seconds: float
     intensity: float
+
+
+@dataclass(frozen=True)
+class AnalyzerRunResult:
+    input_path: Path
+    display_name: str
+    global_offset_seconds: float
+    frame_ms: float
+    threshold_ratio: float
+    min_gap_seconds: float
+    max_events: int | None
+    wav_analysis: WavAnalysis
+    peaks: list[DetectedPeak]
+    beatmap_document: dict
 
 
 def normalize_action(action: str) -> str:
@@ -68,6 +99,10 @@ def format_event_id(index: int) -> str:
 
 
 def read_wav_frame_amplitudes(input_wav: str | Path, frame_ms: float) -> list[FrameAmplitude]:
+    return read_wav_analysis(input_wav, frame_ms).frame_amplitudes
+
+
+def read_wav_analysis(input_wav: str | Path, frame_ms: float) -> WavAnalysis:
     if frame_ms <= 0:
         raise AnalyzerError("--frame-ms must be greater than zero.")
 
@@ -102,7 +137,20 @@ def read_wav_frame_amplitudes(input_wav: str | Path, frame_ms: float) -> list[Fr
 
     samples_per_analysis_frame = max(1, int(round(sample_rate * frame_ms / 1000.0)))
     sample_amplitudes = iter_normalized_sample_amplitudes(raw_frames, sample_width, channel_count)
-    return build_frame_amplitudes(sample_amplitudes, sample_rate, samples_per_analysis_frame)
+    frame_amplitudes = build_frame_amplitudes(
+        sample_amplitudes,
+        sample_rate,
+        samples_per_analysis_frame,
+    )
+    return WavAnalysis(
+        input_path=input_path,
+        sample_rate=sample_rate,
+        channel_count=channel_count,
+        sample_width_bytes=sample_width,
+        frame_count=frame_count,
+        frame_ms=frame_ms,
+        frame_amplitudes=frame_amplitudes,
+    )
 
 
 def iter_normalized_sample_amplitudes(
@@ -287,15 +335,57 @@ def analyze_wav_file(
     max_events: int | None = None,
     pattern_text: str | None = None,
 ) -> dict:
+    return analyze_wav(
+        input_wav,
+        display_name=display_name,
+        global_offset_seconds=global_offset_seconds,
+        frame_ms=frame_ms,
+        threshold_ratio=threshold_ratio,
+        min_gap_seconds=min_gap_seconds,
+        max_events=max_events,
+        pattern_text=pattern_text,
+    ).beatmap_document
+
+
+def analyze_wav(
+    input_wav: str | Path,
+    *,
+    display_name: str | None = None,
+    global_offset_seconds: float = 0.0,
+    frame_ms: float = 10.0,
+    threshold_ratio: float = 0.35,
+    min_gap_seconds: float = 0.18,
+    max_events: int | None = None,
+    pattern_text: str | None = None,
+) -> AnalyzerRunResult:
     input_path = Path(input_wav)
     action_pattern = parse_action_pattern(pattern_text)
-    frame_amplitudes = read_wav_frame_amplitudes(input_path, frame_ms)
-    peaks = detect_peaks(frame_amplitudes, threshold_ratio, min_gap_seconds, max_events)
-    return build_beatmap_document(
+    wav_analysis = read_wav_analysis(input_path, frame_ms)
+    peaks = detect_peaks(
+        wav_analysis.frame_amplitudes,
+        threshold_ratio,
+        min_gap_seconds,
+        max_events,
+    )
+    resolved_display_name = display_name or input_path.stem
+    beatmap_document = build_beatmap_document(
         peaks,
-        display_name or input_path.stem,
+        resolved_display_name,
         global_offset_seconds,
         action_pattern,
+    )
+
+    return AnalyzerRunResult(
+        input_path=input_path,
+        display_name=resolved_display_name,
+        global_offset_seconds=global_offset_seconds,
+        frame_ms=frame_ms,
+        threshold_ratio=threshold_ratio,
+        min_gap_seconds=min_gap_seconds,
+        max_events=max_events,
+        wav_analysis=wav_analysis,
+        peaks=peaks,
+        beatmap_document=beatmap_document,
     )
 
 
@@ -303,12 +393,116 @@ def dumps_beatmap(beatmap_document: dict) -> str:
     return json.dumps(beatmap_document, indent=2) + "\n"
 
 
+def build_analysis_report(run_result: AnalyzerRunResult) -> dict:
+    events = run_result.beatmap_document["events"]
+    return {
+        "inputPath": str(run_result.input_path),
+        "displayName": run_result.display_name,
+        "sampleRate": run_result.wav_analysis.sample_rate,
+        "channels": run_result.wav_analysis.channel_count,
+        "sampleWidthBytes": run_result.wav_analysis.sample_width_bytes,
+        "durationSeconds": round(run_result.wav_analysis.duration_seconds, 6),
+        "frameMs": run_result.frame_ms,
+        "thresholdRatio": run_result.threshold_ratio,
+        "minGapSeconds": run_result.min_gap_seconds,
+        "maxEvents": run_result.max_events,
+        "globalOffsetSeconds": run_result.global_offset_seconds,
+        "detectedEventCount": len(events),
+        "maxFrameAmplitude": round(get_max_frame_amplitude(run_result.wav_analysis.frame_amplitudes), 6),
+        "events": events,
+    }
+
+
+def dumps_analysis_report(run_result: AnalyzerRunResult) -> str:
+    return json.dumps(build_analysis_report(run_result), indent=2) + "\n"
+
+
+def dumps_debug_csv(run_result: AnalyzerRunResult) -> str:
+    output = io.StringIO()
+    writer = csv.writer(output, lineterminator="\n")
+    writer.writerow(
+        [
+            "frameIndex",
+            "timeSeconds",
+            "amplitude",
+            "isLocalPeak",
+            "isSelectedPeak",
+        ]
+    )
+
+    selected_peak_times = {peak.time_seconds for peak in run_result.peaks}
+    frame_amplitudes = run_result.wav_analysis.frame_amplitudes
+    for index, frame in enumerate(frame_amplitudes):
+        writer.writerow(
+            [
+                index,
+                format_float(frame.time_seconds),
+                format_float(frame.amplitude),
+                format_bool(is_frame_local_peak(frame_amplitudes, index)),
+                format_bool(frame.time_seconds in selected_peak_times),
+            ]
+        )
+
+    return output.getvalue()
+
+
+def get_max_frame_amplitude(frame_amplitudes: Sequence[FrameAmplitude]) -> float:
+    if not frame_amplitudes:
+        return 0.0
+
+    return max(frame.amplitude for frame in frame_amplitudes)
+
+
+def is_frame_local_peak(frame_amplitudes: Sequence[FrameAmplitude], index: int) -> bool:
+    if index < 0 or index >= len(frame_amplitudes):
+        raise AnalyzerError("Frame index is out of range.")
+
+    frame = frame_amplitudes[index]
+    if frame.amplitude <= 0:
+        return False
+
+    previous_amplitude = frame_amplitudes[index - 1].amplitude if index > 0 else -1.0
+    next_amplitude = (
+        frame_amplitudes[index + 1].amplitude
+        if index < len(frame_amplitudes) - 1
+        else -1.0
+    )
+    return is_local_peak(frame.amplitude, previous_amplitude, next_amplitude)
+
+
+def format_bool(value: bool) -> str:
+    return "true" if value else "false"
+
+
+def format_float(value: float) -> str:
+    return f"{value:.6f}"
+
+
 def write_output(output_path: str | Path, text: str) -> None:
     path = Path(output_path)
-    if path.parent != Path(""):
-        path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        if path.parent != Path(""):
+            path.parent.mkdir(parents=True, exist_ok=True)
 
-    path.write_text(text, encoding="utf-8")
+        path.write_text(text, encoding="utf-8")
+    except OSError as exception:
+        raise AnalyzerError("Could not write output file: " + str(exception)) from exception
+
+
+def write_summary(run_result: AnalyzerRunResult) -> None:
+    event_count = len(run_result.beatmap_document["events"])
+    summary = (
+        "Detected "
+        + str(event_count)
+        + " events from "
+        + str(run_result.input_path)
+        + " (duration "
+        + format_float(run_result.wav_analysis.duration_seconds)
+        + "s, max frame amplitude "
+        + format_float(get_max_frame_amplitude(run_result.wav_analysis.frame_amplitudes))
+        + ").\n"
+    )
+    sys.stderr.write(summary)
 
 
 def build_argument_parser() -> argparse.ArgumentParser:
@@ -324,6 +518,9 @@ def build_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--min-gap-seconds", type=float, default=0.18)
     parser.add_argument("--max-events", type=int)
     parser.add_argument("--pattern", help="Comma-separated action pattern, for example Guard,Strike.")
+    parser.add_argument("--report-output", help="Optional analysis report JSON path.")
+    parser.add_argument("--debug-csv-output", help="Optional frame diagnostics CSV path.")
+    parser.add_argument("--summary", action="store_true", help="Write a short analysis summary to stderr.")
     return parser
 
 
@@ -332,7 +529,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        beatmap_document = analyze_wav_file(
+        run_result = analyze_wav(
             args.input_wav,
             display_name=args.display_name,
             global_offset_seconds=args.global_offset_seconds,
@@ -342,11 +539,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             max_events=args.max_events,
             pattern_text=args.pattern,
         )
-        output_text = dumps_beatmap(beatmap_document)
+        output_text = dumps_beatmap(run_result.beatmap_document)
         if args.output:
             write_output(args.output, output_text)
         else:
             sys.stdout.write(output_text)
+
+        if args.report_output:
+            write_output(args.report_output, dumps_analysis_report(run_result))
+
+        if args.debug_csv_output:
+            write_output(args.debug_csv_output, dumps_debug_csv(run_result))
+
+        if args.summary:
+            write_summary(run_result)
 
         return 0
     except AnalyzerError as exception:

@@ -36,6 +36,9 @@ sysinfo.txt
 *.stackdump
 *.log
 
+# Local analyzer diagnostics
+tools/audio_analyzer/out/
+
 # OS files
 .DS_Store
 Thumbs.db

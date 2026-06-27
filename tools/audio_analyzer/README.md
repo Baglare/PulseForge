@@ -49,6 +49,45 @@ python tools/audio_analyzer/pulseforge_audio_analyzer.py `
 
 `--output` verilmezse JSON stdout'a yazilir.
 
+## Diagnostics report nasil uretilir?
+
+Analyzer, beatmap JSON disinda ayri bir analysis report JSON dosyasi yazabilir. Bu dosya Unity'ye verilmez; analyzer'in hangi WAV ayarlariyla kac event sectigini denetlemek icindir.
+
+```powershell
+python tools/audio_analyzer/pulseforge_audio_analyzer.py `
+  Assets/PulseForge/Demo/Audio/PF_Debug_120BPM_DefaultBeatMap.wav `
+  --output Assets/PulseForge/Demo/BeatMaps/BM_Analyzed_Debug_120BPM.json `
+  --report-output tools/audio_analyzer/out/BM_Analyzed_Debug_120BPM.report.json `
+  --summary `
+  --pattern Guard,Guard,Strike,Guard,Strike,Strike,Guard,Strike,Guard,Strike
+```
+
+Report JSON en az input path, display name, sample rate, channel count, sample width, duration, analyzer ayarlari, max frame amplitude, detected event count ve secilen event listesini icerir.
+
+## Debug CSV ne ise yarar?
+
+`--debug-csv-output`, frame bazli analyzer debug tablosu yazar. Bu dosya da Unity'ye verilmez; threshold ve min-gap ayarlarinin neden belirli peak'leri sectigini anlamak icindir.
+
+```powershell
+python tools/audio_analyzer/pulseforge_audio_analyzer.py `
+  Assets/PulseForge/Demo/Audio/PF_Debug_120BPM_DefaultBeatMap.wav `
+  --output Assets/PulseForge/Demo/BeatMaps/BM_Analyzed_Debug_120BPM.json `
+  --report-output tools/audio_analyzer/out/BM_Analyzed_Debug_120BPM.report.json `
+  --debug-csv-output tools/audio_analyzer/out/BM_Analyzed_Debug_120BPM.frames.csv `
+  --summary `
+  --pattern Guard,Guard,Strike,Guard,Strike,Strike,Guard,Strike,Guard,Strike
+```
+
+CSV kolonlari:
+
+- `frameIndex`
+- `timeSeconds`
+- `amplitude`
+- `isLocalPeak`
+- `isSelectedPeak`
+
+`tools/audio_analyzer/out/` local diagnostics klasorudur ve `.gitignore` icindedir.
+
 ## Unity'ye nasil verilir?
 
 1. Uretilen `.wav` dosyasini Unity projesinde `Assets/` altinda bir klasore koy.
