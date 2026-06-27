@@ -10,6 +10,12 @@ namespace PulseForge.Runtime.Unity.Prototype
     {
         private const double PerfectWindowSeconds = 0.045d;
         private const double GoodWindowSeconds = 0.100d;
+        private const double LaneLookAheadSeconds = 2.0d;
+        private const double LaneLookBehindSeconds = 0.35d;
+        private const float LaneHeight = 96f;
+        private const float LaneHitLineOffset = 120f;
+        private const float LaneTargetWidth = 600f;
+        private const float LaneMarkerSize = 28f;
 
         private RhythmSession session;
         private ScoreTracker scoreTracker;
@@ -45,7 +51,8 @@ namespace PulseForge.Runtime.Unity.Prototype
         {
             HandleKeyboardEvent(Event.current);
 
-            GUILayout.BeginArea(new Rect(10f, 10f, 540f, Screen.height - 20f), GUI.skin.box);
+            float panelWidth = Mathf.Min(780f, Screen.width - 20f);
+            GUILayout.BeginArea(new Rect(10f, 10f, panelWidth, Screen.height - 20f), GUI.skin.box);
             eventListScroll = GUILayout.BeginScrollView(eventListScroll);
 
             GUILayout.Label("PulseForge Debug Rhythm Prototype");
@@ -71,6 +78,9 @@ namespace PulseForge.Runtime.Unity.Prototype
                 + " / "
                 + snapshot.MissCount.ToString(CultureInfo.InvariantCulture));
             GUILayout.Label("Last feedback: " + lastFeedback);
+
+            GUILayout.Space(8f);
+            DrawRhythmLane();
 
             GUILayout.Space(8f);
             GUILayout.Label("Events");
@@ -188,6 +198,112 @@ namespace PulseForge.Runtime.Unity.Prototype
             }
         }
 
+        private void DrawRhythmLane()
+        {
+            GUILayout.Label("Rhythm lane");
+
+            Rect laneRect = GUILayoutUtility.GetRect(720f, LaneHeight);
+            Color previousColor = GUI.color;
+
+            GUI.color = new Color(0.14f, 0.14f, 0.14f, 1f);
+            GUI.Box(laneRect, GUIContent.none);
+
+            float hitLineX = laneRect.x + LaneHitLineOffset;
+            float laneWidth = Mathf.Min(LaneTargetWidth, Mathf.Max(1f, laneRect.xMax - hitLineX - 16f));
+            float centerY = laneRect.y + 42f;
+            Rect baseline = new Rect(hitLineX - 110f, centerY - 1f, laneWidth + 126f, 2f);
+
+            GUI.color = new Color(0.35f, 0.35f, 0.35f, 1f);
+            GUI.Box(baseline, GUIContent.none);
+
+            GUI.color = new Color(0.95f, 0.95f, 0.95f, 1f);
+            GUI.Box(new Rect(hitLineX - 1f, laneRect.y + 10f, 3f, LaneHeight - 24f), GUIContent.none);
+            GUI.Label(new Rect(hitLineX - 24f, laneRect.y + 4f, 70f, 20f), "HIT");
+
+            DrawLaneMarkers(laneRect, hitLineX, laneWidth, centerY);
+
+            GUI.color = previousColor;
+            GUILayout.Label("Next pending: " + FormatNextPendingEvent());
+        }
+
+        private void DrawLaneMarkers(Rect laneRect, float hitLineX, float laneWidth, float centerY)
+        {
+            if (session == null)
+            {
+                return;
+            }
+
+            double currentTimeSeconds = CurrentTimeSeconds;
+
+            for (int i = 0; i < session.Events.Count; i++)
+            {
+                BeatEventRuntime beatEvent = session.Events[i];
+                double deltaSeconds = beatEvent.Data.TargetTimeSeconds - currentTimeSeconds;
+                if (deltaSeconds > LaneLookAheadSeconds || deltaSeconds < -LaneLookBehindSeconds)
+                {
+                    continue;
+                }
+
+                float markerX = hitLineX + (float)(deltaSeconds / LaneLookAheadSeconds) * laneWidth;
+                Rect markerRect = new Rect(
+                    markerX - LaneMarkerSize * 0.5f,
+                    centerY - LaneMarkerSize * 0.5f,
+                    LaneMarkerSize,
+                    LaneMarkerSize);
+
+                GUI.color = GetMarkerColor(beatEvent.State);
+                GUI.Box(markerRect, GUIContent.none);
+
+                GUI.color = Color.black;
+                GUI.Label(new Rect(markerRect.x + 8f, markerRect.y + 5f, markerRect.width, markerRect.height), GetActionLabel(beatEvent.Data.Action));
+
+                GUI.color = Color.white;
+                GUI.Label(new Rect(markerRect.x - 18f, markerRect.yMax + 2f, 70f, 20f), beatEvent.State.ToString());
+            }
+        }
+
+        private string FormatNextPendingEvent()
+        {
+            BeatEventRuntime nextPending = FindNextPendingEvent();
+            if (nextPending == null)
+            {
+                return "None";
+            }
+
+            double remainingSeconds = nextPending.Data.TargetTimeSeconds - CurrentTimeSeconds;
+            return nextPending.Data.Action
+                + " at "
+                + FormatSeconds(nextPending.Data.TargetTimeSeconds)
+                + " ("
+                + FormatSignedSeconds(remainingSeconds)
+                + ")";
+        }
+
+        private BeatEventRuntime FindNextPendingEvent()
+        {
+            if (session == null)
+            {
+                return null;
+            }
+
+            BeatEventRuntime nextPending = null;
+            for (int i = 0; i < session.Events.Count; i++)
+            {
+                BeatEventRuntime beatEvent = session.Events[i];
+                if (beatEvent.State != BeatEventState.Pending)
+                {
+                    continue;
+                }
+
+                if (nextPending == null || beatEvent.Data.TargetTimeSeconds < nextPending.Data.TargetTimeSeconds)
+                {
+                    nextPending = beatEvent;
+                }
+            }
+
+            return nextPending;
+        }
+
         private ScoreSnapshot GetSnapshot()
         {
             if (scoreTracker == null)
@@ -250,9 +366,35 @@ namespace PulseForge.Runtime.Unity.Prototype
             return sign + milliseconds.ToString("0", CultureInfo.InvariantCulture) + " ms";
         }
 
+        private static string FormatSignedSeconds(double seconds)
+        {
+            string sign = seconds >= 0d ? "+" : string.Empty;
+            return sign + seconds.ToString("0.000", CultureInfo.InvariantCulture) + "s";
+        }
+
         private static string FormatSeconds(double seconds)
         {
             return seconds.ToString("0.000", CultureInfo.InvariantCulture) + "s";
+        }
+
+        private static string GetActionLabel(RhythmAction action)
+        {
+            return action == RhythmAction.Guard ? "G" : "S";
+        }
+
+        private static Color GetMarkerColor(BeatEventState state)
+        {
+            switch (state)
+            {
+                case BeatEventState.Pending:
+                    return new Color(1f, 0.84f, 0.25f, 1f);
+                case BeatEventState.Hit:
+                    return new Color(0.25f, 0.9f, 0.35f, 1f);
+                case BeatEventState.Missed:
+                    return new Color(1f, 0.3f, 0.25f, 1f);
+                default:
+                    return Color.white;
+            }
         }
     }
 }
