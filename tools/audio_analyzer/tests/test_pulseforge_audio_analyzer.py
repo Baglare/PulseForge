@@ -12,6 +12,7 @@ if str(ANALYZER_DIR) not in sys.path:
     sys.path.insert(0, str(ANALYZER_DIR))
 
 import pulseforge_audio_analyzer as analyzer
+import generate_debug_click_track as click_generator
 
 
 class PulseForgeAudioAnalyzerTests(unittest.TestCase):
@@ -108,6 +109,87 @@ class PulseForgeAudioAnalyzerTests(unittest.TestCase):
     def test_invalid_input_path_raises_user_facing_error(self):
         with self.assertRaises(analyzer.AnalyzerError):
             analyzer.analyze_wav_file("missing-input.wav")
+
+    def test_generator_parse_click_times_accepts_valid_values(self):
+        click_times = click_generator.parse_click_times("1.00, 1.50,2.25")
+
+        self.assertEqual(click_times, [1.0, 1.5, 2.25])
+
+    def test_generator_parse_click_times_rejects_negative_values(self):
+        with self.assertRaises(click_generator.GeneratorError):
+            click_generator.parse_click_times("0.5,-1.0")
+
+    def test_generator_writes_valid_wav_to_tempfile(self):
+        with tempfile.TemporaryDirectory() as temp_directory:
+            wav_path = Path(temp_directory) / "generated.wav"
+
+            click_generator.write_debug_click_track(
+                wav_path,
+                [0.10, 0.30],
+                sample_rate=8000,
+                duration_seconds=0.60,
+            )
+
+            self.assertTrue(wav_path.exists())
+            self.assertGreater(wav_path.stat().st_size, 44)
+
+    def test_generated_wav_can_be_opened_by_wave_module(self):
+        with tempfile.TemporaryDirectory() as temp_directory:
+            wav_path = Path(temp_directory) / "generated.wav"
+            click_generator.write_debug_click_track(
+                wav_path,
+                [0.10],
+                sample_rate=8000,
+                duration_seconds=0.50,
+                channels=1,
+            )
+
+            with wave.open(str(wav_path), "rb") as wav_file:
+                self.assertEqual(wav_file.getnchannels(), 1)
+                self.assertEqual(wav_file.getsampwidth(), 2)
+                self.assertEqual(wav_file.getframerate(), 8000)
+
+    def test_generated_wav_analyzes_to_expected_event_count(self):
+        with tempfile.TemporaryDirectory() as temp_directory:
+            wav_path = Path(temp_directory) / "generated.wav"
+            click_generator.write_debug_click_track(
+                wav_path,
+                [0.10, 0.30, 0.70],
+                sample_rate=8000,
+                duration_seconds=1.0,
+            )
+
+            beatmap = analyzer.analyze_wav_file(
+                wav_path,
+                frame_ms=10,
+                threshold_ratio=0.35,
+                min_gap_seconds=0.10,
+            )
+
+            self.assertEqual(len(beatmap["events"]), 3)
+
+    def test_generated_wav_analyzes_to_approximate_click_times(self):
+        expected_times = [0.10, 0.30, 0.70]
+        with tempfile.TemporaryDirectory() as temp_directory:
+            wav_path = Path(temp_directory) / "generated.wav"
+            click_generator.write_debug_click_track(
+                wav_path,
+                expected_times,
+                sample_rate=8000,
+                duration_seconds=1.0,
+            )
+
+            beatmap = analyzer.analyze_wav_file(
+                wav_path,
+                frame_ms=10,
+                threshold_ratio=0.35,
+                min_gap_seconds=0.10,
+            )
+
+            actual_times = [event["targetTimeSeconds"] for event in beatmap["events"]]
+            self.assertEqual(len(actual_times), len(expected_times))
+            for actual_time, expected_time in zip(actual_times, expected_times):
+                self.assertAlmostEqual(actual_time, expected_time, delta=0.04)
 
 
 class temporary_click_wav:

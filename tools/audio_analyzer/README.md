@@ -1,24 +1,43 @@
 # PulseForge Debug Audio Analyzer
 
-Bu araç, PCM WAV dosyalarındaki belirgin click/transient zamanlarını bulup PulseForge Unity debug beatmap JSON formatında çıktı üretir.
+Bu klasor PulseForge icin ilk debug audio analyzer araclarini icerir.
 
 ## Ne yapar?
 
-- WAV dosyasını Python standart kütüphanesiyle okur.
-- Mono ve stereo PCM WAV dosyalarını destekler.
-- 8-bit, 16-bit ve 32-bit PCM örnekleri için basit normalized amplitude hesabı yapar.
-- Frame bazlı basit peak/onset detection uygular.
-- Unity tarafındaki `DebugBeatMapJsonParser` ile uyumlu `schemaVersion: 1` JSON üretir.
+- PCM WAV dosyasindaki belirgin click/transient zamanlarini bulur.
+- PulseForge Unity debug beatmap JSON formatinda cikti uretir.
+- Deterministic debug click track WAV dosyasi uretebilir.
+- Sadece Python standard library kullanir.
 
 ## Ne yapmaz?
 
-- Final müzik analiz sistemi değildir.
-- MP3 veya diğer sıkıştırılmış formatları okumaz.
+- Final muzik analiz sistemi degildir.
+- MP3 veya sikistirilmis format okumaz.
 - `librosa`, `numpy`, `scipy`, `ffmpeg`, `pydub` veya harici paket kullanmaz.
-- Tempo, beat grid, bar/measure veya müzikal yapı tahmini yapmaz.
-- Unity tarafında runtime analiz veya UI sağlamaz.
+- Tempo, beat grid, bar/measure veya muzik yapisi tahmini yapmaz.
+- Unity tarafinda runtime analiz veya UI saglamaz.
 
-## Nasıl çalıştırılır?
+## Debug click track nasil uretilir?
+
+`generate_debug_click_track.py`, verilen zamanlarda kisa 16-bit PCM sine burst click'leri yazar.
+
+```powershell
+python tools/audio_analyzer/generate_debug_click_track.py `
+  --output Assets/PulseForge/Demo/Audio/PF_Debug_120BPM_DefaultBeatMap.wav `
+  --times 1.00,1.50,2.00,2.50,3.00,3.25,3.75,4.25,4.75,5.25
+```
+
+Varsayilanlar:
+
+- `--sample-rate 44100`
+- `--click-duration-ms 25`
+- `--click-frequency-hz 1000`
+- `--amplitude 0.8`
+- `--channels 1`
+
+Output klasoru yoksa otomatik olusturulur. `--duration-seconds` verilmezse sure son click zamanindan en az 1 saniye sonrasina kadar hesaplanir.
+
+## Uretilen WAV analyzer'a nasil verilir?
 
 ```powershell
 python tools/audio_analyzer/pulseforge_audio_analyzer.py `
@@ -28,30 +47,46 @@ python tools/audio_analyzer/pulseforge_audio_analyzer.py `
   --pattern Guard,Guard,Strike,Guard,Strike,Strike,Guard,Strike,Guard,Strike
 ```
 
-`--output` verilmezse JSON stdout'a yazılır.
+`--output` verilmezse JSON stdout'a yazilir.
 
-## Unity'ye nasıl verilir?
+## Unity'ye nasil verilir?
 
-1. Üretilen `.json` dosyasını Unity projesinde `Assets/` altında bir klasöre koy.
-2. Unity import ettikten sonra dosya `TextAsset` olarak görünür.
-3. Debug prototype objesindeki `Debug Beat Map Json` alanına bu TextAsset'i ata.
-4. Play Mode'da `Start / Restart` ile beatmap JSON'dan okunur.
+1. Uretilen `.wav` dosyasini Unity projesinde `Assets/` altinda bir klasore koy.
+2. Uretilen `.json` dosyasini Unity projesinde `Assets/` altinda bir klasore koy.
+3. Unity import ettikten sonra JSON dosyasi `TextAsset` olarak gorunur.
+4. Debug prototype objesindeki `Debug Beat Map Json` alanina JSON TextAsset'i ata.
+5. Debug prototype objesindeki `Debug Audio Clip` alanina WAV AudioClip'i ata.
+6. Play Mode'da `Start / Restart` ile countdown biter, audio clip baslar ve beatmap JSON'dan okunur.
 
-## Önemli ayarlar
+## Uctan uca ornek
 
-- `--frame-ms`: Analiz frame süresi. Varsayılan `10`.
-- `--threshold-ratio`: En yüksek amplitude'a göre peak eşiği. Varsayılan `0.35`.
-- `--min-gap-seconds`: İki peak arasındaki minimum süre. Varsayılan `0.18`.
-- `--max-events`: Üretilecek maksimum event sayısı.
-- `--pattern`: Event action sırası. Sadece `Guard` ve `Strike` kabul edilir; pattern biterse baştan döner.
-- `--global-offset-seconds`: JSON içindeki global offset alanı.
+```powershell
+python tools/audio_analyzer/generate_debug_click_track.py `
+  --output Assets/PulseForge/Demo/Audio/PF_Debug_120BPM_DefaultBeatMap.wav `
+  --times 1.00,1.50,2.00,2.50,3.00,3.25,3.75,4.25,4.75,5.25
 
-## İlk sürüm sınırlamaları
+python tools/audio_analyzer/pulseforge_audio_analyzer.py `
+  Assets/PulseForge/Demo/Audio/PF_Debug_120BPM_DefaultBeatMap.wav `
+  --output Assets/PulseForge/Demo/BeatMaps/BM_Analyzed_Debug_120BPM.json `
+  --display-name "Analyzed Debug 120 BPM" `
+  --pattern Guard,Guard,Strike,Guard,Strike,Strike,Guard,Strike,Guard,Strike
+```
 
-- En iyi sonucu click track veya çok belirgin transient içeren debug seslerde verir.
-- Gürültülü müzikte yanlış peak seçebilir.
-- Çok sık transientlerde `--min-gap-seconds` ayarı sonucu ciddi şekilde etkiler.
-- Float WAV desteği hedeflenmemiştir.
+## Analyzer ayarlari
+
+- `--frame-ms`: Analiz frame suresi. Varsayilan `10`.
+- `--threshold-ratio`: En yuksek amplitude'a gore peak esigi. Varsayilan `0.35`.
+- `--min-gap-seconds`: Iki peak arasindaki minimum sure. Varsayilan `0.18`.
+- `--max-events`: Uretilecek maksimum event sayisi.
+- `--pattern`: Event action sirasi. Sadece `Guard` ve `Strike` kabul edilir; pattern biterse bastan doner.
+- `--global-offset-seconds`: JSON icindeki global offset alani.
+
+## Ilk surum sinirlamalari
+
+- En iyi sonucu click track veya cok belirgin transient iceren debug seslerde verir.
+- Gurultulu muzikte yanlis peak secebilir.
+- Cok sik transientlerde `--min-gap-seconds` ayari sonucu ciddi sekilde etkiler.
+- Float WAV destegi hedeflenmemistir.
 
 ## Test
 
