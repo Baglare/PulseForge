@@ -88,6 +88,35 @@ CSV kolonlari:
 
 `tools/audio_analyzer/out/` local diagnostics klasorudur ve `.gitignore` icindedir.
 
+## Beatmap comparison nasil yapilir?
+
+`compare_beatmaps.py`, expected/reference beatmap ile generated/actual beatmap arasindaki event zaman farklarini index sirasina gore olcer. Bu arac Unity'ye veri uretmez; timing debug ve analyzer kalibrasyonu icindir.
+
+```powershell
+python tools/audio_analyzer/compare_beatmaps.py `
+  Assets/PulseForge/Demo/BeatMaps/BM_Debug_120BPM_Default.json `
+  Assets/PulseForge/Demo/BeatMaps/BM_Analyzed_Debug_120BPM.json `
+  --tolerance-ms 40 `
+  --report-output tools/audio_analyzer/out/compare_debug_120bpm.json
+```
+
+Console summary su bilgileri yazar:
+
+- expected/actual/compared event count
+- missing ve extra event count
+- action mismatch count
+- tolerance ici/disi event count
+- mean signed error ms
+- mean absolute error ms
+- max absolute error ms
+- suggested global offset seconds
+
+`suggestedGlobalOffsetSeconds`, `-meanSignedErrorSeconds` olarak hesaplanir. Actual eventler expected eventlerden 10 ms gec ise mean signed error yaklasik `+10 ms` olur ve suggested offset yaklasik `-0.010` olur. Bu, actual beatmap'i daha erkene cekmek icin kullanilabilecek global offset degeridir.
+
+`--strict` verilmezse count mismatch veya tolerance asimi komutu hatali bitirmez; sadece summary raporlar. `--strict` verilirse count mismatch, action mismatch veya tolerance disi event varsa komut non-zero exit code ile biter.
+
+Report JSON dosyasi Unity'ye verilmez. Sadece comparison/debug icindir ve `tools/audio_analyzer/out/` altina yazilabilir.
+
 ## Unity'ye nasil verilir?
 
 1. Uretilen `.wav` dosyasini Unity projesinde `Assets/` altinda bir klasore koy.
