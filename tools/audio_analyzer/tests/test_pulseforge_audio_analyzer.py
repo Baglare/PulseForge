@@ -171,6 +171,46 @@ class PulseForgeAudioAnalyzerTests(unittest.TestCase):
 
             self.assertEqual(len(beatmap["events"]), 3)
 
+    def test_detection_mode_amplitude_preserves_generated_click_count(self):
+        with tempfile.TemporaryDirectory() as temp_directory:
+            wav_path = Path(temp_directory) / "generated.wav"
+            click_generator.write_debug_click_track(
+                wav_path,
+                [0.10, 0.30, 0.70],
+                sample_rate=8000,
+                duration_seconds=1.0,
+            )
+
+            beatmap = analyzer.analyze_wav_file(
+                wav_path,
+                frame_ms=10,
+                threshold_ratio=0.35,
+                min_gap_seconds=0.10,
+                detection_mode="amplitude",
+            )
+
+            self.assertEqual(len(beatmap["events"]), 3)
+
+    def test_detection_mode_onset_detects_generated_click_count(self):
+        with tempfile.TemporaryDirectory() as temp_directory:
+            wav_path = Path(temp_directory) / "generated.wav"
+            click_generator.write_debug_click_track(
+                wav_path,
+                [0.10, 0.30, 0.70],
+                sample_rate=8000,
+                duration_seconds=1.0,
+            )
+
+            beatmap = analyzer.analyze_wav_file(
+                wav_path,
+                frame_ms=10,
+                threshold_ratio=0.35,
+                min_gap_seconds=0.10,
+                detection_mode="onset",
+            )
+
+            self.assertEqual(len(beatmap["events"]), 3)
+
     def test_generated_wav_analyzes_to_approximate_click_times(self):
         expected_times = [0.10, 0.30, 0.70]
         with tempfile.TemporaryDirectory() as temp_directory:
@@ -193,6 +233,46 @@ class PulseForgeAudioAnalyzerTests(unittest.TestCase):
             self.assertEqual(len(actual_times), len(expected_times))
             for actual_time, expected_time in zip(actual_times, expected_times):
                 self.assertAlmostEqual(actual_time, expected_time, delta=0.04)
+
+    def test_detection_mode_onset_detects_approximate_click_times(self):
+        expected_times = [0.10, 0.30, 0.70]
+        with tempfile.TemporaryDirectory() as temp_directory:
+            wav_path = Path(temp_directory) / "generated.wav"
+            click_generator.write_debug_click_track(
+                wav_path,
+                expected_times,
+                sample_rate=8000,
+                duration_seconds=1.0,
+            )
+
+            beatmap = analyzer.analyze_wav_file(
+                wav_path,
+                frame_ms=10,
+                threshold_ratio=0.35,
+                min_gap_seconds=0.10,
+                detection_mode="onset",
+            )
+
+            actual_times = [event["targetTimeSeconds"] for event in beatmap["events"]]
+            self.assertEqual(len(actual_times), len(expected_times))
+            for actual_time, expected_time in zip(actual_times, expected_times):
+                self.assertAlmostEqual(actual_time, expected_time, delta=0.04)
+
+    def test_invalid_baseline_ms_raises_user_facing_error(self):
+        with self.assertRaises(analyzer.AnalyzerError):
+            analyzer.analyze_wav_file(
+                "missing-input.wav",
+                detection_mode="onset",
+                baseline_ms=0,
+            )
+
+    def test_negative_onset_smooth_frames_raises_user_facing_error(self):
+        with self.assertRaises(analyzer.AnalyzerError):
+            analyzer.analyze_wav_file(
+                "missing-input.wav",
+                detection_mode="onset",
+                onset_smooth_frames=-1,
+            )
 
     def test_report_output_file_is_created(self):
         with tempfile.TemporaryDirectory() as temp_directory:
@@ -265,6 +345,47 @@ class PulseForgeAudioAnalyzerTests(unittest.TestCase):
             self.assertEqual(report["sampleRate"], 1000)
             self.assertAlmostEqual(report["durationSeconds"], 1.0)
 
+    def test_report_output_contains_detection_mode(self):
+        with tempfile.TemporaryDirectory() as temp_directory:
+            report_path = Path(temp_directory) / "analysis.json"
+            beatmap_path = Path(temp_directory) / "beatmap.json"
+            with temporary_click_wav([0.10]) as wav_path:
+                exit_code, _, _ = run_analyzer_main(
+                    [
+                        str(wav_path),
+                        "--output",
+                        str(beatmap_path),
+                        "--report-output",
+                        str(report_path),
+                        "--detection-mode",
+                        "onset",
+                    ]
+                )
+
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(report["detectionMode"], "onset")
+
+    def test_report_output_contains_detection_curve_max(self):
+        with tempfile.TemporaryDirectory() as temp_directory:
+            report_path = Path(temp_directory) / "analysis.json"
+            beatmap_path = Path(temp_directory) / "beatmap.json"
+            with temporary_click_wav([0.10]) as wav_path:
+                exit_code, _, _ = run_analyzer_main(
+                    [
+                        str(wav_path),
+                        "--output",
+                        str(beatmap_path),
+                        "--report-output",
+                        str(report_path),
+                    ]
+                )
+
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertEqual(exit_code, 0)
+            self.assertIn("detectionCurveMax", report)
+            self.assertGreater(report["detectionCurveMax"], 0)
+
     def test_debug_csv_output_file_is_created(self):
         with tempfile.TemporaryDirectory() as temp_directory:
             csv_path = Path(temp_directory) / "debug" / "frames.csv"
@@ -309,7 +430,7 @@ class PulseForgeAudioAnalyzerTests(unittest.TestCase):
             header = csv_path.read_text(encoding="utf-8").splitlines()[0]
             self.assertEqual(
                 header,
-                "frameIndex,timeSeconds,amplitude,isLocalPeak,isSelectedPeak",
+                "frameIndex,timeSeconds,amplitude,onsetStrength,detectionValue,isLocalPeak,isSelectedPeak",
             )
 
     def test_debug_csv_marks_at_least_one_selected_peak(self):
@@ -376,6 +497,24 @@ class PulseForgeAudioAnalyzerTests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         self.assertEqual(document["schemaVersion"], 1)
         self.assertIn("Detected 1 events", stderr)
+
+    def test_amplitude_mode_keeps_schema_version_one(self):
+        with temporary_click_wav([0.10]) as wav_path:
+            beatmap = analyzer.analyze_wav_file(
+                wav_path,
+                detection_mode="amplitude",
+            )
+
+        self.assertEqual(beatmap["schemaVersion"], 1)
+
+    def test_onset_mode_keeps_schema_version_one(self):
+        with temporary_click_wav([0.10]) as wav_path:
+            beatmap = analyzer.analyze_wav_file(
+                wav_path,
+                detection_mode="onset",
+            )
+
+        self.assertEqual(beatmap["schemaVersion"], 1)
 
 
 class temporary_click_wav:

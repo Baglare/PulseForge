@@ -83,10 +83,53 @@ CSV kolonlari:
 - `frameIndex`
 - `timeSeconds`
 - `amplitude`
+- `onsetStrength`
+- `detectionValue`
 - `isLocalPeak`
 - `isSelectedPeak`
 
+`amplitude` modunda `detectionValue` amplitude degeridir. `onset` modunda `detectionValue` onsetStrength degeridir.
+
 `tools/audio_analyzer/out/` local diagnostics klasorudur ve `.gitignore` icindedir.
+
+## Detection mode nasil secilir?
+
+Analyzer iki detection mode destekler:
+
+- `amplitude`: Varsayilan moddur. Frame icindeki peak amplitude degerlerini kullanir. Click track ve cok belirgin transient iceren debug seslerde en deterministik davranistir.
+- `onset`: Her frame icin gecmis baseline ortalamasina gore ani artis degerini hesaplar. Click track disindaki daha muzik benzeri WAV dosyalarinda transientleri denemek icindir.
+
+Amplitude mode eski davranisi korumak icin default kalir:
+
+```powershell
+python tools/audio_analyzer/pulseforge_audio_analyzer.py `
+  Assets/PulseForge/Demo/Audio/PF_Debug_120BPM_DefaultBeatMap.wav `
+  --output Assets/PulseForge/Demo/BeatMaps/BM_Analyzed_Debug_120BPM.json `
+  --detection-mode amplitude
+```
+
+Onset mode ornegi:
+
+```powershell
+python tools/audio_analyzer/pulseforge_audio_analyzer.py `
+  Assets/PulseForge/Demo/Audio/PF_Debug_120BPM_DefaultBeatMap.wav `
+  --output Assets/PulseForge/Demo/BeatMaps/BM_Analyzed_Debug_120BPM_Onset.json `
+  --detection-mode onset `
+  --baseline-ms 120 `
+  --onset-smooth-frames 1 `
+  --threshold-ratio 0.35 `
+  --min-gap-seconds 0.18 `
+  --report-output tools/audio_analyzer/out/onset_debug_120bpm.report.json `
+  --debug-csv-output tools/audio_analyzer/out/onset_debug_120bpm.frames.csv
+```
+
+Gercek muzik benzeri WAV dosyalarinda:
+
+- `--threshold-ratio` cok dusukse fazla event yakalanabilir; cok yuksekse zayif vuruslar kacabilir.
+- `--min-gap-seconds` cok dusukse ayni vurus birden fazla event olabilir; cok yuksekse hizli vuruslar kacabilir.
+- `--baseline-ms` onset modunda gecmis enerji ortalamasinin ne kadar geriye bakacagini belirler. Daha buyuk deger daha yavas degisen baseline verir.
+- `--onset-smooth-frames 0` smoothing kapatir. Daha yuksek deger onsetStrength egrisini yumusatir ama peak zamanini biraz genisletebilir.
+- Debug CSV'de `onsetStrength` ve `detectionValue` kolonlarini inceleyerek threshold'un neden belirli frame'leri sectigini gorebilirsin.
 
 ## Beatmap comparison nasil yapilir?
 
@@ -148,6 +191,9 @@ python tools/audio_analyzer/pulseforge_audio_analyzer.py `
 - `--max-events`: Uretilecek maksimum event sayisi.
 - `--pattern`: Event action sirasi. Sadece `Guard` ve `Strike` kabul edilir; pattern biterse bastan doner.
 - `--global-offset-seconds`: JSON icindeki global offset alani.
+- `--detection-mode`: `amplitude` veya `onset`. Varsayilan `amplitude`.
+- `--baseline-ms`: Onset modunda gecmis baseline penceresi. Varsayilan `120`.
+- `--onset-smooth-frames`: OnsetStrength smoothing yaricapi. `0` smoothing kapatir. Varsayilan `1`.
 
 ## Ilk surum sinirlamalari
 

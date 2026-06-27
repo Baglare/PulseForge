@@ -7,6 +7,7 @@ import argparse
 import csv
 import io
 import json
+import math
 import sys
 import wave
 from dataclasses import dataclass
@@ -16,6 +17,7 @@ from typing import Iterable, Sequence
 
 SUPPORTED_ACTIONS = ("Guard", "Strike")
 DEFAULT_ACTION_PATTERN = ("Guard", "Strike")
+DETECTION_MODES = ("amplitude", "onset")
 SCHEMA_VERSION = 1
 
 
@@ -27,6 +29,14 @@ class AnalyzerError(Exception):
 class FrameAmplitude:
     time_seconds: float
     amplitude: float
+
+
+@dataclass(frozen=True)
+class DetectionFrame:
+    time_seconds: float
+    amplitude: float
+    onset_strength: float
+    detection_value: float
 
 
 @dataclass(frozen=True)
@@ -59,7 +69,11 @@ class AnalyzerRunResult:
     threshold_ratio: float
     min_gap_seconds: float
     max_events: int | None
+    detection_mode: str
+    baseline_ms: float
+    onset_smooth_frames: int
     wav_analysis: WavAnalysis
+    detection_frames: list[DetectionFrame]
     peaks: list[DetectedPeak]
     beatmap_document: dict
 
@@ -89,6 +103,33 @@ def parse_action_pattern(pattern_text: str | None) -> list[str]:
         raise AnalyzerError("Pattern must be a comma-separated list of Guard and Strike actions.")
 
     return [normalize_action(part) for part in parts]
+
+
+def normalize_detection_mode(detection_mode: str) -> str:
+    if detection_mode is None:
+        raise AnalyzerError("Detection mode must not be empty.")
+
+    normalized = detection_mode.strip().lower()
+    for supported_mode in DETECTION_MODES:
+        if normalized == supported_mode:
+            return supported_mode
+
+    raise AnalyzerError("--detection-mode must be amplitude or onset.")
+
+
+def validate_detection_settings(
+    detection_mode: str,
+    baseline_ms: float,
+    onset_smooth_frames: int,
+) -> str:
+    normalized_mode = normalize_detection_mode(detection_mode)
+    if not is_finite_number(baseline_ms) or baseline_ms <= 0:
+        raise AnalyzerError("--baseline-ms must be a finite number greater than zero.")
+
+    if onset_smooth_frames < 0:
+        raise AnalyzerError("--onset-smooth-frames must be greater than or equal to zero.")
+
+    return normalized_mode
 
 
 def format_event_id(index: int) -> str:
@@ -229,6 +270,29 @@ def detect_peaks(
     min_gap_seconds: float,
     max_events: int | None = None,
 ) -> list[DetectedPeak]:
+    detection_frames = [
+        DetectionFrame(
+            time_seconds=frame.time_seconds,
+            amplitude=frame.amplitude,
+            onset_strength=0.0,
+            detection_value=frame.amplitude,
+        )
+        for frame in frame_amplitudes
+    ]
+    return detect_peaks_in_curve(
+        detection_frames,
+        threshold_ratio,
+        min_gap_seconds,
+        max_events,
+    )
+
+
+def detect_peaks_in_curve(
+    detection_frames: Sequence[DetectionFrame],
+    threshold_ratio: float,
+    min_gap_seconds: float,
+    max_events: int | None = None,
+) -> list[DetectedPeak]:
     if threshold_ratio < 0:
         raise AnalyzerError("--threshold-ratio must be greater than or equal to zero.")
 
@@ -238,32 +302,32 @@ def detect_peaks(
     if max_events is not None and max_events <= 0:
         raise AnalyzerError("--max-events must be greater than zero when provided.")
 
-    if not frame_amplitudes:
+    if not detection_frames:
         return []
 
-    max_amplitude = max(frame.amplitude for frame in frame_amplitudes)
-    if max_amplitude <= 0:
+    max_detection_value = max(frame.detection_value for frame in detection_frames)
+    if max_detection_value <= 0:
         return []
 
-    threshold = max_amplitude * threshold_ratio
+    threshold = max_detection_value * threshold_ratio
     peaks: list[DetectedPeak] = []
 
-    for index, frame in enumerate(frame_amplitudes):
-        if frame.amplitude <= 0 or frame.amplitude < threshold:
+    for index, frame in enumerate(detection_frames):
+        if frame.detection_value <= 0 or frame.detection_value < threshold:
             continue
 
-        previous_amplitude = frame_amplitudes[index - 1].amplitude if index > 0 else -1.0
-        next_amplitude = (
-            frame_amplitudes[index + 1].amplitude
-            if index < len(frame_amplitudes) - 1
+        previous_value = detection_frames[index - 1].detection_value if index > 0 else -1.0
+        next_value = (
+            detection_frames[index + 1].detection_value
+            if index < len(detection_frames) - 1
             else -1.0
         )
-        if not is_local_peak(frame.amplitude, previous_amplitude, next_amplitude):
+        if not is_local_peak(frame.detection_value, previous_value, next_value):
             continue
 
         peak = DetectedPeak(
             time_seconds=frame.time_seconds,
-            intensity=clamp01(frame.amplitude / max_amplitude),
+            intensity=clamp01(frame.detection_value / max_detection_value),
         )
         add_peak_with_gap(peaks, peak, min_gap_seconds, max_events)
 
@@ -293,6 +357,82 @@ def add_peak_with_gap(
         return
 
     peaks.append(peak)
+
+
+def build_detection_frames(
+    frame_amplitudes: Sequence[FrameAmplitude],
+    *,
+    detection_mode: str,
+    frame_ms: float,
+    baseline_ms: float,
+    onset_smooth_frames: int,
+) -> list[DetectionFrame]:
+    normalized_mode = validate_detection_settings(detection_mode, baseline_ms, onset_smooth_frames)
+    onset_strengths = build_onset_strengths(frame_amplitudes, frame_ms, baseline_ms)
+    if onset_smooth_frames > 0:
+        onset_strengths = smooth_values(onset_strengths, onset_smooth_frames)
+
+    detection_frames: list[DetectionFrame] = []
+    for frame, onset_strength in zip(frame_amplitudes, onset_strengths):
+        detection_value = frame.amplitude if normalized_mode == "amplitude" else onset_strength
+        detection_frames.append(
+            DetectionFrame(
+                time_seconds=frame.time_seconds,
+                amplitude=frame.amplitude,
+                onset_strength=onset_strength,
+                detection_value=detection_value,
+            )
+        )
+
+    return detection_frames
+
+
+def build_onset_strengths(
+    frame_amplitudes: Sequence[FrameAmplitude],
+    frame_ms: float,
+    baseline_ms: float,
+) -> list[float]:
+    if frame_ms <= 0:
+        raise AnalyzerError("--frame-ms must be greater than zero.")
+
+    if not is_finite_number(baseline_ms) or baseline_ms <= 0:
+        raise AnalyzerError("--baseline-ms must be a finite number greater than zero.")
+
+    baseline_frame_count = max(1, int(round(baseline_ms / frame_ms)))
+    amplitudes = [frame.amplitude for frame in frame_amplitudes]
+    prefix_sums = [0.0]
+    for amplitude in amplitudes:
+        prefix_sums.append(prefix_sums[-1] + amplitude)
+
+    onset_strengths: list[float] = []
+    for index, amplitude in enumerate(amplitudes):
+        baseline_start_index = max(0, index - baseline_frame_count)
+        baseline_sample_count = index - baseline_start_index
+        if baseline_sample_count == 0:
+            baseline = 0.0
+        else:
+            baseline = (prefix_sums[index] - prefix_sums[baseline_start_index]) / baseline_sample_count
+
+        onset_strengths.append(max(0.0, amplitude - baseline))
+
+    return onset_strengths
+
+
+def smooth_values(values: Sequence[float], radius: int) -> list[float]:
+    if radius < 0:
+        raise AnalyzerError("--onset-smooth-frames must be greater than or equal to zero.")
+
+    if radius == 0 or not values:
+        return list(values)
+
+    smoothed_values: list[float] = []
+    for index in range(len(values)):
+        start_index = max(0, index - radius)
+        end_index = min(len(values), index + radius + 1)
+        window = values[start_index:end_index]
+        smoothed_values.append(sum(window) / len(window))
+
+    return smoothed_values
 
 
 def build_beatmap_document(
@@ -334,6 +474,9 @@ def analyze_wav_file(
     min_gap_seconds: float = 0.18,
     max_events: int | None = None,
     pattern_text: str | None = None,
+    detection_mode: str = "amplitude",
+    baseline_ms: float = 120.0,
+    onset_smooth_frames: int = 1,
 ) -> dict:
     return analyze_wav(
         input_wav,
@@ -344,6 +487,9 @@ def analyze_wav_file(
         min_gap_seconds=min_gap_seconds,
         max_events=max_events,
         pattern_text=pattern_text,
+        detection_mode=detection_mode,
+        baseline_ms=baseline_ms,
+        onset_smooth_frames=onset_smooth_frames,
     ).beatmap_document
 
 
@@ -357,12 +503,27 @@ def analyze_wav(
     min_gap_seconds: float = 0.18,
     max_events: int | None = None,
     pattern_text: str | None = None,
+    detection_mode: str = "amplitude",
+    baseline_ms: float = 120.0,
+    onset_smooth_frames: int = 1,
 ) -> AnalyzerRunResult:
     input_path = Path(input_wav)
     action_pattern = parse_action_pattern(pattern_text)
+    normalized_detection_mode = validate_detection_settings(
+        detection_mode,
+        baseline_ms,
+        onset_smooth_frames,
+    )
     wav_analysis = read_wav_analysis(input_path, frame_ms)
-    peaks = detect_peaks(
+    detection_frames = build_detection_frames(
         wav_analysis.frame_amplitudes,
+        detection_mode=normalized_detection_mode,
+        frame_ms=frame_ms,
+        baseline_ms=baseline_ms,
+        onset_smooth_frames=onset_smooth_frames,
+    )
+    peaks = detect_peaks_in_curve(
+        detection_frames,
         threshold_ratio,
         min_gap_seconds,
         max_events,
@@ -383,7 +544,11 @@ def analyze_wav(
         threshold_ratio=threshold_ratio,
         min_gap_seconds=min_gap_seconds,
         max_events=max_events,
+        detection_mode=normalized_detection_mode,
+        baseline_ms=baseline_ms,
+        onset_smooth_frames=onset_smooth_frames,
         wav_analysis=wav_analysis,
+        detection_frames=detection_frames,
         peaks=peaks,
         beatmap_document=beatmap_document,
     )
@@ -407,8 +572,12 @@ def build_analysis_report(run_result: AnalyzerRunResult) -> dict:
         "minGapSeconds": run_result.min_gap_seconds,
         "maxEvents": run_result.max_events,
         "globalOffsetSeconds": run_result.global_offset_seconds,
+        "detectionMode": run_result.detection_mode,
+        "baselineMs": run_result.baseline_ms,
+        "onsetSmoothFrames": run_result.onset_smooth_frames,
         "detectedEventCount": len(events),
         "maxFrameAmplitude": round(get_max_frame_amplitude(run_result.wav_analysis.frame_amplitudes), 6),
+        "detectionCurveMax": round(get_max_detection_value(run_result.detection_frames), 6),
         "events": events,
     }
 
@@ -425,20 +594,24 @@ def dumps_debug_csv(run_result: AnalyzerRunResult) -> str:
             "frameIndex",
             "timeSeconds",
             "amplitude",
+            "onsetStrength",
+            "detectionValue",
             "isLocalPeak",
             "isSelectedPeak",
         ]
     )
 
     selected_peak_times = {peak.time_seconds for peak in run_result.peaks}
-    frame_amplitudes = run_result.wav_analysis.frame_amplitudes
-    for index, frame in enumerate(frame_amplitudes):
+    detection_frames = run_result.detection_frames
+    for index, frame in enumerate(detection_frames):
         writer.writerow(
             [
                 index,
                 format_float(frame.time_seconds),
                 format_float(frame.amplitude),
-                format_bool(is_frame_local_peak(frame_amplitudes, index)),
+                format_float(frame.onset_strength),
+                format_float(frame.detection_value),
+                format_bool(is_detection_frame_local_peak(detection_frames, index)),
                 format_bool(frame.time_seconds in selected_peak_times),
             ]
         )
@@ -451,6 +624,13 @@ def get_max_frame_amplitude(frame_amplitudes: Sequence[FrameAmplitude]) -> float
         return 0.0
 
     return max(frame.amplitude for frame in frame_amplitudes)
+
+
+def get_max_detection_value(detection_frames: Sequence[DetectionFrame]) -> float:
+    if not detection_frames:
+        return 0.0
+
+    return max(frame.detection_value for frame in detection_frames)
 
 
 def is_frame_local_peak(frame_amplitudes: Sequence[FrameAmplitude], index: int) -> bool:
@@ -470,12 +650,33 @@ def is_frame_local_peak(frame_amplitudes: Sequence[FrameAmplitude], index: int) 
     return is_local_peak(frame.amplitude, previous_amplitude, next_amplitude)
 
 
+def is_detection_frame_local_peak(detection_frames: Sequence[DetectionFrame], index: int) -> bool:
+    if index < 0 or index >= len(detection_frames):
+        raise AnalyzerError("Frame index is out of range.")
+
+    frame = detection_frames[index]
+    if frame.detection_value <= 0:
+        return False
+
+    previous_value = detection_frames[index - 1].detection_value if index > 0 else -1.0
+    next_value = (
+        detection_frames[index + 1].detection_value
+        if index < len(detection_frames) - 1
+        else -1.0
+    )
+    return is_local_peak(frame.detection_value, previous_value, next_value)
+
+
 def format_bool(value: bool) -> str:
     return "true" if value else "false"
 
 
 def format_float(value: float) -> str:
     return f"{value:.6f}"
+
+
+def is_finite_number(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
 
 
 def write_output(output_path: str | Path, text: str) -> None:
@@ -500,6 +701,10 @@ def write_summary(run_result: AnalyzerRunResult) -> None:
         + format_float(run_result.wav_analysis.duration_seconds)
         + "s, max frame amplitude "
         + format_float(get_max_frame_amplitude(run_result.wav_analysis.frame_amplitudes))
+        + ", detection mode "
+        + run_result.detection_mode
+        + ", detection curve max "
+        + format_float(get_max_detection_value(run_result.detection_frames))
         + ").\n"
     )
     sys.stderr.write(summary)
@@ -518,6 +723,9 @@ def build_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--min-gap-seconds", type=float, default=0.18)
     parser.add_argument("--max-events", type=int)
     parser.add_argument("--pattern", help="Comma-separated action pattern, for example Guard,Strike.")
+    parser.add_argument("--detection-mode", choices=DETECTION_MODES, default="amplitude")
+    parser.add_argument("--baseline-ms", type=float, default=120.0)
+    parser.add_argument("--onset-smooth-frames", type=int, default=1)
     parser.add_argument("--report-output", help="Optional analysis report JSON path.")
     parser.add_argument("--debug-csv-output", help="Optional frame diagnostics CSV path.")
     parser.add_argument("--summary", action="store_true", help="Write a short analysis summary to stderr.")
@@ -538,6 +746,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             min_gap_seconds=args.min_gap_seconds,
             max_events=args.max_events,
             pattern_text=args.pattern,
+            detection_mode=args.detection_mode,
+            baseline_ms=args.baseline_ms,
+            onset_smooth_frames=args.onset_smooth_frames,
         )
         output_text = dumps_beatmap(run_result.beatmap_document)
         if args.output:
