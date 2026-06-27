@@ -21,6 +21,8 @@ namespace PulseForge.Runtime.Unity.Prototype
         [SerializeField] private float startCountdownSeconds = 1.0f;
         [SerializeField] private bool rejectAmbiguousSimultaneousActions = true;
         [SerializeField] private float simultaneousInputWindowSeconds = 0.035f;
+        [SerializeField] private float debugBeatMapOffsetSeconds = 0f;
+        [SerializeField] private float inputTimingOffsetSeconds = 0f;
 
         private RhythmSession session;
         private ScoreTracker scoreTracker;
@@ -37,6 +39,8 @@ namespace PulseForge.Runtime.Unity.Prototype
         private double pendingInputSongTimeSeconds;
         private double pendingInputDeadlineRealtimeSeconds;
         private bool pendingInputIsAmbiguous;
+        private bool hasLastInputTimingError;
+        private double lastInputTimingErrorMs;
 
         private void Start()
         {
@@ -115,6 +119,8 @@ namespace PulseForge.Runtime.Unity.Prototype
                 + snapshot.MissCount.ToString(CultureInfo.InvariantCulture));
             GUILayout.Label("Last feedback: " + lastFeedback);
 
+            DrawTimingCalibrationPanel();
+
             GUILayout.Space(8f);
             GUILayout.Label("Combat Debug");
             Rect combatPanelRect = GUILayoutUtility.GetRect(720f, DebugCombatFeedbackRenderer.PanelHeight);
@@ -162,6 +168,7 @@ namespace PulseForge.Runtime.Unity.Prototype
                 scoreTracker = new ScoreTracker();
                 combatFeedbackRenderer.Clear();
                 ClearPendingInput();
+                ClearLastInputTimingError();
                 PrepareClockForCountdown();
                 StartCountdownOrGameplay();
             }
@@ -173,23 +180,66 @@ namespace PulseForge.Runtime.Unity.Prototype
                 session = null;
                 scoreTracker = new ScoreTracker();
                 combatFeedbackRenderer.Clear();
+                ClearLastInputTimingError();
                 lastFeedback = FormatBeatMapError(exception);
             }
         }
 
         private IReadOnlyList<BeatEventData> CreateSessionBeatEvents()
         {
+            IReadOnlyList<BeatEventData> beatEvents;
             if (debugBeatMapJson != null)
             {
-                return DebugBeatMapJsonParser.BuildBeatEvents(debugBeatMapJson.text);
+                beatEvents = DebugBeatMapJsonParser.BuildBeatEvents(debugBeatMapJson.text);
             }
-
-            if (debugBeatMapAsset != null)
+            else if (debugBeatMapAsset != null)
             {
-                return debugBeatMapAsset.BuildBeatEvents();
+                beatEvents = debugBeatMapAsset.BuildBeatEvents();
+            }
+            else
+            {
+                beatEvents = CreateDebugEventData();
             }
 
-            return CreateDebugEventData();
+            return ApplyDebugBeatMapOffset(beatEvents);
+        }
+
+        private IReadOnlyList<BeatEventData> ApplyDebugBeatMapOffset(IReadOnlyList<BeatEventData> beatEvents)
+        {
+            if (beatEvents == null || beatEvents.Count == 0)
+            {
+                return beatEvents ?? Array.Empty<BeatEventData>();
+            }
+
+            double offsetSeconds = debugBeatMapOffsetSeconds;
+            if (double.IsNaN(offsetSeconds) || double.IsInfinity(offsetSeconds))
+            {
+                throw new ArgumentException("Debug beat map offset must be finite.");
+            }
+
+            if (offsetSeconds == 0d)
+            {
+                return beatEvents;
+            }
+
+            BeatEventData[] adjustedEvents = new BeatEventData[beatEvents.Count];
+            for (int i = 0; i < beatEvents.Count; i++)
+            {
+                BeatEventData beatEvent = beatEvents[i];
+                double targetTimeSeconds = beatEvent.TargetTimeSeconds + offsetSeconds;
+                if (targetTimeSeconds < 0d)
+                {
+                    targetTimeSeconds = 0d;
+                }
+
+                adjustedEvents[i] = new BeatEventData(
+                    beatEvent.EventId,
+                    targetTimeSeconds,
+                    beatEvent.Action,
+                    beatEvent.Intensity);
+            }
+
+            return adjustedEvents;
         }
 
         private void PrepareClockForCountdown()
@@ -370,13 +420,15 @@ namespace PulseForge.Runtime.Unity.Prototype
                 return;
             }
 
-            RhythmInputResolveResult result = session.ResolveInput(action, songTimeSeconds);
+            double adjustedInputTimeSeconds = songTimeSeconds + inputTimingOffsetSeconds;
+            RhythmInputResolveResult result = session.ResolveInput(action, adjustedInputTimeSeconds);
             if (!result.HasMatch)
             {
                 lastFeedback = "No match";
                 return;
             }
 
+            SetLastInputTimingError(result.HitResult);
             RecordResult(result.HitResult);
             double presentationTimeSeconds = GetPresentationTimeSeconds();
             if (result.HitResult.Grade == HitGrade.Miss)
@@ -395,6 +447,18 @@ namespace PulseForge.Runtime.Unity.Prototype
         private void RecordResult(HitResult result)
         {
             scoreTracker.Record(result);
+        }
+
+        private void SetLastInputTimingError(HitResult result)
+        {
+            hasLastInputTimingError = true;
+            lastInputTimingErrorMs = result.TimingErrorSeconds * 1000d;
+        }
+
+        private void ClearLastInputTimingError()
+        {
+            hasLastInputTimingError = false;
+            lastInputTimingErrorMs = 0d;
         }
 
         private void StopIfComplete()
@@ -428,6 +492,76 @@ namespace PulseForge.Runtime.Unity.Prototype
                     + "  "
                     + beatEvent.Data.EventId);
             }
+        }
+
+        private void DrawTimingCalibrationPanel()
+        {
+            GUILayout.Space(8f);
+            GUILayout.Label("Timing Calibration");
+            GUILayout.BeginVertical(GUI.skin.box);
+            GUILayout.Label("Beatmap offset: " + FormatSignedMilliseconds(debugBeatMapOffsetSeconds));
+            GUILayout.Label("Input offset: " + FormatSignedMilliseconds(inputTimingOffsetSeconds));
+            GUILayout.Label("Last input timing error: " + GetLastInputTimingErrorText());
+            GUILayout.Label("Beatmap offset shifts event times. Applies on next Start/Restart.");
+            GUILayout.Label("Input offset shifts judgement input time.");
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Beatmap -10 ms"))
+            {
+                AdjustBeatMapOffset(-10f);
+            }
+
+            if (GUILayout.Button("Beatmap +10 ms"))
+            {
+                AdjustBeatMapOffset(10f);
+            }
+
+            if (GUILayout.Button("Beatmap reset"))
+            {
+                debugBeatMapOffsetSeconds = 0f;
+            }
+
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Input -10 ms"))
+            {
+                AdjustInputTimingOffset(-10f);
+            }
+
+            if (GUILayout.Button("Input +10 ms"))
+            {
+                AdjustInputTimingOffset(10f);
+            }
+
+            if (GUILayout.Button("Input reset"))
+            {
+                inputTimingOffsetSeconds = 0f;
+            }
+
+            GUILayout.EndHorizontal();
+            GUILayout.EndVertical();
+        }
+
+        private void AdjustBeatMapOffset(float milliseconds)
+        {
+            debugBeatMapOffsetSeconds += milliseconds / 1000f;
+        }
+
+        private void AdjustInputTimingOffset(float milliseconds)
+        {
+            inputTimingOffsetSeconds += milliseconds / 1000f;
+        }
+
+        private string GetLastInputTimingErrorText()
+        {
+            if (!hasLastInputTimingError)
+            {
+                return "n/a";
+            }
+
+            string sign = lastInputTimingErrorMs >= 0d ? "+" : string.Empty;
+            return sign + lastInputTimingErrorMs.ToString("0", CultureInfo.InvariantCulture) + " ms";
         }
 
         private ScoreSnapshot GetSnapshot()
