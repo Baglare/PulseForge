@@ -28,12 +28,18 @@ namespace PulseForge.Editor.AudioPipeline
         private bool useExpectedCompare;
         private string pythonExecutable = "python";
         private string outputDirectory = DefaultOutputDirectory;
+        private string generatedRawJsonPath = string.Empty;
         private string generatedPlayableJsonPath = string.Empty;
+        private TextAsset generatedRawJsonAsset;
         private TextAsset generatedPlayableJsonAsset;
         private string statusMessage = "Ready";
         private string lastStdout = string.Empty;
         private string lastStderr = string.Empty;
+        private string timelinePreviewError = string.Empty;
+        private Vector2 windowScroll;
         private Vector2 outputScroll;
+        private bool timelinePreviewFoldout = true;
+        private readonly BeatmapTimelinePreviewDrawer timelinePreviewDrawer = new BeatmapTimelinePreviewDrawer();
 
         [MenuItem(MenuPath)]
         public static void Open()
@@ -43,6 +49,7 @@ namespace PulseForge.Editor.AudioPipeline
 
         private void OnGUI()
         {
+            windowScroll = EditorGUILayout.BeginScrollView(windowScroll);
             EditorGUILayout.LabelField("PulseForge Audio Pipeline", EditorStyles.boldLabel);
             EditorGUILayout.Space();
 
@@ -57,6 +64,7 @@ namespace PulseForge.Editor.AudioPipeline
             useExpectedCompare = EditorGUILayout.Toggle("Use Expected Compare", useExpectedCompare);
             pythonExecutable = EditorGUILayout.TextField("Python Executable", pythonExecutable);
             outputDirectory = EditorGUILayout.TextField("Output Directory", outputDirectory);
+            UpdateGeneratedJsonPathsFromInputs();
 
             EditorGUILayout.Space();
             if (GUILayout.Button("Run Pipeline"))
@@ -69,6 +77,9 @@ namespace PulseForge.Editor.AudioPipeline
             EditorGUILayout.SelectableLabel(string.IsNullOrEmpty(generatedPlayableJsonPath) ? "(not generated yet)" : generatedPlayableJsonPath, GUILayout.Height(18f));
             DrawGeneratedJsonWorkflow();
 
+            EditorGUILayout.Space();
+            DrawBeatmapTimelinePreview();
+
             EditorGUILayout.LabelField("Status", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(statusMessage, GetStatusMessageType());
 
@@ -80,16 +91,18 @@ namespace PulseForge.Editor.AudioPipeline
             EditorGUILayout.LabelField("stderr", EditorStyles.boldLabel);
             EditorGUILayout.TextArea(lastStderr, GUILayout.MinHeight(120f));
             EditorGUILayout.EndScrollView();
+            EditorGUILayout.EndScrollView();
         }
 
         private void RunPipeline()
         {
             lastStdout = string.Empty;
             lastStderr = string.Empty;
-            generatedPlayableJsonPath = string.Empty;
+            generatedRawJsonAsset = null;
             generatedPlayableJsonAsset = null;
+            UpdateGeneratedJsonPathsFromInputs();
 
-            if (!TryBuildCommand(out string arguments, out string playableJsonPath, out string validationError))
+            if (!TryBuildCommand(out string arguments, out string rawJsonPath, out string playableJsonPath, out string validationError))
             {
                 statusMessage = validationError;
                 EditorUtility.DisplayDialog("PulseForge Audio Pipeline", validationError, "OK");
@@ -132,11 +145,12 @@ namespace PulseForge.Editor.AudioPipeline
                     }
                 }
 
+                generatedRawJsonPath = rawJsonPath;
                 generatedPlayableJsonPath = playableJsonPath;
                 AssetDatabase.Refresh();
-                TryLoadGeneratedPlayableJsonAsset();
-                statusMessage = generatedPlayableJsonAsset == null
-                    ? "Pipeline completed successfully. Generated JSON asset was not found yet."
+                TryLoadGeneratedJsonAssets();
+                statusMessage = generatedRawJsonAsset == null || generatedPlayableJsonAsset == null
+                    ? "Pipeline completed successfully. One or more generated JSON assets were not found yet."
                     : "Pipeline completed successfully.";
                 Debug.Log(statusMessage + "\n" + lastStdout);
             }
@@ -152,7 +166,7 @@ namespace PulseForge.Editor.AudioPipeline
         {
             if (generatedPlayableJsonAsset == null)
             {
-                TryLoadGeneratedPlayableJsonAsset();
+                TryLoadGeneratedJsonAssets();
             }
 
             bool hasGeneratedAsset = generatedPlayableJsonAsset != null;
@@ -191,15 +205,99 @@ namespace PulseForge.Editor.AudioPipeline
             }
         }
 
-        private void TryLoadGeneratedPlayableJsonAsset()
+        private void DrawBeatmapTimelinePreview()
         {
-            if (string.IsNullOrEmpty(generatedPlayableJsonPath))
+            timelinePreviewFoldout = EditorGUILayout.Foldout(timelinePreviewFoldout, "Beatmap Timeline Preview", true);
+            if (!timelinePreviewFoldout)
             {
-                generatedPlayableJsonAsset = null;
                 return;
             }
 
-            generatedPlayableJsonAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(generatedPlayableJsonPath);
+            try
+            {
+                TryLoadGeneratedJsonAssets();
+                DrawGeneratedAssetStatus("Raw JSON Asset", generatedRawJsonAsset, generatedRawJsonPath);
+                DrawGeneratedAssetStatus("Playable JSON Asset", generatedPlayableJsonAsset, generatedPlayableJsonPath);
+
+                if (GUILayout.Button("Refresh Generated Assets"))
+                {
+                    AssetDatabase.Refresh();
+                    TryLoadGeneratedJsonAssets();
+                    timelinePreviewError = string.Empty;
+                    statusMessage = "Generated assets refreshed.";
+                }
+
+                if (!string.IsNullOrEmpty(timelinePreviewError))
+                {
+                    EditorGUILayout.HelpBox(timelinePreviewError, MessageType.Warning);
+                }
+
+                timelinePreviewDrawer.Draw(generatedRawJsonAsset, generatedPlayableJsonAsset, 180f);
+            }
+            catch (ExitGUIException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                timelinePreviewError = "Beatmap timeline preview failed: " + exception.Message;
+                EditorGUILayout.HelpBox(timelinePreviewError, MessageType.Warning);
+            }
+        }
+
+        private static void DrawGeneratedAssetStatus(string label, TextAsset asset, string assetPath)
+        {
+            EditorGUILayout.LabelField(label + " Status", asset == null ? "Not found" : "Found");
+            EditorGUILayout.SelectableLabel(string.IsNullOrEmpty(assetPath) ? "(path unavailable)" : assetPath, GUILayout.Height(18f));
+
+            if (asset != null)
+            {
+                EditorGUILayout.ObjectField(label, asset, typeof(TextAsset), false);
+            }
+        }
+
+        private void TryLoadGeneratedJsonAssets()
+        {
+            UpdateGeneratedJsonPathsFromInputs();
+            generatedRawJsonAsset = LoadTextAssetAtPath(generatedRawJsonPath);
+            generatedPlayableJsonAsset = LoadTextAssetAtPath(generatedPlayableJsonPath);
+        }
+
+        private static TextAsset LoadTextAssetAtPath(string assetPath)
+        {
+            return string.IsNullOrEmpty(assetPath) ? null : AssetDatabase.LoadAssetAtPath<TextAsset>(assetPath);
+        }
+
+        private void UpdateGeneratedJsonPathsFromInputs()
+        {
+            if (string.IsNullOrWhiteSpace(outputDirectory))
+            {
+                SetGeneratedPath(ref generatedRawJsonPath, ref generatedRawJsonAsset, string.Empty);
+                SetGeneratedPath(ref generatedPlayableJsonPath, ref generatedPlayableJsonAsset, string.Empty);
+                return;
+            }
+
+            string safeOutputName = GetSafeOutputName();
+            string safeOutputDirectory = outputDirectory.Trim();
+            SetGeneratedPath(
+                ref generatedRawJsonPath,
+                ref generatedRawJsonAsset,
+                BuildGeneratedJsonPath(safeOutputDirectory, "BM_Raw_", safeOutputName));
+            SetGeneratedPath(
+                ref generatedPlayableJsonPath,
+                ref generatedPlayableJsonAsset,
+                BuildGeneratedJsonPath(safeOutputDirectory, "BM_Playable_", safeOutputName));
+        }
+
+        private static void SetGeneratedPath(ref string currentPath, ref TextAsset currentAsset, string newPath)
+        {
+            if (string.Equals(currentPath, newPath, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            currentPath = newPath;
+            currentAsset = null;
         }
 
         private static DebugRhythmPrototypeController GetSelectedDebugPrototypeController()
@@ -239,9 +337,10 @@ namespace PulseForge.Editor.AudioPipeline
             statusMessage = "Assigned generated JSON to selected DebugRhythmPrototypeController.";
         }
 
-        private bool TryBuildCommand(out string arguments, out string playableJsonPath, out string validationError)
+        private bool TryBuildCommand(out string arguments, out string rawJsonPath, out string playableJsonPath, out string validationError)
         {
             arguments = string.Empty;
+            rawJsonPath = string.Empty;
             playableJsonPath = string.Empty;
             validationError = string.Empty;
 
@@ -276,7 +375,7 @@ namespace PulseForge.Editor.AudioPipeline
                 return false;
             }
 
-            string safeOutputName = string.IsNullOrWhiteSpace(outputName) ? DefaultOutputName : outputName.Trim();
+            string safeOutputName = GetSafeOutputName();
             string projectRoot = GetProjectRoot();
             string scriptFullPath = Path.Combine(projectRoot, PipelineScriptPath);
             if (!File.Exists(scriptFullPath))
@@ -320,8 +419,19 @@ namespace PulseForge.Editor.AudioPipeline
             }
 
             arguments = builder.ToString();
-            playableJsonPath = Path.Combine(outputDirectory.Trim(), "BM_Playable_" + safeOutputName + ".json").Replace('\\', '/');
+            rawJsonPath = BuildGeneratedJsonPath(outputDirectory.Trim(), "BM_Raw_", safeOutputName);
+            playableJsonPath = BuildGeneratedJsonPath(outputDirectory.Trim(), "BM_Playable_", safeOutputName);
             return true;
+        }
+
+        private string GetSafeOutputName()
+        {
+            return string.IsNullOrWhiteSpace(outputName) ? DefaultOutputName : outputName.Trim();
+        }
+
+        private static string BuildGeneratedJsonPath(string outputDirectoryPath, string filePrefix, string safeOutputName)
+        {
+            return Path.Combine(outputDirectoryPath, filePrefix + safeOutputName + ".json").Replace('\\', '/');
         }
 
         private static string GetProjectRoot()
