@@ -13,6 +13,7 @@ namespace PulseForge.Editor.AudioPipeline
     {
         private const string MenuPath = "Tools/PulseForge/Audio Pipeline";
         private const string PipelineScriptPath = "tools/audio_analyzer/run_debug_pipeline.py";
+        private const string ReportDirectory = "tools/audio_analyzer/out";
         private const string DefaultOutputDirectory = "Assets/PulseForge/Demo/BeatMaps";
         private const string DefaultOutputName = "Debug_120BPM";
         private const string DefaultPattern = "Guard,Guard,Strike,Guard,Strike,Strike,Guard,Strike,Guard,Strike";
@@ -30,16 +31,23 @@ namespace PulseForge.Editor.AudioPipeline
         private string outputDirectory = DefaultOutputDirectory;
         private string generatedRawJsonPath = string.Empty;
         private string generatedPlayableJsonPath = string.Empty;
+        private string analysisReportPath = string.Empty;
+        private string postprocessReportPath = string.Empty;
+        private string compareReportPath = string.Empty;
         private TextAsset generatedRawJsonAsset;
         private TextAsset generatedPlayableJsonAsset;
         private string statusMessage = "Ready";
         private string lastStdout = string.Empty;
         private string lastStderr = string.Empty;
         private string timelinePreviewError = string.Empty;
+        private string pipelineReportsError = string.Empty;
         private Vector2 windowScroll;
         private Vector2 outputScroll;
         private bool timelinePreviewFoldout = true;
+        private bool pipelineReportsFoldout = true;
+        private bool lastRunUsedExpectedCompare;
         private readonly BeatmapTimelinePreviewDrawer timelinePreviewDrawer = new BeatmapTimelinePreviewDrawer();
+        private readonly PipelineReportSummaryDrawer pipelineReportSummaryDrawer = new PipelineReportSummaryDrawer();
 
         [MenuItem(MenuPath)]
         public static void Open()
@@ -65,6 +73,7 @@ namespace PulseForge.Editor.AudioPipeline
             pythonExecutable = EditorGUILayout.TextField("Python Executable", pythonExecutable);
             outputDirectory = EditorGUILayout.TextField("Output Directory", outputDirectory);
             UpdateGeneratedJsonPathsFromInputs();
+            UpdateReportPathsFromInputs();
 
             EditorGUILayout.Space();
             if (GUILayout.Button("Run Pipeline"))
@@ -79,6 +88,9 @@ namespace PulseForge.Editor.AudioPipeline
 
             EditorGUILayout.Space();
             DrawBeatmapTimelinePreview();
+
+            EditorGUILayout.Space();
+            DrawPipelineReports();
 
             EditorGUILayout.LabelField("Status", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(statusMessage, GetStatusMessageType());
@@ -147,6 +159,8 @@ namespace PulseForge.Editor.AudioPipeline
 
                 generatedRawJsonPath = rawJsonPath;
                 generatedPlayableJsonPath = playableJsonPath;
+                UpdateReportPathsFromInputs();
+                lastRunUsedExpectedCompare = useExpectedCompare;
                 AssetDatabase.Refresh();
                 TryLoadGeneratedJsonAssets();
                 statusMessage = generatedRawJsonAsset == null || generatedPlayableJsonAsset == null
@@ -202,6 +216,50 @@ namespace PulseForge.Editor.AudioPipeline
                 {
                     AssignGeneratedJsonToSelectedPrototype(selectedPrototype);
                 }
+            }
+        }
+
+        private void DrawPipelineReports()
+        {
+            pipelineReportsFoldout = EditorGUILayout.Foldout(pipelineReportsFoldout, "Pipeline Reports", true);
+            if (!pipelineReportsFoldout)
+            {
+                return;
+            }
+
+            try
+            {
+                UpdateReportPathsFromInputs();
+                EditorGUILayout.SelectableLabel(analysisReportPath, GUILayout.Height(18f));
+                EditorGUILayout.SelectableLabel(postprocessReportPath, GUILayout.Height(18f));
+                EditorGUILayout.SelectableLabel(compareReportPath, GUILayout.Height(18f));
+
+                if (GUILayout.Button("Refresh Reports"))
+                {
+                    UpdateReportPathsFromInputs();
+                    pipelineReportsError = string.Empty;
+                    statusMessage = "Pipeline reports refreshed.";
+                }
+
+                if (!string.IsNullOrEmpty(pipelineReportsError))
+                {
+                    EditorGUILayout.HelpBox(pipelineReportsError, MessageType.Warning);
+                }
+
+                pipelineReportSummaryDrawer.Draw(
+                    analysisReportPath,
+                    postprocessReportPath,
+                    compareReportPath,
+                    lastRunUsedExpectedCompare || useExpectedCompare);
+            }
+            catch (ExitGUIException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                pipelineReportsError = "Pipeline reports failed: " + exception.Message;
+                EditorGUILayout.HelpBox(pipelineReportsError, MessageType.Warning);
             }
         }
 
@@ -287,6 +345,14 @@ namespace PulseForge.Editor.AudioPipeline
                 ref generatedPlayableJsonPath,
                 ref generatedPlayableJsonAsset,
                 BuildGeneratedJsonPath(safeOutputDirectory, "BM_Playable_", safeOutputName));
+        }
+
+        private void UpdateReportPathsFromInputs()
+        {
+            string safeOutputName = GetSafeOutputName();
+            analysisReportPath = BuildReportPath(safeOutputName, "_analysis_report.json");
+            postprocessReportPath = BuildReportPath(safeOutputName, "_postprocess_report.json");
+            compareReportPath = BuildReportPath(safeOutputName, "_compare_report.json");
         }
 
         private static void SetGeneratedPath(ref string currentPath, ref TextAsset currentAsset, string newPath)
@@ -432,6 +498,11 @@ namespace PulseForge.Editor.AudioPipeline
         private static string BuildGeneratedJsonPath(string outputDirectoryPath, string filePrefix, string safeOutputName)
         {
             return Path.Combine(outputDirectoryPath, filePrefix + safeOutputName + ".json").Replace('\\', '/');
+        }
+
+        private static string BuildReportPath(string safeOutputName, string suffix)
+        {
+            return Path.Combine(ReportDirectory, safeOutputName + suffix).Replace('\\', '/');
         }
 
         private static string GetProjectRoot()
