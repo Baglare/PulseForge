@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using PulseForge.Runtime.Unity.Prototype;
 using UnityEditor;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
@@ -28,6 +29,7 @@ namespace PulseForge.Editor.AudioPipeline
         private string pythonExecutable = "python";
         private string outputDirectory = DefaultOutputDirectory;
         private string generatedPlayableJsonPath = string.Empty;
+        private TextAsset generatedPlayableJsonAsset;
         private string statusMessage = "Ready";
         private string lastStdout = string.Empty;
         private string lastStderr = string.Empty;
@@ -65,6 +67,7 @@ namespace PulseForge.Editor.AudioPipeline
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Generated Playable JSON", EditorStyles.boldLabel);
             EditorGUILayout.SelectableLabel(string.IsNullOrEmpty(generatedPlayableJsonPath) ? "(not generated yet)" : generatedPlayableJsonPath, GUILayout.Height(18f));
+            DrawGeneratedJsonWorkflow();
 
             EditorGUILayout.LabelField("Status", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(statusMessage, GetStatusMessageType());
@@ -84,6 +87,7 @@ namespace PulseForge.Editor.AudioPipeline
             lastStdout = string.Empty;
             lastStderr = string.Empty;
             generatedPlayableJsonPath = string.Empty;
+            generatedPlayableJsonAsset = null;
 
             if (!TryBuildCommand(out string arguments, out string playableJsonPath, out string validationError))
             {
@@ -129,8 +133,11 @@ namespace PulseForge.Editor.AudioPipeline
                 }
 
                 generatedPlayableJsonPath = playableJsonPath;
-                statusMessage = "Pipeline completed successfully.";
                 AssetDatabase.Refresh();
+                TryLoadGeneratedPlayableJsonAsset();
+                statusMessage = generatedPlayableJsonAsset == null
+                    ? "Pipeline completed successfully. Generated JSON asset was not found yet."
+                    : "Pipeline completed successfully.";
                 Debug.Log(statusMessage + "\n" + lastStdout);
             }
             catch (Exception exception)
@@ -139,6 +146,97 @@ namespace PulseForge.Editor.AudioPipeline
                 EditorUtility.DisplayDialog("PulseForge Audio Pipeline", statusMessage, "OK");
                 Debug.LogException(exception);
             }
+        }
+
+        private void DrawGeneratedJsonWorkflow()
+        {
+            if (generatedPlayableJsonAsset == null)
+            {
+                TryLoadGeneratedPlayableJsonAsset();
+            }
+
+            bool hasGeneratedAsset = generatedPlayableJsonAsset != null;
+            EditorGUILayout.LabelField("Generated JSON Asset Status", hasGeneratedAsset ? "Found" : "Not found yet");
+
+            if (hasGeneratedAsset)
+            {
+                EditorGUILayout.ObjectField("Generated JSON Asset", generatedPlayableJsonAsset, typeof(TextAsset), false);
+            }
+
+            using (new EditorGUI.DisabledScope(!hasGeneratedAsset))
+            {
+                if (GUILayout.Button("Ping / Select Generated JSON"))
+                {
+                    EditorGUIUtility.PingObject(generatedPlayableJsonAsset);
+                    Selection.activeObject = generatedPlayableJsonAsset;
+                }
+            }
+
+            DebugRhythmPrototypeController selectedPrototype = GetSelectedDebugPrototypeController();
+            if (!hasGeneratedAsset)
+            {
+                EditorGUILayout.HelpBox("Generated playable JSON asset is not available yet.", MessageType.Info);
+            }
+            else if (selectedPrototype == null)
+            {
+                EditorGUILayout.HelpBox("Select a GameObject with DebugRhythmPrototypeController to assign.", MessageType.Info);
+            }
+
+            using (new EditorGUI.DisabledScope(!hasGeneratedAsset || selectedPrototype == null))
+            {
+                if (GUILayout.Button("Assign to Selected Debug Prototype"))
+                {
+                    AssignGeneratedJsonToSelectedPrototype(selectedPrototype);
+                }
+            }
+        }
+
+        private void TryLoadGeneratedPlayableJsonAsset()
+        {
+            if (string.IsNullOrEmpty(generatedPlayableJsonPath))
+            {
+                generatedPlayableJsonAsset = null;
+                return;
+            }
+
+            generatedPlayableJsonAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(generatedPlayableJsonPath);
+        }
+
+        private static DebugRhythmPrototypeController GetSelectedDebugPrototypeController()
+        {
+            GameObject selectedGameObject = Selection.activeGameObject;
+            return selectedGameObject == null ? null : selectedGameObject.GetComponent<DebugRhythmPrototypeController>();
+        }
+
+        private void AssignGeneratedJsonToSelectedPrototype(DebugRhythmPrototypeController selectedPrototype)
+        {
+            if (generatedPlayableJsonAsset == null)
+            {
+                statusMessage = "Generated playable JSON asset is not available yet.";
+                return;
+            }
+
+            if (selectedPrototype == null)
+            {
+                statusMessage = "Select a GameObject with DebugRhythmPrototypeController to assign.";
+                return;
+            }
+
+            SerializedObject serializedObject = new SerializedObject(selectedPrototype);
+            serializedObject.Update();
+            SerializedProperty property = serializedObject.FindProperty("debugBeatMapJson");
+            if (property == null)
+            {
+                statusMessage = "Could not find serialized property: debugBeatMapJson.";
+                EditorUtility.DisplayDialog("PulseForge Audio Pipeline", statusMessage, "OK");
+                return;
+            }
+
+            Undo.RecordObject(selectedPrototype, "Assign PulseForge Beat Map JSON");
+            property.objectReferenceValue = generatedPlayableJsonAsset;
+            serializedObject.ApplyModifiedProperties();
+            EditorUtility.SetDirty(selectedPrototype);
+            statusMessage = "Assigned generated JSON to selected DebugRhythmPrototypeController.";
         }
 
         private bool TryBuildCommand(out string arguments, out string playableJsonPath, out string validationError)
