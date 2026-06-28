@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "displayName": "Playable Debug 120 BPM",
+  "globalOffsetSeconds": 0.0,
+  "events": [
+    {
+      "eventId": "event-001",
+      "targetTimeSeconds": 1.01,
+      "action": "Guard",
+      "intensity": 1.0
+    },
+    {
+      "eventId": "event-002",
+      "targetTimeSeconds": 1.51,
+      "action": "Guard",
+      "intensity": 1.0
+    },
+    {
+      "eventId": "event-003",
+      "targetTimeSeconds": 2.01,
+      "action": "Strike",
+      "intensity": 1.0
+    },
+    {
+      "eventId": "event-004",
+      "targetTimeSeconds": 2.51,
+      "action": "Guard",
+      "intensity": 1.0
+    },
+    {
+      "eventId": "event-005",
+      "targetTimeSeconds": 3.01,
+      "action": "Strike",
+      "intensity": 1.0
+    },
+    {
+      "eventId": "event-006",
+      "targetTimeSeconds": 3.76,
+      "action": "Strike",
+      "intensity": 1.0
+    },
+    {
+      "eventId": "event-007",
+      "targetTimeSeconds": 4.26,
+      "action": "Guard",
+      "intensity": 1.0
+    },
+    {
+      "eventId": "event-008",
+      "targetTimeSeconds": 4.76,
+      "action": "Strike",
+      "intensity": 1.0
+    },
+    {
+      "eventId": "event-009",
+      "targetTimeSeconds": 5.26,
+      "action": "Guard",
+      "intensity": 1.0
+    }
+  ]
+}

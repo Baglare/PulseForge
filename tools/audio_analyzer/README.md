@@ -160,6 +160,80 @@ Console summary su bilgileri yazar:
 
 Report JSON dosyasi Unity'ye verilmez. Sadece comparison/debug icindir ve `tools/audio_analyzer/out/` altina yazilabilir.
 
+## Playable beatmap post-process nasil yapilir?
+
+`postprocess_beatmap.py`, analyzer tarafindan uretilen raw beatmap JSON'u daha oynanabilir bir combat beatmap JSON'a donusturur. Raw analyzer output ses transientlerini yakalamaya odaklanir; playable beatmap ise minimum aralik ve action mapping kurallariyla oyuncunun takip edebilecegi event listesi uretir.
+
+Raw analyzer output uret:
+
+```powershell
+python tools/audio_analyzer/pulseforge_audio_analyzer.py `
+  Assets/PulseForge/Demo/Audio/PF_Debug_120BPM_DefaultBeatMap.wav `
+  --output Assets/PulseForge/Demo/BeatMaps/BM_Analyzed_Debug_120BPM_Onset.json `
+  --detection-mode onset `
+  --pattern Guard,Guard,Strike,Guard,Strike,Strike,Guard,Strike,Guard,Strike
+```
+
+Playable beatmap uret:
+
+```powershell
+python tools/audio_analyzer/postprocess_beatmap.py `
+  Assets/PulseForge/Demo/BeatMaps/BM_Analyzed_Debug_120BPM_Onset.json `
+  --output Assets/PulseForge/Demo/BeatMaps/BM_Playable_Debug_120BPM.json `
+  --display-name "Playable Debug 120 BPM" `
+  --difficulty normal `
+  --action-mode pattern `
+  --pattern Guard,Guard,Strike,Guard,Strike `
+  --report-output tools/audio_analyzer/out/postprocess_debug_120bpm.report.json
+```
+
+`--output` verilmezse playable beatmap JSON stdout'a yazilir. `--report-output` dosyasi Unity'ye verilmez; post-process debug icindir.
+
+Difficulty presetleri minimum event araligini belirler:
+
+- `easy`: `minGapSeconds = 0.45`
+- `normal`: `minGapSeconds = 0.28`
+- `hard`: `minGapSeconds = 0.18`
+
+`--min-gap-seconds` verilirse difficulty preset degerini override eder. Cok yakin eventlerde daha yuksek intensity event tutulur; intensity esit ise daha erken event kalir.
+
+Action mode secenekleri:
+
+- `preserve`: Input event action degerini korur.
+- `alternate`: Guard, Strike, Guard, Strike sirasiyla uretir.
+- `pattern`: `--pattern` listesini dongu halinde uygular.
+- `intensity`: `--intensity-strike-threshold` ve ustunu Strike, altini Guard yapar.
+
+Unity'de kullanmak icin post-process sonucu olusan playable JSON dosyasini Debug prototype objesindeki `Debug Beat Map Json` alanina ata. Report JSON dosyasini Unity'ye verme.
+
+## Tek komutluk debug pipeline nasil calistirilir?
+
+`run_debug_pipeline.py`, WAV dosyasindan raw analyzer beatmap, playable beatmap ve diagnostics raporlarini tek komutla uretir. Istege bagli olarak expected/reference beatmap ile playable sonucu karsilastirir.
+
+```powershell
+python tools/audio_analyzer/run_debug_pipeline.py `
+  --input-wav Assets/PulseForge/Demo/Audio/PF_Debug_120BPM_DefaultBeatMap.wav `
+  --output-dir Assets/PulseForge/Demo/BeatMaps `
+  --name Debug_120BPM `
+  --pattern Guard,Guard,Strike,Guard,Strike,Strike,Guard,Strike,Guard,Strike `
+  --detection-mode amplitude `
+  --difficulty hard `
+  --expected-json Assets/PulseForge/Demo/BeatMaps/BM_Debug_120BPM_Default.json `
+  --write-debug-csv `
+  --summary
+```
+
+Pipeline su dosyalari uretir:
+
+- `BM_Raw_<name>.json`: Analyzer tarafindan uretilen raw beatmap.
+- `BM_Playable_<name>.json`: Postprocess sonrasi Unity'ye atanacak playable beatmap.
+- `tools/audio_analyzer/out/<name>_analysis_report.json`: Analyzer diagnostics report.
+- `tools/audio_analyzer/out/<name>_postprocess_report.json`: Postprocess report.
+- `tools/audio_analyzer/out/<name>_compare_report.json`: Sadece `--expected-json` verilirse comparison report.
+- `tools/audio_analyzer/out/<name>_frames.csv`: Sadece `--write-debug-csv` verilirse frame debug CSV.
+
+Unity'de `BM_Playable_<name>.json` dosyasini Debug prototype objesindeki `Debug Beat Map Json` alanina ata. Raw JSON analiz/debug icindir; playable olmayan fazla sik eventler icerebilir. `tools/audio_analyzer/out/` altindaki raporlar ve CSV dosyalari Unity'ye verilmez ve commitlenmemelidir.
+
 ## Unity'ye nasil verilir?
 
 1. Uretilen `.wav` dosyasini Unity projesinde `Assets/` altinda bir klasore koy.
