@@ -8,12 +8,13 @@
 
 ## Mevcut durum
 
-Şu ana kadar iki ana milestone tamamlandı:
+Şu ana kadar üç ana milestone tamamlandı:
 
 | Milestone | Durum | Açıklama |
 |---|---:|---|
 | Milestone 1: Debug Rhythm Combat Prototype | Tamamlandı | Unity içinde ritim judgement, lane, score, combo, combat feedback ve DSP audio clock ile çalışan debug prototip. |
 | Milestone 2: Audio Pipeline Prototype | Tamamlandı | Python tabanlı WAV analyzer, diagnostics, postprocessor, comparison tool, pipeline runner ve Unity Editor pipeline window. |
+| Milestone 3: Forge Preview / Beatmap Visualization | Tamamlandı | Unity Editor Audio Pipeline penceresinde raw/playable timeline preview, report summary paneli ve generated JSON atama akışı. |
 
 Şu anda sistem şu akışı destekler:
 
@@ -25,6 +26,8 @@ Python audio analyzer
 Raw beatmap JSON
   ↓
 Playable beatmap postprocessor
+  ↓
+Unity Editor Forge Preview / visualization
   ↓
 Unity JSON import
   ↓
@@ -99,6 +102,9 @@ Bu pencere üzerinden:
 - Difficulty seçilebilir.
 - Action pattern verilebilir.
 - Python pipeline çalıştırılabilir.
+- Raw ve playable beatmap JSON üretimi aynı pencerede görülebilir.
+- Raw/playable eventler timeline üzerinde karşılaştırılabilir.
+- Analysis, postprocess ve compare raporları okunabilir özet olarak incelenebilir.
 - Üretilen playable JSON Project panelinde seçilebilir.
 - Seçili `DebugRhythmPrototypeController` objesine generated JSON atanabilir.
 
@@ -144,6 +150,19 @@ J     = Strike
 
 5. Lane üzerindeki markerlar hit line’a geldiğinde doğru inputu ver.
 6. Score, combo, timing feedback ve combat feedback panelini izle.
+
+### 4. Audio Pipeline penceresiyle Forge Preview akışı
+
+1. Unity menüsünden `Tools > PulseForge > Audio Pipeline` penceresini aç.
+2. `Input Audio Clip` alanına WAV tabanlı demo audio clip'i seç.
+3. Gerekirse `Expected Beat Map JSON` alanına referans beatmap JSON'u ata.
+4. Output name, pattern, detection mode, difficulty ve action mode değerlerini kontrol et.
+5. `Run Pipeline` ile pipeline'ı çalıştır.
+6. Timeline preview üzerinde raw ve playable event dağılımını kontrol et.
+7. Reports panelinden analysis, postprocess ve compare özetlerini oku.
+8. `Ping / Select Generated JSON` ile generated playable JSON'u Project panelinde seç.
+9. Sahnede `DebugRhythmPrototypeController` bulunan GameObject'i seç.
+10. `Assign to Selected Debug Prototype` ile generated playable JSON'u prototype'a ata.
 
 ---
 
@@ -239,7 +258,11 @@ Use Expected Compare:
 true
 ```
 
-`Run Pipeline` sonrası generated JSON bulunursa pencere bunu gösterebilir. İstenirse `Ping / Select Generated JSON` ile Project panelinde seçilebilir. Sahnede `DebugRhythmPrototypeController` olan GameObject seçiliyken `Assign to Selected Debug Prototype` butonu ile generated JSON component’e atanabilir.
+`Run Pipeline` sonrası generated JSON bulunursa pencere bunu gösterebilir. Milestone 3 ile pencere ayrıca raw/playable beatmap eventlerini timeline üzerinde gösterir ve analysis, postprocess, compare raporlarını okunabilir özetlere dönüştürür. Böylece raw analyzer output'u ile playable postprocessor output'u arasındaki fark Unity içinde görülebilir.
+
+İstenirse `Ping / Select Generated JSON` ile generated playable JSON Project panelinde seçilebilir. Sahnede `DebugRhythmPrototypeController` olan GameObject seçiliyken `Assign to Selected Debug Prototype` butonu ile generated JSON component’e atanabilir.
+
+Bu pencere final beatmap editor veya waveform editor değildir. Şu anki rolü pipeline çıktısını incelemek, raporları özetlemek ve generated playable JSON'u prototype'a bağlamayı kolaylaştırmaktır.
 
 Bu işlem sahneyi otomatik kaydetmez. Bilinçli tercih. Otomatik sahne kaydetmek, editor tool dünyasında küçük bir mayın tarlasıdır.
 
@@ -272,6 +295,8 @@ Assets/PulseForge/
 │   │       └── DebugCombatFeedbackRenderer.cs
 ├── Editor/
 │   └── AudioPipeline/
+│       ├── BeatmapTimelinePreviewDrawer.cs
+│       ├── PipelineReportSummaryDrawer.cs
 │       └── PulseForgeAudioPipelineWindow.cs
 └── Demo/
     ├── Audio/
@@ -306,6 +331,7 @@ Unity runtime/debug layer
 Unity editor layer
 → Python pipeline’ı Unity içinden çalıştırır.
 → Generated JSON’u bulur ve prototype’a atamayı kolaylaştırır.
+→ Raw/playable timeline preview ve pipeline report summary sağlar.
 
 Python tools
 → WAV analiz eder.
@@ -366,6 +392,8 @@ Test edilen ana davranışlar:
 - Final UI yok.
 - Gerçek animasyon/sprite combat sistemi yok.
 - Tam beatmap editor yok.
+- Forge Preview final beatmap editor veya waveform editor değildir.
+- Timeline preview şimdilik inceleme amaçlıdır; event authoring aracı değildir.
 - Seviye seçme veya kullanıcı profili yok.
 - Online skor yok.
 
@@ -375,24 +403,27 @@ Bunlar eksiklik değil, bu milestone’un sınırları. Sınır koymak, projenin
 
 ## Roadmap
 
-Önerilen sıradaki adımlar:
+Önerilen sıradaki milestone:
 
-1. Analyzer tuning
-   - Gerçek müzik benzeri WAV dosyalarında onset mode ayarlarını test etmek.
-   - Diagnostics CSV üzerinden threshold, baseline ve min-gap değerlerini iyileştirmek.
-
-2. Beatmap visualization
-   - Unity içinde raw/analyzed eventleri görsel olarak daha iyi inceleme.
-   - Waveform veya energy curve debug görünümü.
-
-3. Combat prototype upgrade
+1. Combat Visualization Prototype
    - OnGUI yerine basit sprite/2D görsel sistem.
    - Parry/slash animasyonları.
    - Daha iyi feedback sesleri.
 
-4. Beatmap authoring/editing
+Sonraki iyileştirme başlıkları:
+
+2. Beatmap authoring/editing
    - Generated beatmap üzerinde küçük düzeltmeler yapabilme.
    - Offset, action ve event silme/ekleme araçları.
+
+3. Analyzer tuning
+   - Gerçek müzik benzeri WAV dosyalarında onset mode ayarlarını test etmek.
+   - Diagnostics CSV üzerinden threshold, baseline ve min-gap değerlerini iyileştirmek.
+
+4. Forge Preview polish
+   - Timeline zoom veya ölçek kontrolü.
+   - Daha ayrıntılı compare görselleştirmesi.
+   - Waveform veya energy curve debug görünümü araştırması.
 
 5. Daha gelişmiş audio analysis
    - Dış bağımlılıklar değerlendirilirse librosa/essentia tabanlı ikinci analiz pipeline’ı.
@@ -412,6 +443,8 @@ PulseForge şu açılardan portfolyoda güçlü durur:
 - JSON data pipeline.
 - Python CLI tooling.
 - Unity Editor tooling.
+- Forge Preview / Audio Pipeline Editor visualization.
+- Pipeline report summary panelleri.
 - Audio analysis başlangıcı.
 - Data-driven beatmap workflow.
 - Dokümante edilmiş milestone geliştirme süreci.
@@ -425,6 +458,7 @@ Bu proje sadece “Unity’de butona bastım” projesi değil. Runtime, tooling
 ```text
 docs/06-debug-prototype-milestone.md
 docs/07-audio-pipeline-milestone.md
+docs/08-forge-preview-milestone.md
 tools/audio_analyzer/README.md
 ```
 
@@ -438,6 +472,7 @@ PulseForge şu an şunu kanıtlar:
 Ses dosyasından otomatik veya yarı otomatik ritim eventleri çıkarılabilir.
 Bu eventler postprocess edilerek oynanabilir beatmap’e dönüştürülebilir.
 Unity bu beatmap’i okuyup DSP audio clock ile senkron debug ritim-dövüş prototipinde oynatabilir.
+Unity Editor tarafı raw/playable farkını timeline preview ve report summary panelleriyle görünür kılar.
 ```
 
 Bu henüz final oyun değildir. Ama final oyuna doğru iyi kurulmuş bir temel ve gösterilebilir bir teknik prototiptir.
