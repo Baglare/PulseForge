@@ -38,6 +38,9 @@ sysinfo.txt
 
 # Local analyzer diagnostics
 tools/audio_analyzer/out/
+__pycache__/
+*.pyc
+*.pyo
 
 # OS files
 .DS_Store
