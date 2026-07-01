@@ -204,6 +204,51 @@ Action mode secenekleri:
 - `pattern`: `--pattern` listesini dongu halinde uygular.
 - `intensity`: `--intensity-strike-threshold` ve ustunu Strike, altini Guard yapar.
 
+## Combat-style preset nedir?
+
+`--combat-style`, raw analyzer eventlerini secilen dovus hissine gore Guard / Strike dizisine cevirir. Bu sistem final combat generator degildir; debug prototype icin ilk deterministik preset katmanidir. Output JSON yine `schemaVersion: 1` kullanir ve Unity tarafindaki `DebugBeatMapJsonParser` icin yeni alan zorunlulugu getirmez.
+
+Preset secenekleri:
+
+- `legacy`: Eski `--action-mode` davranisini korur. Varsayilandir.
+- `balanced`: Dengeli parry/slash dizisi uretir. Temel tekrar pattern'i `Guard, Guard, Strike, Guard, Strike, Strike`.
+- `defensive`: Guard agirlikli savunmaci dizi uretir. Dusuk/orta intensity eventler Guard kalir; yuksek intensity eventler sinirli Strike uretebilir.
+- `aggressive`: Strike agirlikli dizi uretir. Temel tekrar pattern'i `Strike, Strike, Guard, Strike`.
+- `bursty`: Yuksek intensity veya birbirine yakin eventleri kisa saldiri patlamasi gibi Strike'a yaklastirir.
+
+`action-mode` ile `combat-style` farki:
+
+- `action-mode` mekanik mapping icindir: preserve, alternate, pattern veya intensity.
+- `combat-style` oynanis hissi icindir: dengeli, savunmaci, saldirgan veya patlamali Guard/Strike dagilimi.
+- `--combat-style legacy` disinda bir preset kullaniliyorsa `--action-mode` ve `--pattern` verme. Bu durumda action mapping preset tarafindan yapilir.
+
+Hangi durumda hangisi kullanilmali?
+
+- Eski pipeline davranisini aynen korumak icin `legacy`.
+- Genel demo ve portfolyo akisi icin `balanced`.
+- Parry agirlikli sahne feedback'i gostermek icin `defensive`.
+- Slash agirlikli, daha saldirgan demo icin `aggressive`.
+- Sakin bolumler ve kisa saldiri patlamalari gostermek icin `bursty`.
+
+Postprocess ornegi:
+
+```powershell
+python tools/audio_analyzer/postprocess_beatmap.py raw.json `
+  --output playable.json `
+  --combat-style balanced `
+  --difficulty normal
+```
+
+Bursty preset icin yakin event penceresi ayarlanabilir:
+
+```powershell
+python tools/audio_analyzer/postprocess_beatmap.py raw.json `
+  --output playable.json `
+  --combat-style bursty `
+  --burst-window-seconds 0.35 `
+  --difficulty hard
+```
+
 Unity'de kullanmak icin post-process sonucu olusan playable JSON dosyasini Debug prototype objesindeki `Debug Beat Map Json` alanina ata. Report JSON dosyasini Unity'ye verme.
 
 ## Tek komutluk debug pipeline nasil calistirilir?
@@ -221,6 +266,17 @@ python tools/audio_analyzer/run_debug_pipeline.py `
   --expected-json Assets/PulseForge/Demo/BeatMaps/BM_Debug_120BPM_Default.json `
   --write-debug-csv `
   --summary
+```
+
+Combat-style preset ile tek komutluk ornek:
+
+```powershell
+python tools/audio_analyzer/run_debug_pipeline.py `
+  --input-wav Assets/PulseForge/Demo/Audio/PF_Debug_120BPM_DefaultBeatMap.wav `
+  --output-dir Assets/PulseForge/Demo/BeatMaps `
+  --name Debug_120BPM_Balanced `
+  --combat-style balanced `
+  --difficulty hard
 ```
 
 Pipeline su dosyalari uretir:

@@ -39,6 +39,7 @@ class PipelineResult:
     raw_event_count: int
     playable_event_count: int
     dropped_event_count: int
+    combat_style: str
     compare_summary: dict | None
 
 
@@ -52,6 +53,8 @@ def run_pipeline(
     difficulty: str = "normal",
     min_gap_seconds: float | None = None,
     action_mode: str | None = None,
+    combat_style: str = "legacy",
+    burst_window_seconds: float = postprocess_beatmap.DEFAULT_BURST_WINDOW_SECONDS,
     threshold_ratio: float = ANALYZER_DEFAULT_THRESHOLD_RATIO,
     min_analyzer_gap_seconds: float | None = None,
     expected_json: str | Path | None = None,
@@ -64,7 +67,21 @@ def run_pipeline(
         raise PipelineError("Input WAV file does not exist: " + str(input_wav_path))
 
     resolved_name = resolve_name(name, input_wav_path)
-    resolved_action_mode = resolve_action_mode(action_mode, pattern)
+    resolved_combat_style = postprocess_beatmap.normalize_combat_style(combat_style)
+    postprocess_beatmap.resolve_burst_window_seconds(burst_window_seconds)
+    resolved_action_mode = (
+        resolve_action_mode(action_mode, pattern)
+        if resolved_combat_style == "legacy"
+        else None
+    )
+    if resolved_combat_style != "legacy":
+        postprocess_beatmap.resolve_action_mapping_config(
+            combat_style=resolved_combat_style,
+            action_mode=action_mode,
+            pattern_text=pattern,
+            burst_window_seconds=burst_window_seconds,
+        )
+
     resolved_output_dir = Path(output_dir)
     resolved_diagnostics_dir = Path(diagnostics_dir) if diagnostics_dir is not None else SCRIPT_DIR / "out"
     resolved_output_dir.mkdir(parents=True, exist_ok=True)
@@ -99,7 +116,9 @@ def run_pipeline(
         difficulty=difficulty,
         min_gap_seconds=min_gap_seconds,
         action_mode=resolved_action_mode,
-        pattern_text=pattern,
+        pattern_text=pattern if resolved_combat_style == "legacy" else None,
+        combat_style=resolved_combat_style,
+        burst_window_seconds=burst_window_seconds,
     )
     write_text(playable_beatmap_path, postprocess_beatmap.dumps_beatmap(postprocess_result.output_document))
     write_text(postprocess_report_path, postprocess_beatmap.dumps_report(postprocess_result))
@@ -126,6 +145,7 @@ def run_pipeline(
         raw_event_count=len(analyzer_result.beatmap_document["events"]),
         playable_event_count=len(postprocess_result.output_document["events"]),
         dropped_event_count=len(postprocess_result.dropped_events),
+        combat_style=postprocess_result.combat_style,
         compare_summary=compare_summary,
     )
 
@@ -168,6 +188,7 @@ def format_console_summary(result: PipelineResult, include_paths: bool) -> str:
         "rawEventCount: " + str(result.raw_event_count),
         "playableEventCount: " + str(result.playable_event_count),
         "droppedEventCount: " + str(result.dropped_event_count),
+        "combatStyle: " + result.combat_style,
         "playableOutput: " + str(result.playable_beatmap_path),
     ]
 
@@ -212,6 +233,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--difficulty", choices=("easy", "normal", "hard"), default="normal")
     parser.add_argument("--min-gap-seconds", type=float)
     parser.add_argument("--action-mode", choices=("preserve", "alternate", "pattern", "intensity"))
+    parser.add_argument("--combat-style", choices=postprocess_beatmap.COMBAT_STYLES, default="legacy")
+    parser.add_argument("--burst-window-seconds", type=float, default=postprocess_beatmap.DEFAULT_BURST_WINDOW_SECONDS)
     parser.add_argument("--threshold-ratio", type=float, default=ANALYZER_DEFAULT_THRESHOLD_RATIO)
     parser.add_argument("--min-analyzer-gap-seconds", type=float)
     parser.add_argument("--expected-json", help="Optional expected/reference beatmap JSON path.")
@@ -235,6 +258,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             difficulty=args.difficulty,
             min_gap_seconds=args.min_gap_seconds,
             action_mode=args.action_mode,
+            combat_style=args.combat_style,
+            burst_window_seconds=args.burst_window_seconds,
             threshold_ratio=args.threshold_ratio,
             min_analyzer_gap_seconds=args.min_analyzer_gap_seconds,
             expected_json=args.expected_json,

@@ -20,6 +20,10 @@ DIFFICULTY_MIN_GAP_SECONDS = {
     "hard": 0.18,
 }
 ACTION_MODES = ("preserve", "alternate", "pattern", "intensity")
+COMBAT_STYLES = ("legacy", "balanced", "defensive", "aggressive", "bursty")
+DEFAULT_BURST_WINDOW_SECONDS = 0.35
+BALANCED_COMBAT_PATTERN = ("Guard", "Guard", "Strike", "Guard", "Strike", "Strike")
+AGGRESSIVE_COMBAT_PATTERN = ("Strike", "Strike", "Guard", "Strike")
 
 
 class PostprocessError(Exception):
@@ -57,7 +61,19 @@ class PostprocessResult:
     difficulty: str
     min_gap_seconds: float
     action_mode: str
+    combat_style: str
+    resolved_action_mode: str
+    burst_window_seconds: float
     max_events: int | None
+
+
+@dataclass(frozen=True)
+class ActionMappingConfig:
+    combat_style: str
+    action_mode: str
+    resolved_action_mode: str
+    action_pattern: list[str] | None
+    burst_window_seconds: float
 
 
 def load_beatmap(path: str | Path) -> BeatmapDocument:
@@ -145,9 +161,11 @@ def postprocess_beatmap_file(
     difficulty: str = "normal",
     min_gap_seconds: float | None = None,
     max_events: int | None = None,
-    action_mode: str = "preserve",
+    action_mode: str | None = None,
     pattern_text: str | None = None,
     intensity_strike_threshold: float = 0.65,
+    combat_style: str = "legacy",
+    burst_window_seconds: float = DEFAULT_BURST_WINDOW_SECONDS,
 ) -> PostprocessResult:
     document = load_beatmap(input_json)
     return postprocess_beatmap(
@@ -159,6 +177,8 @@ def postprocess_beatmap_file(
         action_mode=action_mode,
         pattern_text=pattern_text,
         intensity_strike_threshold=intensity_strike_threshold,
+        combat_style=combat_style,
+        burst_window_seconds=burst_window_seconds,
     )
 
 
@@ -169,14 +189,20 @@ def postprocess_beatmap(
     difficulty: str = "normal",
     min_gap_seconds: float | None = None,
     max_events: int | None = None,
-    action_mode: str = "preserve",
+    action_mode: str | None = None,
     pattern_text: str | None = None,
     intensity_strike_threshold: float = 0.65,
+    combat_style: str = "legacy",
+    burst_window_seconds: float = DEFAULT_BURST_WINDOW_SECONDS,
 ) -> PostprocessResult:
     resolved_difficulty = normalize_difficulty(difficulty)
     resolved_min_gap_seconds = resolve_min_gap_seconds(resolved_difficulty, min_gap_seconds)
-    resolved_action_mode = normalize_action_mode(action_mode)
-    action_pattern = parse_action_pattern(pattern_text) if resolved_action_mode == "pattern" else None
+    action_mapping = resolve_action_mapping_config(
+        combat_style=combat_style,
+        action_mode=action_mode,
+        pattern_text=pattern_text,
+        burst_window_seconds=burst_window_seconds,
+    )
     validate_max_events(max_events)
     validate_intensity_threshold(intensity_strike_threshold)
 
@@ -190,9 +216,11 @@ def postprocess_beatmap(
 
     output_events = assign_output_actions(
         filtered_events,
-        action_mode=resolved_action_mode,
-        action_pattern=action_pattern,
+        action_mode=action_mapping.action_mode,
+        action_pattern=action_mapping.action_pattern,
         intensity_strike_threshold=intensity_strike_threshold,
+        combat_style=action_mapping.combat_style,
+        burst_window_seconds=action_mapping.burst_window_seconds,
     )
     output_document = build_output_document(
         output_events,
@@ -207,7 +235,10 @@ def postprocess_beatmap(
         output_document=output_document,
         difficulty=resolved_difficulty,
         min_gap_seconds=resolved_min_gap_seconds,
-        action_mode=resolved_action_mode,
+        action_mode=action_mapping.action_mode,
+        combat_style=action_mapping.combat_style,
+        resolved_action_mode=action_mapping.resolved_action_mode,
+        burst_window_seconds=action_mapping.burst_window_seconds,
         max_events=max_events,
     )
 
@@ -246,16 +277,34 @@ def assign_output_actions(
     action_mode: str,
     action_pattern: Sequence[str] | None,
     intensity_strike_threshold: float,
+    combat_style: str,
+    burst_window_seconds: float,
 ) -> list[BeatmapEvent]:
     output_events: list[BeatmapEvent] = []
+    output_actions: list[str] = []
     for index, event in enumerate(events):
-        action = select_action(
-            index,
-            event,
-            action_mode=action_mode,
-            action_pattern=action_pattern,
-            intensity_strike_threshold=intensity_strike_threshold,
-        )
+        if combat_style == "legacy":
+            action = select_action(
+                index,
+                event,
+                action_mode=action_mode,
+                action_pattern=action_pattern,
+                intensity_strike_threshold=intensity_strike_threshold,
+            )
+        else:
+            previous_event = events[index - 1] if index > 0 else None
+            previous_action = output_actions[-1] if output_actions else None
+            action = select_combat_style_action(
+                index,
+                event,
+                previous_event=previous_event,
+                previous_action=previous_action,
+                combat_style=combat_style,
+                intensity_strike_threshold=intensity_strike_threshold,
+                burst_window_seconds=burst_window_seconds,
+            )
+
+        output_actions.append(action)
         output_events.append(
             BeatmapEvent(
                 event_id=format_event_id(index),
@@ -266,6 +315,119 @@ def assign_output_actions(
         )
 
     return output_events
+
+
+def select_combat_style_action(
+    index: int,
+    event: BeatmapEvent,
+    *,
+    previous_event: BeatmapEvent | None,
+    previous_action: str | None,
+    combat_style: str,
+    intensity_strike_threshold: float,
+    burst_window_seconds: float,
+) -> str:
+    if combat_style == "balanced":
+        return select_balanced_combat_action(
+            index,
+            event,
+            previous_action=previous_action,
+            intensity_strike_threshold=intensity_strike_threshold,
+        )
+
+    if combat_style == "defensive":
+        return select_defensive_combat_action(
+            index,
+            event,
+            previous_action=previous_action,
+            intensity_strike_threshold=intensity_strike_threshold,
+        )
+
+    if combat_style == "aggressive":
+        return select_aggressive_combat_action(
+            index,
+            event,
+            intensity_strike_threshold=intensity_strike_threshold,
+        )
+
+    if combat_style == "bursty":
+        return select_bursty_combat_action(
+            index,
+            event,
+            previous_event=previous_event,
+            intensity_strike_threshold=intensity_strike_threshold,
+            burst_window_seconds=burst_window_seconds,
+        )
+
+    raise PostprocessError("--combat-style must be legacy, balanced, defensive, aggressive, or bursty.")
+
+
+def select_balanced_combat_action(
+    index: int,
+    event: BeatmapEvent,
+    *,
+    previous_action: str | None,
+    intensity_strike_threshold: float,
+) -> str:
+    action = BALANCED_COMBAT_PATTERN[index % len(BALANCED_COMBAT_PATTERN)]
+    if (
+        event.intensity >= intensity_strike_threshold
+        and action == "Guard"
+        and index % 3 == 1
+        and previous_action != "Strike"
+    ):
+        return "Strike"
+
+    return action
+
+
+def select_defensive_combat_action(
+    index: int,
+    event: BeatmapEvent,
+    *,
+    previous_action: str | None,
+    intensity_strike_threshold: float,
+) -> str:
+    if (
+        event.intensity >= intensity_strike_threshold
+        and index % 3 == 2
+        and previous_action != "Strike"
+    ):
+        return "Strike"
+
+    return "Guard"
+
+
+def select_aggressive_combat_action(
+    index: int,
+    event: BeatmapEvent,
+    *,
+    intensity_strike_threshold: float,
+) -> str:
+    if event.intensity < intensity_strike_threshold and index % 4 == 1:
+        return "Guard"
+
+    return AGGRESSIVE_COMBAT_PATTERN[index % len(AGGRESSIVE_COMBAT_PATTERN)]
+
+
+def select_bursty_combat_action(
+    index: int,
+    event: BeatmapEvent,
+    *,
+    previous_event: BeatmapEvent | None,
+    intensity_strike_threshold: float,
+    burst_window_seconds: float,
+) -> str:
+    if event.intensity >= intensity_strike_threshold:
+        return "Strike"
+
+    if (
+        previous_event is not None
+        and event.target_time_seconds - previous_event.target_time_seconds <= burst_window_seconds
+    ):
+        return "Strike"
+
+    return BALANCED_COMBAT_PATTERN[index % len(BALANCED_COMBAT_PATTERN)]
 
 
 def select_action(
@@ -321,6 +483,10 @@ def build_report(result: PostprocessResult) -> dict:
         "difficulty": result.difficulty,
         "minGapSeconds": result.min_gap_seconds,
         "actionMode": result.action_mode,
+        "combatStyle": result.combat_style,
+        "resolvedActionMode": result.resolved_action_mode,
+        "burstWindowSeconds": result.burst_window_seconds,
+        "actionCounts": count_actions(result.output_events),
         "maxEvents": result.max_events,
         "events": [serialize_event(event) for event in result.output_events],
         "droppedEvents": [
@@ -332,6 +498,14 @@ def build_report(result: PostprocessResult) -> dict:
             for dropped_event in result.dropped_events
         ],
     }
+
+
+def count_actions(events: Sequence[BeatmapEvent]) -> dict:
+    counts = {action: 0 for action in SUPPORTED_ACTIONS}
+    for event in events:
+        counts[event.action] = counts.get(event.action, 0) + 1
+
+    return counts
 
 
 def dumps_beatmap(document: dict) -> str:
@@ -383,6 +557,57 @@ def normalize_action_mode(action_mode: str) -> str:
     return action_mode
 
 
+def normalize_combat_style(combat_style: str) -> str:
+    if combat_style not in COMBAT_STYLES:
+        raise PostprocessError("--combat-style must be legacy, balanced, defensive, aggressive, or bursty.")
+
+    return combat_style
+
+
+def resolve_action_mapping_config(
+    *,
+    combat_style: str,
+    action_mode: str | None,
+    pattern_text: str | None,
+    burst_window_seconds: float,
+) -> ActionMappingConfig:
+    resolved_combat_style = normalize_combat_style(combat_style)
+    resolved_burst_window_seconds = resolve_burst_window_seconds(burst_window_seconds)
+
+    if resolved_combat_style != "legacy":
+        if action_mode is not None:
+            raise PostprocessError(
+                "--action-mode cannot be used with --combat-style "
+                + resolved_combat_style
+                + ". Use --combat-style legacy for action-mode mapping."
+            )
+
+        if pattern_text is not None and pattern_text.strip() != "":
+            raise PostprocessError(
+                "--pattern cannot be used with --combat-style "
+                + resolved_combat_style
+                + ". Use --combat-style legacy with --action-mode pattern."
+            )
+
+        return ActionMappingConfig(
+            combat_style=resolved_combat_style,
+            action_mode="combat-style",
+            resolved_action_mode="combat-style:" + resolved_combat_style,
+            action_pattern=None,
+            burst_window_seconds=resolved_burst_window_seconds,
+        )
+
+    resolved_action_mode = normalize_action_mode(action_mode or "preserve")
+    action_pattern = parse_action_pattern(pattern_text) if resolved_action_mode == "pattern" else None
+    return ActionMappingConfig(
+        combat_style=resolved_combat_style,
+        action_mode=resolved_action_mode,
+        resolved_action_mode=resolved_action_mode,
+        action_pattern=action_pattern,
+        burst_window_seconds=resolved_burst_window_seconds,
+    )
+
+
 def resolve_min_gap_seconds(difficulty: str, min_gap_seconds: float | None) -> float:
     if min_gap_seconds is None:
         return DIFFICULTY_MIN_GAP_SECONDS[difficulty]
@@ -401,6 +626,13 @@ def validate_max_events(max_events: int | None) -> None:
 def validate_intensity_threshold(intensity_strike_threshold: float) -> None:
     if not is_finite_number(intensity_strike_threshold):
         raise PostprocessError("--intensity-strike-threshold must be a finite number.")
+
+
+def resolve_burst_window_seconds(burst_window_seconds: float) -> float:
+    if not is_finite_number(burst_window_seconds) or burst_window_seconds < 0:
+        raise PostprocessError("--burst-window-seconds must be a finite number greater than or equal to zero.")
+
+    return float(burst_window_seconds)
 
 
 def format_event_id(index: int) -> str:
@@ -442,9 +674,11 @@ def build_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--difficulty", choices=tuple(DIFFICULTY_MIN_GAP_SECONDS.keys()), default="normal")
     parser.add_argument("--min-gap-seconds", type=float)
     parser.add_argument("--max-events", type=int)
-    parser.add_argument("--action-mode", choices=ACTION_MODES, default="preserve")
+    parser.add_argument("--action-mode", choices=ACTION_MODES)
     parser.add_argument("--pattern", help="Comma-separated action pattern, for example Guard,Guard,Strike.")
     parser.add_argument("--intensity-strike-threshold", type=float, default=0.65)
+    parser.add_argument("--combat-style", choices=COMBAT_STYLES, default="legacy")
+    parser.add_argument("--burst-window-seconds", type=float, default=DEFAULT_BURST_WINDOW_SECONDS)
     parser.add_argument("--report-output", help="Optional post-process report JSON path.")
     return parser
 
@@ -463,6 +697,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             action_mode=args.action_mode,
             pattern_text=args.pattern,
             intensity_strike_threshold=args.intensity_strike_threshold,
+            combat_style=args.combat_style,
+            burst_window_seconds=args.burst_window_seconds,
         )
         output_text = dumps_beatmap(result.output_document)
         if args.output:

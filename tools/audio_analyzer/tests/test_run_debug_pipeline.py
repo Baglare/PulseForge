@@ -111,6 +111,106 @@ class RunDebugPipelineTests(unittest.TestCase):
             actions = [event["action"] for event in document["events"]]
             self.assertEqual(actions, ["Guard", "Strike", "Guard"])
 
+    def test_pipeline_with_balanced_combat_style_creates_playable_json(self):
+        with pipeline_workspace([0.10, 0.40, 0.80, 1.20]) as workspace:
+            result = pipeline.run_pipeline(
+                input_wav=workspace.wav_path,
+                output_dir=workspace.output_dir,
+                diagnostics_dir=workspace.diagnostics_dir,
+                name="Balanced",
+                combat_style="balanced",
+                difficulty="hard",
+            )
+
+            document = read_json(result.playable_beatmap_path)
+            self.assertTrue(result.playable_beatmap_path.exists())
+            self.assertEqual(document["schemaVersion"], 1)
+
+    def test_pipeline_with_aggressive_combat_style_prefers_strike(self):
+        with pipeline_workspace([0.10, 0.40, 0.80, 1.20]) as workspace:
+            result = pipeline.run_pipeline(
+                input_wav=workspace.wav_path,
+                output_dir=workspace.output_dir,
+                diagnostics_dir=workspace.diagnostics_dir,
+                name="Aggressive",
+                combat_style="aggressive",
+                difficulty="hard",
+            )
+
+            counts = count_actions(read_json(result.playable_beatmap_path))
+            self.assertGreater(counts["Strike"], counts["Guard"])
+
+    def test_pipeline_with_defensive_combat_style_prefers_guard(self):
+        with pipeline_workspace([0.10, 0.40, 0.80, 1.20]) as workspace:
+            result = pipeline.run_pipeline(
+                input_wav=workspace.wav_path,
+                output_dir=workspace.output_dir,
+                diagnostics_dir=workspace.diagnostics_dir,
+                name="Defensive",
+                combat_style="defensive",
+                difficulty="hard",
+            )
+
+            counts = count_actions(read_json(result.playable_beatmap_path))
+            self.assertGreater(counts["Guard"], counts["Strike"])
+
+    def test_pipeline_report_includes_combat_style(self):
+        with pipeline_workspace([0.10, 0.40, 0.80]) as workspace:
+            result = pipeline.run_pipeline(
+                input_wav=workspace.wav_path,
+                output_dir=workspace.output_dir,
+                diagnostics_dir=workspace.diagnostics_dir,
+                name="Report",
+                combat_style="balanced",
+                difficulty="hard",
+            )
+
+            report = read_json(result.postprocess_report_path)
+            self.assertEqual(report["combatStyle"], "balanced")
+            self.assertIn("actionCounts", report)
+
+    def test_pipeline_legacy_combat_style_preserves_pattern_behavior(self):
+        with pipeline_workspace([0.10, 0.40, 0.80]) as workspace:
+            result = pipeline.run_pipeline(
+                input_wav=workspace.wav_path,
+                output_dir=workspace.output_dir,
+                diagnostics_dir=workspace.diagnostics_dir,
+                name="Legacy",
+                pattern="Guard,Strike",
+                combat_style="legacy",
+                difficulty="hard",
+            )
+
+            document = read_json(result.playable_beatmap_path)
+            actions = [event["action"] for event in document["events"]]
+            self.assertEqual(actions, ["Guard", "Strike", "Guard"])
+
+    def test_pipeline_non_legacy_combat_style_rejects_pattern(self):
+        with pipeline_workspace([0.10, 0.40, 0.80]) as workspace:
+            with self.assertRaisesRegex(pipeline.postprocess_beatmap.PostprocessError, "--pattern"):
+                pipeline.run_pipeline(
+                    input_wav=workspace.wav_path,
+                    output_dir=workspace.output_dir,
+                    diagnostics_dir=workspace.diagnostics_dir,
+                    name="Conflict",
+                    pattern="Guard,Strike",
+                    combat_style="balanced",
+                    difficulty="hard",
+                )
+
+    def test_pipeline_non_legacy_combat_style_rejects_action_mode(self):
+        with pipeline_workspace([0.10, 0.40, 0.80]) as workspace:
+            with self.assertRaisesRegex(pipeline.postprocess_beatmap.PostprocessError, "--action-mode"):
+                pipeline.run_pipeline(
+                    input_wav=workspace.wav_path,
+                    output_dir=workspace.output_dir,
+                    diagnostics_dir=workspace.diagnostics_dir,
+                    name="Conflict",
+                    action_mode="preserve",
+                    combat_style="balanced",
+                    difficulty="hard",
+                )
+
     def test_hard_difficulty_can_keep_more_fast_clicks_than_normal(self):
         click_times = [0.10, 0.30, 0.50]
         with pipeline_workspace(click_times) as normal_workspace:
@@ -199,6 +299,18 @@ def write_expected_beatmap(path, events):
         ),
         encoding="utf-8",
     )
+
+
+def read_json(path):
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def count_actions(document):
+    counts = {"Guard": 0, "Strike": 0}
+    for event in document["events"]:
+        counts[event["action"]] = counts.get(event["action"], 0) + 1
+
+    return counts
 
 
 def run_pipeline_main(arguments):
