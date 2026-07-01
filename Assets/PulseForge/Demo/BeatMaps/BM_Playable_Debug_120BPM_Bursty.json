@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "displayName": "Playable Debug_120BPM Aggressive",
+  "displayName": "Playable Debug_120BPM Bursty",
   "globalOffsetSeconds": 0.0,
   "events": [
     {
@@ -18,7 +18,7 @@
     {
       "eventId": "event-003",
       "targetTimeSeconds": 2.0,
-      "action": "Guard",
+      "action": "Strike",
       "intensity": 1.0
     },
     {
@@ -42,7 +42,7 @@
     {
       "eventId": "event-007",
       "targetTimeSeconds": 3.75,
-      "action": "Guard",
+      "action": "Strike",
       "intensity": 1.0
     },
     {
