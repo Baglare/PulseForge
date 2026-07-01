@@ -14,11 +14,14 @@ namespace PulseForge.Editor.AudioPipeline
     {
         private const string MenuPath = "Tools/PulseForge/Audio Pipeline";
         private const string PipelineScriptPath = "tools/audio_analyzer/run_debug_pipeline.py";
+        private const string StyleVariantsScriptPath = "tools/audio_analyzer/generate_style_variants.py";
         private const string ReportDirectory = "tools/audio_analyzer/out";
         private const string DefaultOutputDirectory = "Assets/PulseForge/Demo/BeatMaps";
         private const string DefaultOutputName = "Debug_120BPM";
         private const string DefaultPattern = "Guard,Guard,Strike,Guard,Strike,Strike,Guard,Strike,Guard,Strike";
         private const float DefaultBurstWindowSeconds = 0.35f;
+        private const int StyleVariantCount = 4;
+        private static readonly string[] StyleVariantLabels = { "Balanced", "Defensive", "Aggressive", "Bursty" };
 
         private AudioClip inputAudioClip;
         private TextAsset expectedBeatMapJson;
@@ -40,6 +43,8 @@ namespace PulseForge.Editor.AudioPipeline
         private string compareReportPath = string.Empty;
         private TextAsset generatedRawJsonAsset;
         private TextAsset generatedPlayableJsonAsset;
+        private readonly string[] generatedVariantJsonPaths = new string[StyleVariantCount];
+        private readonly TextAsset[] generatedVariantJsonAssets = new TextAsset[StyleVariantCount];
         private string statusMessage = "Ready";
         private string lastStdout = string.Empty;
         private string lastStderr = string.Empty;
@@ -76,6 +81,7 @@ namespace PulseForge.Editor.AudioPipeline
             pythonExecutable = EditorGUILayout.TextField("Python Executable", pythonExecutable);
             outputDirectory = EditorGUILayout.TextField("Output Directory", outputDirectory);
             UpdateGeneratedJsonPathsFromInputs();
+            UpdateStyleVariantPathsFromInputs();
             UpdateReportPathsFromInputs();
 
             EditorGUILayout.Space();
@@ -88,6 +94,9 @@ namespace PulseForge.Editor.AudioPipeline
             EditorGUILayout.LabelField("Generated Playable JSON", EditorStyles.boldLabel);
             EditorGUILayout.SelectableLabel(string.IsNullOrEmpty(generatedPlayableJsonPath) ? "(not generated yet)" : generatedPlayableJsonPath, GUILayout.Height(18f));
             DrawGeneratedJsonWorkflow();
+
+            EditorGUILayout.Space();
+            DrawStyleVariantsWorkflow();
 
             EditorGUILayout.Space();
             DrawBeatmapTimelinePreview();
@@ -205,6 +214,72 @@ namespace PulseForge.Editor.AudioPipeline
             }
         }
 
+        private void RunStyleVariants()
+        {
+            lastStdout = string.Empty;
+            lastStderr = string.Empty;
+            ClearStyleVariantAssets();
+            UpdateStyleVariantPathsFromInputs();
+
+            if (!TryBuildStyleVariantsCommand(out string arguments, out string validationError))
+            {
+                statusMessage = validationError;
+                EditorUtility.DisplayDialog("PulseForge Audio Pipeline", validationError, "OK");
+                return;
+            }
+
+            string projectRoot = GetProjectRoot();
+            ProcessStartInfo startInfo = new ProcessStartInfo
+            {
+                FileName = pythonExecutable,
+                Arguments = arguments,
+                WorkingDirectory = projectRoot,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+
+            try
+            {
+                using (Process process = Process.Start(startInfo))
+                {
+                    if (process == null)
+                    {
+                        statusMessage = "Could not start Python process.";
+                        EditorUtility.DisplayDialog("PulseForge Audio Pipeline", statusMessage, "OK");
+                        return;
+                    }
+
+                    lastStdout = process.StandardOutput.ReadToEnd();
+                    lastStderr = process.StandardError.ReadToEnd();
+                    process.WaitForExit();
+
+                    if (process.ExitCode != 0)
+                    {
+                        statusMessage = "Style variant generation failed with exit code " + process.ExitCode + ".";
+                        EditorUtility.DisplayDialog("PulseForge Audio Pipeline", statusMessage + "\n\n" + lastStderr, "OK");
+                        Debug.LogError(statusMessage + "\n" + lastStdout + "\n" + lastStderr);
+                        return;
+                    }
+                }
+
+                AssetDatabase.Refresh();
+                TryLoadGeneratedJsonAssets();
+                TryLoadStyleVariantAssets();
+                statusMessage = AreAllStyleVariantAssetsLoaded()
+                    ? "Style variants generated successfully."
+                    : "Style variants generated. One or more variant JSON assets were not found yet.";
+                Debug.Log(statusMessage + "\n" + lastStdout);
+            }
+            catch (Exception exception)
+            {
+                statusMessage = "Style variant generation failed: " + exception.Message;
+                EditorUtility.DisplayDialog("PulseForge Audio Pipeline", statusMessage, "OK");
+                Debug.LogException(exception);
+            }
+        }
+
         private void DrawGeneratedJsonWorkflow()
         {
             if (generatedPlayableJsonAsset == null)
@@ -246,6 +321,83 @@ namespace PulseForge.Editor.AudioPipeline
                     AssignGeneratedJsonToSelectedPrototype(selectedPrototype);
                 }
             }
+        }
+
+        private void DrawStyleVariantsWorkflow()
+        {
+            TryLoadStyleVariantAssets();
+
+            EditorGUILayout.LabelField("Style Variants", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox(
+                "Generates Balanced, Defensive, Aggressive, and Bursty playable JSON files from the selected WAV. Action Mode and Pattern are not sent for this variant workflow.",
+                MessageType.Info);
+            EditorGUILayout.LabelField("Input WAV", inputAudioClip == null ? "(not assigned)" : inputAudioClip.name);
+            EditorGUILayout.LabelField("Output Name", GetSafeOutputName());
+            EditorGUILayout.LabelField("Difficulty", ToCliValue(difficulty));
+            EditorGUILayout.LabelField("Detection Mode", ToCliValue(detectionMode));
+
+            if (GUILayout.Button("Generate Style Variants"))
+            {
+                RunStyleVariants();
+            }
+
+            if (GUILayout.Button("Refresh Variant Assets"))
+            {
+                AssetDatabase.Refresh();
+                TryLoadStyleVariantAssets();
+                statusMessage = "Style variant assets refreshed.";
+            }
+
+            DebugRhythmPrototypeController selectedPrototype = GetSelectedDebugPrototypeController();
+            if (selectedPrototype == null)
+            {
+                EditorGUILayout.HelpBox("Select a GameObject with DebugRhythmPrototypeController to assign a variant.", MessageType.Info);
+            }
+
+            for (int i = 0; i < StyleVariantCount; i++)
+            {
+                DrawStyleVariantRow(i, selectedPrototype);
+            }
+        }
+
+        private void DrawStyleVariantRow(int index, DebugRhythmPrototypeController selectedPrototype)
+        {
+            TextAsset variantAsset = generatedVariantJsonAssets[index];
+            string label = StyleVariantLabels[index];
+            bool hasVariantAsset = variantAsset != null;
+
+            EditorGUILayout.BeginVertical(GUI.skin.box);
+            EditorGUILayout.LabelField(label, hasVariantAsset ? "Found" : "Not found");
+            EditorGUILayout.SelectableLabel(generatedVariantJsonPaths[index], GUILayout.Height(18f));
+            if (hasVariantAsset)
+            {
+                EditorGUILayout.ObjectField(label + " JSON", variantAsset, typeof(TextAsset), false);
+            }
+
+            EditorGUILayout.BeginHorizontal();
+            using (new EditorGUI.DisabledScope(!hasVariantAsset))
+            {
+                if (GUILayout.Button("Ping / Select"))
+                {
+                    EditorGUIUtility.PingObject(variantAsset);
+                    Selection.activeObject = variantAsset;
+                }
+            }
+
+            using (new EditorGUI.DisabledScope(!hasVariantAsset || selectedPrototype == null))
+            {
+                if (GUILayout.Button("Assign to Selected Prototype"))
+                {
+                    AssignJsonAssetToSelectedPrototype(
+                        selectedPrototype,
+                        variantAsset,
+                        "Assign PulseForge " + label + " Beat Map JSON",
+                        "Assigned " + label + " variant JSON to selected DebugRhythmPrototypeController.");
+                }
+            }
+
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.EndVertical();
         }
 
         private void DrawPipelineReports()
@@ -350,6 +502,36 @@ namespace PulseForge.Editor.AudioPipeline
             generatedPlayableJsonAsset = LoadTextAssetAtPath(generatedPlayableJsonPath);
         }
 
+        private void TryLoadStyleVariantAssets()
+        {
+            UpdateStyleVariantPathsFromInputs();
+            for (int i = 0; i < StyleVariantCount; i++)
+            {
+                generatedVariantJsonAssets[i] = LoadTextAssetAtPath(generatedVariantJsonPaths[i]);
+            }
+        }
+
+        private void ClearStyleVariantAssets()
+        {
+            for (int i = 0; i < StyleVariantCount; i++)
+            {
+                generatedVariantJsonAssets[i] = null;
+            }
+        }
+
+        private bool AreAllStyleVariantAssetsLoaded()
+        {
+            for (int i = 0; i < StyleVariantCount; i++)
+            {
+                if (generatedVariantJsonAssets[i] == null)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         private static TextAsset LoadTextAssetAtPath(string assetPath)
         {
             return string.IsNullOrEmpty(assetPath) ? null : AssetDatabase.LoadAssetAtPath<TextAsset>(assetPath);
@@ -374,6 +556,39 @@ namespace PulseForge.Editor.AudioPipeline
                 ref generatedPlayableJsonPath,
                 ref generatedPlayableJsonAsset,
                 BuildGeneratedJsonPath(safeOutputDirectory, "BM_Playable_", safeOutputName));
+        }
+
+        private void UpdateStyleVariantPathsFromInputs()
+        {
+            if (string.IsNullOrWhiteSpace(outputDirectory))
+            {
+                for (int i = 0; i < StyleVariantCount; i++)
+                {
+                    SetVariantGeneratedPath(i, string.Empty);
+                }
+
+                return;
+            }
+
+            string safeOutputName = GetSafeOutputName();
+            string safeOutputDirectory = outputDirectory.Trim();
+            for (int i = 0; i < StyleVariantCount; i++)
+            {
+                SetVariantGeneratedPath(
+                    i,
+                    BuildStyleVariantJsonPath(safeOutputDirectory, safeOutputName, StyleVariantLabels[i]));
+            }
+        }
+
+        private void SetVariantGeneratedPath(int index, string newPath)
+        {
+            if (string.Equals(generatedVariantJsonPaths[index], newPath, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            generatedVariantJsonPaths[index] = newPath;
+            generatedVariantJsonAssets[index] = null;
         }
 
         private void UpdateReportPathsFromInputs()
@@ -409,6 +624,25 @@ namespace PulseForge.Editor.AudioPipeline
                 return;
             }
 
+            AssignJsonAssetToSelectedPrototype(
+                selectedPrototype,
+                generatedPlayableJsonAsset,
+                "Assign PulseForge Beat Map JSON",
+                "Assigned generated JSON to selected DebugRhythmPrototypeController.");
+        }
+
+        private void AssignJsonAssetToSelectedPrototype(
+            DebugRhythmPrototypeController selectedPrototype,
+            TextAsset jsonAsset,
+            string undoName,
+            string successMessage)
+        {
+            if (jsonAsset == null)
+            {
+                statusMessage = "JSON asset is not available yet.";
+                return;
+            }
+
             if (selectedPrototype == null)
             {
                 statusMessage = "Select a GameObject with DebugRhythmPrototypeController to assign.";
@@ -425,11 +659,11 @@ namespace PulseForge.Editor.AudioPipeline
                 return;
             }
 
-            Undo.RecordObject(selectedPrototype, "Assign PulseForge Beat Map JSON");
-            property.objectReferenceValue = generatedPlayableJsonAsset;
+            Undo.RecordObject(selectedPrototype, undoName);
+            property.objectReferenceValue = jsonAsset;
             serializedObject.ApplyModifiedProperties();
             EditorUtility.SetDirty(selectedPrototype);
-            statusMessage = "Assigned generated JSON to selected DebugRhythmPrototypeController.";
+            statusMessage = successMessage;
         }
 
         private bool TryBuildCommand(out string arguments, out string rawJsonPath, out string playableJsonPath, out string validationError)
@@ -534,6 +768,88 @@ namespace PulseForge.Editor.AudioPipeline
             return true;
         }
 
+        private bool TryBuildStyleVariantsCommand(out string arguments, out string validationError)
+        {
+            arguments = string.Empty;
+            validationError = string.Empty;
+
+            if (inputAudioClip == null)
+            {
+                validationError = "Input Audio Clip is required.";
+                return false;
+            }
+
+            string audioPath = AssetDatabase.GetAssetPath(inputAudioClip);
+            if (string.IsNullOrEmpty(audioPath))
+            {
+                validationError = "Input Audio Clip must be a project asset.";
+                return false;
+            }
+
+            if (!string.Equals(Path.GetExtension(audioPath), ".wav", StringComparison.OrdinalIgnoreCase))
+            {
+                validationError = "Input Audio Clip must be a WAV asset for this first version.";
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(pythonExecutable))
+            {
+                validationError = "Python Executable must not be empty.";
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(outputDirectory))
+            {
+                validationError = "Output Directory must not be empty.";
+                return false;
+            }
+
+            if (!IsValidBurstWindowSeconds(burstWindowSeconds))
+            {
+                validationError = "Burst Window Seconds must be a finite number greater than or equal to zero.";
+                return false;
+            }
+
+            string projectRoot = GetProjectRoot();
+            string scriptFullPath = Path.Combine(projectRoot, StyleVariantsScriptPath);
+            if (!File.Exists(scriptFullPath))
+            {
+                validationError = "Style variant generator script was not found: " + StyleVariantsScriptPath;
+                return false;
+            }
+
+            StringBuilder builder = new StringBuilder();
+            AppendArgument(builder, StyleVariantsScriptPath);
+            AppendOption(builder, "--input-wav", audioPath);
+            AppendOption(builder, "--output-dir", outputDirectory.Trim());
+            AppendOption(builder, "--name", GetSafeOutputName());
+            AppendOption(builder, "--difficulty", ToCliValue(difficulty));
+            AppendOption(builder, "--detection-mode", ToCliValue(detectionMode));
+            AppendOption(builder, "--burst-window-seconds", ToCliFloat(burstWindowSeconds));
+            AppendArgument(builder, "--summary");
+
+            if (useExpectedCompare)
+            {
+                if (expectedBeatMapJson == null)
+                {
+                    validationError = "Expected Beat Map JSON is required when Use Expected Compare is enabled.";
+                    return false;
+                }
+
+                string expectedPath = AssetDatabase.GetAssetPath(expectedBeatMapJson);
+                if (string.IsNullOrEmpty(expectedPath))
+                {
+                    validationError = "Expected Beat Map JSON must be a project asset.";
+                    return false;
+                }
+
+                AppendOption(builder, "--expected-json", expectedPath);
+            }
+
+            arguments = builder.ToString();
+            return true;
+        }
+
         private string GetSafeOutputName()
         {
             return string.IsNullOrWhiteSpace(outputName) ? DefaultOutputName : outputName.Trim();
@@ -542,6 +858,11 @@ namespace PulseForge.Editor.AudioPipeline
         private static string BuildGeneratedJsonPath(string outputDirectoryPath, string filePrefix, string safeOutputName)
         {
             return Path.Combine(outputDirectoryPath, filePrefix + safeOutputName + ".json").Replace('\\', '/');
+        }
+
+        private static string BuildStyleVariantJsonPath(string outputDirectoryPath, string safeOutputName, string styleLabel)
+        {
+            return Path.Combine(outputDirectoryPath, "BM_Playable_" + safeOutputName + "_" + styleLabel + ".json").Replace('\\', '/');
         }
 
         private static string BuildReportPath(string safeOutputName, string suffix)
