@@ -251,6 +251,50 @@ python tools/audio_analyzer/postprocess_beatmap.py raw.json `
 
 Unity'de kullanmak icin post-process sonucu olusan playable JSON dosyasini Debug prototype objesindeki `Debug Beat Map Json` alanina ata. Report JSON dosyasini Unity'ye verme.
 
+## Style variant generator ne ise yarar?
+
+`generate_style_variants.py`, ayni input WAV veya mevcut raw beatmap JSON uzerinden birden fazla combat-style playable beatmap uretir. Amac, ayni ritim analizini farkli dovus koreografileriyle karsilastirmaktir.
+
+Varsayilan olarak su playable JSON dosyalari uretilir:
+
+- `BM_Playable_<name>_Balanced.json`
+- `BM_Playable_<name>_Defensive.json`
+- `BM_Playable_<name>_Aggressive.json`
+- `BM_Playable_<name>_Bursty.json`
+
+WAV input ile ornek:
+
+```powershell
+python tools/audio_analyzer/generate_style_variants.py `
+  --input-wav Assets/PulseForge/Demo/Audio/PF_Debug_120BPM_DefaultBeatMap.wav `
+  --output-dir Assets/PulseForge/Demo/BeatMaps `
+  --name Debug_120BPM `
+  --difficulty hard `
+  --detection-mode amplitude `
+  --summary
+```
+
+Mevcut raw JSON ile ornek:
+
+```powershell
+python tools/audio_analyzer/generate_style_variants.py `
+  --input-raw-json Assets/PulseForge/Demo/BeatMaps/BM_Raw_Debug_120BPM.json `
+  --output-dir Assets/PulseForge/Demo/BeatMaps `
+  --name Debug_120BPM `
+  --difficulty hard
+```
+
+Farkli ciktilarin anlami:
+
+- `Balanced`: Dengeli Guard / Strike akisi.
+- `Defensive`: Guard agirlikli, parry odakli akis.
+- `Aggressive`: Strike agirlikli, slash odakli akis.
+- `Bursty`: Yuksek intensity veya yakin eventlerde saldiri patlamasi hissi.
+
+Unity'de denemek icin bu playable JSON dosyalarindan birini `DebugRhythmPrototypeController` uzerindeki `Debug Beat Map Json` alanina ata. Raw JSON dosyasi analiz/debug kaynagidir; prototype'a asil atanacak dosya `BM_Playable_<name>_<Style>.json` dosyasidir.
+
+Her style icin `tools/audio_analyzer/out/<name>_<style>_postprocess_report.json` uretilir. `--expected-json` verilirse ayrica `<name>_<style>_compare_report.json` olusur. Bu raporlar debug amaclidir, Unity'ye verilmez ve commitlenmemelidir.
+
 ## Tek komutluk debug pipeline nasil calistirilir?
 
 `run_debug_pipeline.py`, WAV dosyasindan raw analyzer beatmap, playable beatmap ve diagnostics raporlarini tek komutla uretir. Istege bagli olarak expected/reference beatmap ile playable sonucu karsilastirir.
