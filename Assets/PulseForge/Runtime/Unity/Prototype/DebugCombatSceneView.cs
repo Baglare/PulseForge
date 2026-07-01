@@ -5,28 +5,39 @@ namespace PulseForge.Runtime.Unity.Prototype
 {
     public sealed class DebugCombatSceneView : MonoBehaviour
     {
-        private const float DefaultFeedbackDurationSeconds = 0.35f;
-        private const float PerfectFeedbackDurationSeconds = 0.45f;
         private const int CharacterSortingOrder = 10;
         private const int EffectSortingOrder = 12;
         private const int TextSortingOrder = 14;
 
-        private static readonly Color PlayerBaseColor = new Color(0.20f, 0.42f, 0.95f, 1f);
-        private static readonly Color EnemyBaseColor = new Color(0.92f, 0.25f, 0.22f, 1f);
-        private static readonly Color ParryColor = new Color(0.20f, 0.92f, 1f, 1f);
-        private static readonly Color SlashColor = new Color(1f, 0.82f, 0.20f, 1f);
-        private static readonly Color MissColor = new Color(1f, 0.32f, 0.18f, 1f);
+        [SerializeField] private Vector2 playerPosition = new Vector2(-2.2f, 0f);
+        [SerializeField] private Vector2 enemyPosition = new Vector2(2.2f, 0f);
+        [SerializeField] private Vector2 characterSize = new Vector2(0.8f, 1.4f);
+        [SerializeField] private float feedbackDurationSeconds = 0.35f;
+        [SerializeField] private float perfectEffectScale = 1.25f;
+        [SerializeField] private float goodEffectScale = 1.0f;
+        [SerializeField] private Color playerBaseColor = new Color(0.20f, 0.42f, 0.95f, 1f);
+        [SerializeField] private Color enemyBaseColor = new Color(0.92f, 0.25f, 0.22f, 1f);
+        [SerializeField] private Color parryColor = new Color(0.20f, 0.92f, 1f, 1f);
+        [SerializeField] private Color slashColor = new Color(1f, 0.82f, 0.20f, 1f);
+        [SerializeField] private Color missColor = new Color(1f, 0.32f, 0.18f, 1f);
+        [SerializeField] private Color perfectColor = new Color(1f, 0.95f, 0.35f, 1f);
+        [SerializeField] private Color goodColor = new Color(0.75f, 0.95f, 1f, 1f);
 
         private SpriteRenderer playerRenderer;
         private SpriteRenderer enemyRenderer;
-        private SpriteRenderer parryFlashRenderer;
-        private SpriteRenderer slashLineRenderer;
+        private SpriteRenderer[] parrySparkRenderers;
+        private SpriteRenderer slashGlowRenderer;
+        private SpriteRenderer slashCoreRenderer;
+        private Transform parryEffectRoot;
+        private Transform slashEffectRoot;
+        private TextMesh playerLabel;
+        private TextMesh enemyLabel;
         private TextMesh feedbackText;
         private Sprite generatedSprite;
         private Texture2D generatedTexture;
         private FeedbackKind feedbackKind;
         private HitGrade feedbackGrade;
-        private float feedbackDurationSeconds;
+        private float activeFeedbackDurationSeconds;
         private float feedbackRemainingSeconds;
 
         private enum FeedbackKind
@@ -42,7 +53,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             EnsureViewObjects();
             feedbackKind = FeedbackKind.None;
             feedbackGrade = HitGrade.Miss;
-            feedbackDurationSeconds = 0f;
+            activeFeedbackDurationSeconds = 0f;
             feedbackRemainingSeconds = 0f;
             ApplyHiddenFeedbackState();
         }
@@ -57,10 +68,8 @@ namespace PulseForge.Runtime.Unity.Prototype
 
             EnsureViewObjects();
             feedbackGrade = grade;
-            feedbackDurationSeconds = grade == HitGrade.Perfect
-                ? PerfectFeedbackDurationSeconds
-                : DefaultFeedbackDurationSeconds;
-            feedbackRemainingSeconds = feedbackDurationSeconds;
+            activeFeedbackDurationSeconds = GetConfiguredFeedbackDurationSeconds();
+            feedbackRemainingSeconds = activeFeedbackDurationSeconds;
 
             if (action == RhythmAction.Guard)
             {
@@ -86,8 +95,8 @@ namespace PulseForge.Runtime.Unity.Prototype
             EnsureViewObjects();
             feedbackKind = FeedbackKind.Miss;
             feedbackGrade = HitGrade.Miss;
-            feedbackDurationSeconds = DefaultFeedbackDurationSeconds;
-            feedbackRemainingSeconds = feedbackDurationSeconds;
+            activeFeedbackDurationSeconds = GetConfiguredFeedbackDurationSeconds();
+            feedbackRemainingSeconds = activeFeedbackDurationSeconds;
             feedbackText.text = "MISS / HIT TAKEN";
             UpdateFeedbackVisuals();
         }
@@ -135,48 +144,36 @@ namespace PulseForge.Runtime.Unity.Prototype
             playerRenderer = GetOrCreateSpriteRenderer("Player", transform);
             playerRenderer.sprite = sprite;
             playerRenderer.sortingOrder = CharacterSortingOrder;
-            playerRenderer.transform.localPosition = new Vector3(-2.25f, 0f, 0f);
-            playerRenderer.transform.localRotation = Quaternion.identity;
-            playerRenderer.transform.localScale = new Vector3(0.8f, 1.4f, 1f);
 
             enemyRenderer = GetOrCreateSpriteRenderer("Enemy", transform);
             enemyRenderer.sprite = sprite;
             enemyRenderer.sortingOrder = CharacterSortingOrder;
-            enemyRenderer.transform.localPosition = new Vector3(2.25f, 0f, 0f);
-            enemyRenderer.transform.localRotation = Quaternion.identity;
-            enemyRenderer.transform.localScale = new Vector3(0.8f, 1.4f, 1f);
 
-            Transform effectRoot = GetOrCreateChild("EffectRoot", transform);
-            effectRoot.localPosition = Vector3.zero;
-            effectRoot.localRotation = Quaternion.identity;
-            effectRoot.localScale = Vector3.one;
+            playerLabel = GetOrCreateTextMesh("PlayerLabel", transform);
+            ConfigureLabel(playerLabel, "PLAYER");
 
-            parryFlashRenderer = GetOrCreateSpriteRenderer("ParryFlash", effectRoot);
-            parryFlashRenderer.sprite = sprite;
-            parryFlashRenderer.sortingOrder = EffectSortingOrder;
-            parryFlashRenderer.transform.localPosition = new Vector3(-1.65f, 0.35f, -0.05f);
-            parryFlashRenderer.transform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            enemyLabel = GetOrCreateTextMesh("EnemyLabel", transform);
+            ConfigureLabel(enemyLabel, "ENEMY");
 
-            slashLineRenderer = GetOrCreateSpriteRenderer("SlashLine", effectRoot);
-            slashLineRenderer.sprite = sprite;
-            slashLineRenderer.sortingOrder = EffectSortingOrder;
-            slashLineRenderer.transform.localPosition = new Vector3(2.25f, 0.12f, -0.05f);
-            slashLineRenderer.transform.localRotation = Quaternion.Euler(0f, 0f, -28f);
-
-            feedbackText = GetOrCreateTextMesh("FeedbackText", effectRoot);
-            feedbackText.transform.localPosition = new Vector3(0f, 1.65f, -0.1f);
-            feedbackText.transform.localRotation = Quaternion.identity;
-            feedbackText.transform.localScale = Vector3.one;
-            feedbackText.anchor = TextAnchor.MiddleCenter;
-            feedbackText.alignment = TextAlignment.Center;
-            feedbackText.characterSize = 0.18f;
-            feedbackText.fontSize = 48;
-
-            MeshRenderer textRenderer = feedbackText.GetComponent<MeshRenderer>();
-            if (textRenderer != null)
+            parryEffectRoot = GetOrCreateChild("ParryEffect", transform);
+            parryEffectRoot.localRotation = Quaternion.identity;
+            parrySparkRenderers = new[]
             {
-                textRenderer.sortingOrder = TextSortingOrder;
-            }
+                ConfigureEffectSprite("SparkCenter", parryEffectRoot, sprite, Vector2.one * 0.18f, 0f),
+                ConfigureEffectSprite("SparkHorizontal", parryEffectRoot, sprite, new Vector2(0.72f, 0.06f), 0f),
+                ConfigureEffectSprite("SparkVertical", parryEffectRoot, sprite, new Vector2(0.06f, 0.72f), 0f),
+                ConfigureEffectSprite("SparkSlashA", parryEffectRoot, sprite, new Vector2(0.62f, 0.05f), 45f),
+                ConfigureEffectSprite("SparkSlashB", parryEffectRoot, sprite, new Vector2(0.62f, 0.05f), -45f)
+            };
+
+            slashEffectRoot = GetOrCreateChild("SlashEffect", transform);
+            slashEffectRoot.localRotation = Quaternion.Euler(0f, 0f, -28f);
+            slashGlowRenderer = ConfigureEffectSprite("SlashGlow", slashEffectRoot, sprite, new Vector2(1.55f, 0.18f), 0f);
+            slashCoreRenderer = ConfigureEffectSprite("SlashCore", slashEffectRoot, sprite, new Vector2(1.32f, 0.07f), 0f);
+
+            feedbackText = GetOrCreateTextMesh("FeedbackText", transform);
+            ConfigureFeedbackText();
+            ApplyCharacterBaseState();
         }
 
         private Sprite GetOrCreateSprite()
@@ -197,6 +194,22 @@ namespace PulseForge.Runtime.Unity.Prototype
                 new Vector2(0.5f, 0.5f),
                 1f);
             return generatedSprite;
+        }
+
+        private static SpriteRenderer ConfigureEffectSprite(
+            string childName,
+            Transform parent,
+            Sprite sprite,
+            Vector2 localScale,
+            float zRotationDegrees)
+        {
+            SpriteRenderer spriteRenderer = GetOrCreateSpriteRenderer(childName, parent);
+            spriteRenderer.sprite = sprite;
+            spriteRenderer.sortingOrder = EffectSortingOrder;
+            spriteRenderer.transform.localPosition = Vector3.zero;
+            spriteRenderer.transform.localRotation = Quaternion.Euler(0f, 0f, zRotationDegrees);
+            spriteRenderer.transform.localScale = new Vector3(localScale.x, localScale.y, 1f);
+            return spriteRenderer;
         }
 
         private static SpriteRenderer GetOrCreateSpriteRenderer(string childName, Transform parent)
@@ -236,68 +249,193 @@ namespace PulseForge.Runtime.Unity.Prototype
             return childObject.transform;
         }
 
+        private void ConfigureLabel(TextMesh label, string text)
+        {
+            label.text = text;
+            label.anchor = TextAnchor.MiddleCenter;
+            label.alignment = TextAlignment.Center;
+            label.characterSize = 0.13f;
+            label.fontSize = 36;
+            label.color = new Color(0.95f, 0.95f, 0.95f, 1f);
+            SetTextSortingOrder(label, TextSortingOrder);
+        }
+
+        private void ConfigureFeedbackText()
+        {
+            feedbackText.transform.localRotation = Quaternion.identity;
+            feedbackText.transform.localScale = Vector3.one;
+            feedbackText.anchor = TextAnchor.MiddleCenter;
+            feedbackText.alignment = TextAlignment.Center;
+            feedbackText.characterSize = 0.18f;
+            feedbackText.fontSize = 48;
+            SetTextSortingOrder(feedbackText, TextSortingOrder);
+        }
+
+        private static void SetTextSortingOrder(TextMesh textMesh, int sortingOrder)
+        {
+            MeshRenderer textRenderer = textMesh.GetComponent<MeshRenderer>();
+            if (textRenderer != null)
+            {
+                textRenderer.sortingOrder = sortingOrder;
+            }
+        }
+
         private void UpdateFeedbackVisuals()
         {
-            float effectRatio = feedbackDurationSeconds <= 0f
+            float effectRatio = activeFeedbackDurationSeconds <= 0f
                 ? 0f
-                : Mathf.Clamp01(feedbackRemainingSeconds / feedbackDurationSeconds);
+                : Mathf.Clamp01(feedbackRemainingSeconds / activeFeedbackDurationSeconds);
             float alpha = Mathf.Clamp01(effectRatio);
+            float gradeScale = GetGradeEffectScale();
 
-            playerRenderer.color = PlayerBaseColor;
-            enemyRenderer.color = EnemyBaseColor;
-            parryFlashRenderer.gameObject.SetActive(feedbackKind == FeedbackKind.Parry);
-            slashLineRenderer.gameObject.SetActive(feedbackKind == FeedbackKind.Slash);
+            ApplyCharacterBaseState();
+            parryEffectRoot.gameObject.SetActive(feedbackKind == FeedbackKind.Parry);
+            slashEffectRoot.gameObject.SetActive(feedbackKind == FeedbackKind.Slash);
             feedbackText.gameObject.SetActive(feedbackKind != FeedbackKind.None);
             feedbackText.color = ColorWithAlpha(GetFeedbackColor(), alpha);
 
             if (feedbackKind == FeedbackKind.Parry)
             {
-                float scale = feedbackGrade == HitGrade.Perfect ? 0.72f : 0.5f;
-                parryFlashRenderer.transform.localScale = new Vector3(scale, scale, 1f);
-                parryFlashRenderer.color = ColorWithAlpha(ParryColor, alpha);
+                parryEffectRoot.localScale = Vector3.one * gradeScale;
+                SetSpriteRenderersColor(parrySparkRenderers, ColorWithAlpha(GetHitEffectColor(parryColor), alpha));
             }
             else if (feedbackKind == FeedbackKind.Slash)
             {
-                float width = feedbackGrade == HitGrade.Perfect ? 1.55f : 1.15f;
-                float height = feedbackGrade == HitGrade.Perfect ? 0.12f : 0.08f;
-                slashLineRenderer.transform.localScale = new Vector3(width, height, 1f);
-                slashLineRenderer.color = ColorWithAlpha(SlashColor, alpha);
-                enemyRenderer.color = Color.Lerp(EnemyBaseColor, SlashColor, alpha);
+                slashEffectRoot.localScale = Vector3.one * gradeScale;
+                slashGlowRenderer.color = ColorWithAlpha(GetHitEffectColor(slashColor), alpha * 0.45f);
+                slashCoreRenderer.color = ColorWithAlpha(GetHitEffectColor(slashColor), alpha);
+                enemyRenderer.color = Color.Lerp(enemyBaseColor, slashColor, alpha);
             }
             else if (feedbackKind == FeedbackKind.Miss)
             {
-                playerRenderer.color = Color.Lerp(PlayerBaseColor, MissColor, alpha);
+                Vector3 playerOffset = new Vector3(-0.16f * alpha + Mathf.Sin(Time.time * 70f) * 0.035f * alpha, 0f, 0f);
+                playerRenderer.transform.localPosition = GetPlayerBasePosition() + playerOffset;
+                playerLabel.transform.localPosition = GetPlayerLabelPosition(playerRenderer.transform.localPosition);
+                playerRenderer.color = Color.Lerp(playerBaseColor, missColor, alpha);
             }
         }
 
         private void ApplyHiddenFeedbackState()
         {
-            playerRenderer.color = PlayerBaseColor;
-            enemyRenderer.color = EnemyBaseColor;
-            parryFlashRenderer.gameObject.SetActive(false);
-            slashLineRenderer.gameObject.SetActive(false);
+            ApplyCharacterBaseState();
+            parryEffectRoot.gameObject.SetActive(false);
+            slashEffectRoot.gameObject.SetActive(false);
             feedbackText.text = string.Empty;
             feedbackText.gameObject.SetActive(false);
+        }
+
+        private void ApplyCharacterBaseState()
+        {
+            Vector3 playerBasePosition = GetPlayerBasePosition();
+            Vector3 enemyBasePosition = GetEnemyBasePosition();
+
+            playerRenderer.transform.localPosition = playerBasePosition;
+            playerRenderer.transform.localRotation = Quaternion.identity;
+            playerRenderer.transform.localScale = GetCharacterScale();
+            playerRenderer.color = playerBaseColor;
+
+            enemyRenderer.transform.localPosition = enemyBasePosition;
+            enemyRenderer.transform.localRotation = Quaternion.identity;
+            enemyRenderer.transform.localScale = GetCharacterScale();
+            enemyRenderer.color = enemyBaseColor;
+
+            playerLabel.transform.localPosition = GetPlayerLabelPosition(playerBasePosition);
+            playerLabel.transform.localRotation = Quaternion.identity;
+            playerLabel.transform.localScale = Vector3.one;
+
+            enemyLabel.transform.localPosition = GetEnemyLabelPosition(enemyBasePosition);
+            enemyLabel.transform.localRotation = Quaternion.identity;
+            enemyLabel.transform.localScale = Vector3.one;
+
+            parryEffectRoot.localPosition = playerBasePosition + new Vector3(characterSize.x * 0.65f, characterSize.y * 0.18f, -0.05f);
+            parryEffectRoot.localRotation = Quaternion.identity;
+            parryEffectRoot.localScale = Vector3.one;
+
+            slashEffectRoot.localPosition = enemyBasePosition + new Vector3(0f, characterSize.y * 0.1f, -0.05f);
+            slashEffectRoot.localRotation = Quaternion.Euler(0f, 0f, -28f);
+            slashEffectRoot.localScale = Vector3.one;
+
+            feedbackText.transform.localPosition = Vector3.Lerp(playerBasePosition, enemyBasePosition, 0.5f)
+                + new Vector3(0f, characterSize.y * 1.1f, -0.1f);
         }
 
         private Color GetFeedbackColor()
         {
             if (feedbackKind == FeedbackKind.Parry)
             {
-                return ParryColor;
+                return GetHitEffectColor(parryColor);
             }
 
             if (feedbackKind == FeedbackKind.Slash)
             {
-                return SlashColor;
+                return GetHitEffectColor(slashColor);
             }
 
             if (feedbackKind == FeedbackKind.Miss)
             {
-                return MissColor;
+                return missColor;
             }
 
             return Color.white;
+        }
+
+        private Color GetHitEffectColor(Color baseColor)
+        {
+            Color gradeColor = feedbackGrade == HitGrade.Perfect ? perfectColor : goodColor;
+            return Color.Lerp(baseColor, gradeColor, 0.35f);
+        }
+
+        private float GetGradeEffectScale()
+        {
+            float configuredScale = feedbackGrade == HitGrade.Perfect ? perfectEffectScale : goodEffectScale;
+            return Mathf.Max(0.05f, configuredScale);
+        }
+
+        private float GetConfiguredFeedbackDurationSeconds()
+        {
+            return Mathf.Max(0.05f, feedbackDurationSeconds);
+        }
+
+        private Vector3 GetCharacterScale()
+        {
+            Vector2 safeSize = new Vector2(Mathf.Max(0.05f, characterSize.x), Mathf.Max(0.05f, characterSize.y));
+            return new Vector3(safeSize.x, safeSize.y, 1f);
+        }
+
+        private Vector3 GetPlayerBasePosition()
+        {
+            return new Vector3(playerPosition.x, playerPosition.y, 0f);
+        }
+
+        private Vector3 GetEnemyBasePosition()
+        {
+            return new Vector3(enemyPosition.x, enemyPosition.y, 0f);
+        }
+
+        private Vector3 GetPlayerLabelPosition(Vector3 basePosition)
+        {
+            return basePosition + new Vector3(0f, -characterSize.y * 0.65f, -0.1f);
+        }
+
+        private Vector3 GetEnemyLabelPosition(Vector3 basePosition)
+        {
+            return basePosition + new Vector3(0f, -characterSize.y * 0.65f, -0.1f);
+        }
+
+        private static void SetSpriteRenderersColor(SpriteRenderer[] renderers, Color color)
+        {
+            if (renderers == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i] != null)
+                {
+                    renderers[i].color = color;
+                }
+            }
         }
 
         private static Color ColorWithAlpha(Color color, float alpha)
