@@ -15,6 +15,10 @@ namespace PulseForge.Runtime.Unity.Prototype
         [SerializeField] private float feedbackDurationSeconds = 0.35f;
         [SerializeField] private float perfectEffectScale = 1.25f;
         [SerializeField] private float goodEffectScale = 1.0f;
+        [SerializeField] private float minIntensityEffectScale = 0.75f;
+        [SerializeField] private float maxIntensityEffectScale = 1.35f;
+        [SerializeField] private float minShakeDistance = 0.08f;
+        [SerializeField] private float maxShakeDistance = 0.22f;
         [SerializeField] private Color playerBaseColor = new Color(0.20f, 0.42f, 0.95f, 1f);
         [SerializeField] private Color enemyBaseColor = new Color(0.92f, 0.25f, 0.22f, 1f);
         [SerializeField] private Color parryColor = new Color(0.20f, 0.92f, 1f, 1f);
@@ -37,6 +41,7 @@ namespace PulseForge.Runtime.Unity.Prototype
         private Texture2D generatedTexture;
         private FeedbackKind feedbackKind;
         private HitGrade feedbackGrade;
+        private float activeIntensity = 1f;
         private float activeFeedbackDurationSeconds;
         private float feedbackRemainingSeconds;
 
@@ -53,6 +58,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             EnsureViewObjects();
             feedbackKind = FeedbackKind.None;
             feedbackGrade = HitGrade.Miss;
+            activeIntensity = 1f;
             activeFeedbackDurationSeconds = 0f;
             feedbackRemainingSeconds = 0f;
             ApplyHiddenFeedbackState();
@@ -60,14 +66,20 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         public void ShowHit(RhythmAction action, HitGrade grade)
         {
+            ShowHit(action, grade, 1f);
+        }
+
+        public void ShowHit(RhythmAction action, HitGrade grade, float intensity)
+        {
             if (grade == HitGrade.Miss)
             {
-                ShowMiss();
+                ShowMiss(intensity);
                 return;
             }
 
             EnsureViewObjects();
             feedbackGrade = grade;
+            activeIntensity = ClampIntensity(intensity);
             activeFeedbackDurationSeconds = GetConfiguredFeedbackDurationSeconds();
             feedbackRemainingSeconds = activeFeedbackDurationSeconds;
 
@@ -92,9 +104,15 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         public void ShowMiss()
         {
+            ShowMiss(0.5f);
+        }
+
+        public void ShowMiss(float intensity)
+        {
             EnsureViewObjects();
             feedbackKind = FeedbackKind.Miss;
             feedbackGrade = HitGrade.Miss;
+            activeIntensity = ClampIntensity(intensity);
             activeFeedbackDurationSeconds = GetConfiguredFeedbackDurationSeconds();
             feedbackRemainingSeconds = activeFeedbackDurationSeconds;
             feedbackText.text = "MISS / HIT TAKEN";
@@ -286,32 +304,37 @@ namespace PulseForge.Runtime.Unity.Prototype
                 ? 0f
                 : Mathf.Clamp01(feedbackRemainingSeconds / activeFeedbackDurationSeconds);
             float alpha = Mathf.Clamp01(effectRatio);
-            float gradeScale = GetGradeEffectScale();
+            float intensityAlpha = GetIntensityAlphaMultiplier();
+            float gradeScale = GetGradeEffectScale() * GetIntensityEffectScale();
 
             ApplyCharacterBaseState();
             parryEffectRoot.gameObject.SetActive(feedbackKind == FeedbackKind.Parry);
             slashEffectRoot.gameObject.SetActive(feedbackKind == FeedbackKind.Slash);
             feedbackText.gameObject.SetActive(feedbackKind != FeedbackKind.None);
-            feedbackText.color = ColorWithAlpha(GetFeedbackColor(), alpha);
+            feedbackText.color = ColorWithAlpha(GetFeedbackColor(), alpha * intensityAlpha);
 
             if (feedbackKind == FeedbackKind.Parry)
             {
                 parryEffectRoot.localScale = Vector3.one * gradeScale;
-                SetSpriteRenderersColor(parrySparkRenderers, ColorWithAlpha(GetHitEffectColor(parryColor), alpha));
+                SetSpriteRenderersColor(parrySparkRenderers, ColorWithAlpha(GetHitEffectColor(parryColor), alpha * intensityAlpha));
             }
             else if (feedbackKind == FeedbackKind.Slash)
             {
                 slashEffectRoot.localScale = Vector3.one * gradeScale;
-                slashGlowRenderer.color = ColorWithAlpha(GetHitEffectColor(slashColor), alpha * 0.45f);
-                slashCoreRenderer.color = ColorWithAlpha(GetHitEffectColor(slashColor), alpha);
-                enemyRenderer.color = Color.Lerp(enemyBaseColor, slashColor, alpha);
+                slashGlowRenderer.color = ColorWithAlpha(GetHitEffectColor(slashColor), alpha * intensityAlpha * 0.45f);
+                slashCoreRenderer.color = ColorWithAlpha(GetHitEffectColor(slashColor), alpha * intensityAlpha);
+                enemyRenderer.color = Color.Lerp(enemyBaseColor, slashColor, Mathf.Clamp01(alpha * GetIntensityFlashStrength()));
             }
             else if (feedbackKind == FeedbackKind.Miss)
             {
-                Vector3 playerOffset = new Vector3(-0.16f * alpha + Mathf.Sin(Time.time * 70f) * 0.035f * alpha, 0f, 0f);
+                float shakeDistance = GetShakeDistance();
+                Vector3 playerOffset = new Vector3(
+                    -shakeDistance * alpha + Mathf.Sin(Time.time * 70f) * shakeDistance * 0.22f * alpha,
+                    0f,
+                    0f);
                 playerRenderer.transform.localPosition = GetPlayerBasePosition() + playerOffset;
                 playerLabel.transform.localPosition = GetPlayerLabelPosition(playerRenderer.transform.localPosition);
-                playerRenderer.color = Color.Lerp(playerBaseColor, missColor, alpha);
+                playerRenderer.color = Color.Lerp(playerBaseColor, missColor, Mathf.Clamp01(alpha * GetIntensityFlashStrength()));
             }
         }
 
@@ -391,6 +414,30 @@ namespace PulseForge.Runtime.Unity.Prototype
             return Mathf.Max(0.05f, configuredScale);
         }
 
+        private float GetIntensityEffectScale()
+        {
+            float minScale = Mathf.Min(minIntensityEffectScale, maxIntensityEffectScale);
+            float maxScale = Mathf.Max(minIntensityEffectScale, maxIntensityEffectScale);
+            return Mathf.Lerp(minScale, maxScale, activeIntensity);
+        }
+
+        private float GetIntensityAlphaMultiplier()
+        {
+            return Mathf.Lerp(0.55f, 1f, activeIntensity);
+        }
+
+        private float GetIntensityFlashStrength()
+        {
+            return Mathf.Lerp(0.45f, 1f, activeIntensity);
+        }
+
+        private float GetShakeDistance()
+        {
+            float minDistance = Mathf.Min(minShakeDistance, maxShakeDistance);
+            float maxDistance = Mathf.Max(minShakeDistance, maxShakeDistance);
+            return Mathf.Lerp(minDistance, maxDistance, activeIntensity);
+        }
+
         private float GetConfiguredFeedbackDurationSeconds()
         {
             return Mathf.Max(0.05f, feedbackDurationSeconds);
@@ -438,9 +485,19 @@ namespace PulseForge.Runtime.Unity.Prototype
             }
         }
 
+        private static float ClampIntensity(float intensity)
+        {
+            if (float.IsNaN(intensity))
+            {
+                return 0f;
+            }
+
+            return Mathf.Clamp01(intensity);
+        }
+
         private static Color ColorWithAlpha(Color color, float alpha)
         {
-            color.a = alpha;
+            color.a = Mathf.Clamp01(alpha);
             return color;
         }
     }

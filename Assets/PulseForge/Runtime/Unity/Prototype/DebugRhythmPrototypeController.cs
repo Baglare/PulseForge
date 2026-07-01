@@ -79,7 +79,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             {
                 RecordResult(timedOutResults[i]);
                 combatFeedbackRenderer.ShowMiss(presentationTimeSeconds);
-                ShowCombatSceneMiss();
+                ShowCombatSceneMiss(timedOutResults[i]);
                 lastFeedback = FormatFeedback(timedOutResults[i]);
             }
 
@@ -557,15 +557,16 @@ namespace PulseForge.Runtime.Unity.Prototype
             SetLastInputTimingError(result.HitResult);
             RecordResult(result.HitResult);
             double presentationTimeSeconds = GetPresentationTimeSeconds();
+            float eventIntensity = GetMatchedEventIntensity(result);
             if (result.HitResult.Grade == HitGrade.Miss)
             {
                 combatFeedbackRenderer.ShowMiss(presentationTimeSeconds);
-                ShowCombatSceneMiss();
+                ShowCombatSceneMiss(eventIntensity);
             }
             else
             {
                 combatFeedbackRenderer.ShowHit(action, result.HitResult.Grade, presentationTimeSeconds);
-                ShowCombatSceneHit(action, result.HitResult.Grade);
+                ShowCombatSceneHit(action, result.HitResult.Grade, eventIntensity);
             }
 
             lastFeedback = FormatFeedback(result.HitResult);
@@ -581,12 +582,12 @@ namespace PulseForge.Runtime.Unity.Prototype
             }
         }
 
-        private void ShowCombatSceneHit(RhythmAction action, HitGrade grade)
+        private void ShowCombatSceneHit(RhythmAction action, HitGrade grade, float intensity)
         {
             ResolveCombatSceneView();
             if (combatSceneView != null)
             {
-                combatSceneView.ShowHit(action, grade);
+                combatSceneView.ShowHit(action, grade, intensity);
             }
         }
 
@@ -599,12 +600,70 @@ namespace PulseForge.Runtime.Unity.Prototype
             }
         }
 
+        private void ShowCombatSceneMiss(float intensity)
+        {
+            ResolveCombatSceneView();
+            if (combatSceneView != null)
+            {
+                combatSceneView.ShowMiss(intensity);
+            }
+        }
+
+        private void ShowCombatSceneMiss(HitResult result)
+        {
+            ResolveCombatSceneView();
+            if (combatSceneView == null)
+            {
+                return;
+            }
+
+            float eventIntensity;
+            if (TryGetEventIntensity(result, out eventIntensity))
+            {
+                combatSceneView.ShowMiss(eventIntensity);
+                return;
+            }
+
+            combatSceneView.ShowMiss();
+        }
+
         private void ResolveCombatSceneView()
         {
             if (combatSceneView == null)
             {
                 combatSceneView = FindFirstObjectByType<DebugCombatSceneView>();
             }
+        }
+
+        private static float GetMatchedEventIntensity(RhythmInputResolveResult result)
+        {
+            if (result == null || result.MatchedEvent == null || result.MatchedEvent.Data == null)
+            {
+                return 1f;
+            }
+
+            return result.MatchedEvent.Data.Intensity;
+        }
+
+        private bool TryGetEventIntensity(HitResult result, out float intensity)
+        {
+            intensity = 1f;
+            if (result == null || session == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < session.Events.Count; i++)
+            {
+                BeatEventRuntime beatEvent = session.Events[i];
+                if (string.Equals(beatEvent.Data.EventId, result.EventId, StringComparison.Ordinal))
+                {
+                    intensity = beatEvent.Data.Intensity;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void RecordResult(HitResult result)
