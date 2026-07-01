@@ -8,13 +8,14 @@
 
 ## Mevcut durum
 
-Şu ana kadar üç ana milestone tamamlandı:
+Şu ana kadar dört ana milestone tamamlandı:
 
 | Milestone | Durum | Açıklama |
 |---|---:|---|
 | Milestone 1: Debug Rhythm Combat Prototype | Tamamlandı | Unity içinde ritim judgement, lane, score, combo, combat feedback ve DSP audio clock ile çalışan debug prototip. |
 | Milestone 2: Audio Pipeline Prototype | Tamamlandı | Python tabanlı WAV analyzer, diagnostics, postprocessor, comparison tool, pipeline runner ve Unity Editor pipeline window. |
 | Milestone 3: Forge Preview / Beatmap Visualization | Tamamlandı | Unity Editor Audio Pipeline penceresinde raw/playable timeline preview, report summary paneli ve generated JSON atama akışı. |
+| Milestone 4: Combat Visualization Prototype | Tamamlandı | OnGUI feedback'e ek olarak sahnede player/enemy, parry, slash, miss/hit taken ve intensity tabanlı efekt şiddeti gösteren debug combat visualization katmanı. |
 
 Şu anda sistem şu akışı destekler:
 
@@ -32,6 +33,8 @@ Unity Editor Forge Preview / visualization
 Unity JSON import
   ↓
 Debug rhythm-combat prototype
+  ↓
+OnGUI + scene combat feedback
 ```
 
 ---
@@ -53,6 +56,12 @@ Debug rhythm-combat prototype
   - `PERFECT SLASH`
   - `GOOD SLASH`
   - `MISS / HIT TAKEN`
+- Sahne tabanlı `DebugCombatSceneView` feedback katmanı:
+  - Player ve enemy için basit 2D primitive görseller.
+  - Guard sonuçları için parry spark.
+  - Strike sonuçları için diagonal slash.
+  - Miss ve timeout için player hit taken flash/shake.
+  - Perfect / Good ve `BeatEvent` intensity değerine göre görsel şiddet farkı.
 - `RealtimeSongClock` ve `DspAudioSongClock` desteği.
 - AudioClip atanırsa DSP tabanlı zamanlama.
 - Debug beatmap için üç kaynak:
@@ -151,7 +160,19 @@ J     = Strike
 5. Lane üzerindeki markerlar hit line’a geldiğinde doğru inputu ver.
 6. Score, combo, timing feedback ve combat feedback panelini izle.
 
-### 4. Audio Pipeline penceresiyle Forge Preview akışı
+### 4. Sahne combat feedback'ini kontrol et
+
+Milestone 4 ile OnGUI combat feedback'e ek olarak sahnede basit 2D combat feedback görülebilir.
+
+1. Play Mode'da `Start / Restart` ile oturumu başlat.
+2. `Space` ile Guard eventlerini yakala; sahnede player yakınında parry feedback görünmeli.
+3. `J` ile Strike eventlerini yakala; enemy üzerinde slash feedback görünmeli.
+4. Bilerek input kaçır veya event timeout olana kadar bekle; player tarafında `MISS / HIT TAKEN` feedback'i görünmeli.
+5. Farklı intensity değerlerine sahip eventlerde efekt ölçeği, parlaklığı ve miss shake şiddetinin değiştiğini kontrol et.
+
+Bu sahne feedback'i final art veya gerçek animasyon sistemi değildir. Harici sprite, texture, material veya Animator Controller kullanmadan, ritim sonucunun sahnede okunabilir dövüş feedback'ine dönüşmesini gösteren prototype katmanıdır.
+
+### 5. Audio Pipeline penceresiyle Forge Preview akışı
 
 1. Unity menüsünden `Tools > PulseForge > Audio Pipeline` penceresini aç.
 2. `Input Audio Clip` alanına WAV tabanlı demo audio clip'i seç.
@@ -292,7 +313,8 @@ Assets/PulseForge/
 │   │   └── Prototype/
 │   │       ├── DebugRhythmPrototypeController.cs
 │   │       ├── DebugRhythmLaneRenderer.cs
-│   │       └── DebugCombatFeedbackRenderer.cs
+│   │       ├── DebugCombatFeedbackRenderer.cs
+│   │       └── DebugCombatSceneView.cs
 ├── Editor/
 │   └── AudioPipeline/
 │       ├── BeatmapTimelinePreviewDrawer.cs
@@ -326,7 +348,7 @@ Domain layer
 
 Unity runtime/debug layer
 → Domain sistemini sahne içinde çalıştırır.
-→ Audio clock, lane, combat feedback ve debug HUD sağlar.
+→ Audio clock, lane, OnGUI feedback, sahne combat feedback'i ve debug HUD sağlar.
 
 Unity editor layer
 → Python pipeline’ı Unity içinden çalıştırır.
@@ -340,7 +362,7 @@ Python tools
 → Karşılaştırma ve diagnostics sağlar.
 ```
 
-Bu ayrımın amacı basit: Ses analizi değişince Unity gameplay çekirdeği yıkılmasın. Unity UI değişince Python analyzer etkilenmesin. Her sınıf kendi haddini bilsin; yazılımda bu hâlâ devrim niteliğinde bir beklenti.
+Bu ayrımın amacı basit: Ses analizi değişince Unity gameplay çekirdeği yıkılmasın. Unity UI veya sahne feedback'i değişince Python analyzer etkilenmesin. Her sınıf kendi haddini bilsin; yazılımda bu hâlâ devrim niteliğinde bir beklenti.
 
 ---
 
@@ -390,7 +412,7 @@ Test edilen ana davranışlar:
 - Librosa, numpy, scipy, ffmpeg gibi dış bağımlılıklar yok.
 - Gerçek müziklerde kusursuz beat detection iddiası yok.
 - Final UI yok.
-- Gerçek animasyon/sprite combat sistemi yok.
+- Sahne combat feedback'i prototype seviyesindedir; final animasyon/sprite combat sistemi yok.
 - Tam beatmap editor yok.
 - Forge Preview final beatmap editor veya waveform editor değildir.
 - Timeline preview şimdilik inceleme amaçlıdır; event authoring aracı değildir.
@@ -403,29 +425,34 @@ Bunlar eksiklik değil, bu milestone’un sınırları. Sınır koymak, projenin
 
 ## Roadmap
 
-Önerilen sıradaki milestone:
+Milestone 4 ile Combat Visualization Prototype tamamlandı. Önerilen sıradaki hazırlık veya milestone başlıkları:
 
-1. Combat Visualization Prototype
-   - OnGUI yerine basit sprite/2D görsel sistem.
-   - Parry/slash animasyonları.
-   - Daha iyi feedback sesleri.
+1. Project Cleanup / Demo Recording Prep
+   - Demo sahnesi, README ve milestone dokümanlarını video kaydına hazır hale getirmek.
+   - Kısa portfolyo akışını netleştirmek: pipeline → generated JSON → Play Mode → sahne combat feedback.
+   - Gereksiz debug çıktılarını ve geçici dosyaları kontrol etmek.
+
+2. Rhythm-to-Combat Mapping v2
+   - Action pattern ve intensity bilgisini daha bilinçli combat sunumuna bağlamak.
+   - Event tiplerine göre farklı feedback varyasyonları denemek.
+   - Final art'a geçmeden önce prototype readability seviyesini artırmak.
 
 Sonraki iyileştirme başlıkları:
 
-2. Beatmap authoring/editing
+3. Beatmap authoring/editing
    - Generated beatmap üzerinde küçük düzeltmeler yapabilme.
    - Offset, action ve event silme/ekleme araçları.
 
-3. Analyzer tuning
+4. Analyzer tuning
    - Gerçek müzik benzeri WAV dosyalarında onset mode ayarlarını test etmek.
    - Diagnostics CSV üzerinden threshold, baseline ve min-gap değerlerini iyileştirmek.
 
-4. Forge Preview polish
+5. Forge Preview polish
    - Timeline zoom veya ölçek kontrolü.
    - Daha ayrıntılı compare görselleştirmesi.
    - Waveform veya energy curve debug görünümü araştırması.
 
-5. Daha gelişmiş audio analysis
+6. Daha gelişmiş audio analysis
    - Dış bağımlılıklar değerlendirilirse librosa/essentia tabanlı ikinci analiz pipeline’ı.
    - BPM ve beat tracking.
    - Section/intensity segmentation.
@@ -444,6 +471,8 @@ PulseForge şu açılardan portfolyoda güçlü durur:
 - Python CLI tooling.
 - Unity Editor tooling.
 - Forge Preview / Audio Pipeline Editor visualization.
+- Combat Visualization Prototype.
+- BeatEvent intensity değerinin sahne efekt şiddetine bağlanması.
 - Pipeline report summary panelleri.
 - Audio analysis başlangıcı.
 - Data-driven beatmap workflow.
@@ -459,6 +488,7 @@ Bu proje sadece “Unity’de butona bastım” projesi değil. Runtime, tooling
 docs/06-debug-prototype-milestone.md
 docs/07-audio-pipeline-milestone.md
 docs/08-forge-preview-milestone.md
+docs/09-combat-visualization-milestone.md
 tools/audio_analyzer/README.md
 ```
 
@@ -473,6 +503,8 @@ Ses dosyasından otomatik veya yarı otomatik ritim eventleri çıkarılabilir.
 Bu eventler postprocess edilerek oynanabilir beatmap’e dönüştürülebilir.
 Unity bu beatmap’i okuyup DSP audio clock ile senkron debug ritim-dövüş prototipinde oynatabilir.
 Unity Editor tarafı raw/playable farkını timeline preview ve report summary panelleriyle görünür kılar.
+Runtime prototype, hit/miss sonuçlarını OnGUI feedback'e ek olarak sahne üstünde parry/slash/hit taken feedback'ine dönüştürebilir.
+BeatEvent intensity değeri sahne efektlerinin ölçek, parlaklık ve shake şiddetini etkileyebilir.
 ```
 
 Bu henüz final oyun değildir. Ama final oyuna doğru iyi kurulmuş bir temel ve gösterilebilir bir teknik prototiptir.
