@@ -1,8 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using PulseForge.Domain.Rhythm;
+using PulseForge.Runtime.Unity.BeatMaps;
 using PulseForge.Runtime.Unity.Prototype;
 using UnityEditor;
 using UnityEngine;
@@ -22,6 +25,7 @@ namespace PulseForge.Editor.AudioPipeline
         private const float DefaultBurstWindowSeconds = 0.35f;
         private const int StyleVariantCount = 4;
         private static readonly string[] StyleVariantLabels = { "Balanced", "Defensive", "Aggressive", "Bursty" };
+        private static readonly string[] StyleVariantCliValues = { "balanced", "defensive", "aggressive", "bursty" };
 
         private AudioClip inputAudioClip;
         private TextAsset expectedBeatMapJson;
@@ -55,6 +59,7 @@ namespace PulseForge.Editor.AudioPipeline
         private bool timelinePreviewFoldout = true;
         private bool pipelineReportsFoldout = true;
         private bool lastRunUsedExpectedCompare;
+        private StyleVariantSelection selectedVariant = StyleVariantSelection.None;
         private readonly BeatmapTimelinePreviewDrawer timelinePreviewDrawer = new BeatmapTimelinePreviewDrawer();
         private readonly PipelineReportSummaryDrawer pipelineReportSummaryDrawer = new PipelineReportSummaryDrawer();
 
@@ -348,16 +353,34 @@ namespace PulseForge.Editor.AudioPipeline
                 statusMessage = "Style variant assets refreshed.";
             }
 
+            selectedVariant = (StyleVariantSelection)EditorGUILayout.EnumPopup("Preview Variant", selectedVariant);
+
             DebugRhythmPrototypeController selectedPrototype = GetSelectedDebugPrototypeController();
             if (selectedPrototype == null)
             {
                 EditorGUILayout.HelpBox("Select a GameObject with DebugRhythmPrototypeController to assign a variant.", MessageType.Info);
             }
 
+            EditorGUILayout.LabelField("Style Variant Comparison", EditorStyles.miniBoldLabel);
+            DrawStyleVariantHeader();
             for (int i = 0; i < StyleVariantCount; i++)
             {
                 DrawStyleVariantRow(i, selectedPrototype);
             }
+        }
+
+        private static void DrawStyleVariantHeader()
+        {
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Style", EditorStyles.miniBoldLabel, GUILayout.Width(76f));
+            EditorGUILayout.LabelField("Status", EditorStyles.miniBoldLabel, GUILayout.Width(72f));
+            EditorGUILayout.LabelField("Events", EditorStyles.miniBoldLabel, GUILayout.Width(52f));
+            EditorGUILayout.LabelField("Guard", EditorStyles.miniBoldLabel, GUILayout.Width(52f));
+            EditorGUILayout.LabelField("Strike", EditorStyles.miniBoldLabel, GUILayout.Width(52f));
+            EditorGUILayout.LabelField("First", EditorStyles.miniBoldLabel, GUILayout.Width(58f));
+            EditorGUILayout.LabelField("Last", EditorStyles.miniBoldLabel, GUILayout.Width(58f));
+            EditorGUILayout.LabelField("Dropped", EditorStyles.miniBoldLabel, GUILayout.Width(68f));
+            EditorGUILayout.EndHorizontal();
         }
 
         private void DrawStyleVariantRow(int index, DebugRhythmPrototypeController selectedPrototype)
@@ -365,28 +388,39 @@ namespace PulseForge.Editor.AudioPipeline
             TextAsset variantAsset = generatedVariantJsonAssets[index];
             string label = StyleVariantLabels[index];
             bool hasVariantAsset = variantAsset != null;
+            StyleVariantSummary summary = BuildStyleVariantSummary(index, variantAsset);
 
             EditorGUILayout.BeginVertical(GUI.skin.box);
-            EditorGUILayout.LabelField(label, hasVariantAsset ? "Found" : "Not found");
-            EditorGUILayout.SelectableLabel(generatedVariantJsonPaths[index], GUILayout.Height(18f));
-            if (hasVariantAsset)
-            {
-                EditorGUILayout.ObjectField(label + " JSON", variantAsset, typeof(TextAsset), false);
-            }
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField(label, GUILayout.Width(76f));
+            EditorGUILayout.LabelField(hasVariantAsset ? "Found" : "Not found", GUILayout.Width(72f));
+            EditorGUILayout.LabelField(summary.EventCountText, GUILayout.Width(52f));
+            EditorGUILayout.LabelField(summary.GuardCountText, GUILayout.Width(52f));
+            EditorGUILayout.LabelField(summary.StrikeCountText, GUILayout.Width(52f));
+            EditorGUILayout.LabelField(summary.FirstTimeText, GUILayout.Width(58f));
+            EditorGUILayout.LabelField(summary.LastTimeText, GUILayout.Width(58f));
+            EditorGUILayout.LabelField(summary.DroppedCountText, GUILayout.Width(68f));
+            EditorGUILayout.EndHorizontal();
 
             EditorGUILayout.BeginHorizontal();
             using (new EditorGUI.DisabledScope(!hasVariantAsset))
             {
-                if (GUILayout.Button("Ping / Select"))
+                if (GUILayout.Button("Ping / Select", GUILayout.Width(92f)))
                 {
                     EditorGUIUtility.PingObject(variantAsset);
                     Selection.activeObject = variantAsset;
+                }
+
+                if (GUILayout.Button("Preview", GUILayout.Width(64f)))
+                {
+                    selectedVariant = (StyleVariantSelection)(index + 1);
+                    statusMessage = "Previewing style variant: " + label + ".";
                 }
             }
 
             using (new EditorGUI.DisabledScope(!hasVariantAsset || selectedPrototype == null))
             {
-                if (GUILayout.Button("Assign to Selected Prototype"))
+                if (GUILayout.Button("Assign", GUILayout.Width(58f)))
                 {
                     AssignJsonAssetToSelectedPrototype(
                         selectedPrototype,
@@ -397,6 +431,18 @@ namespace PulseForge.Editor.AudioPipeline
             }
 
             EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.SelectableLabel(generatedVariantJsonPaths[index], GUILayout.Height(18f));
+            if (hasVariantAsset)
+            {
+                EditorGUILayout.ObjectField(label + " JSON", variantAsset, typeof(TextAsset), false);
+            }
+
+            if (!string.IsNullOrEmpty(summary.ParseErrorText))
+            {
+                EditorGUILayout.HelpBox(summary.ParseErrorText, MessageType.Warning);
+            }
+
             EditorGUILayout.EndVertical();
         }
 
@@ -455,13 +501,19 @@ namespace PulseForge.Editor.AudioPipeline
             try
             {
                 TryLoadGeneratedJsonAssets();
+                TryLoadStyleVariantAssets();
                 DrawGeneratedAssetStatus("Raw JSON Asset", generatedRawJsonAsset, generatedRawJsonPath);
-                DrawGeneratedAssetStatus("Playable JSON Asset", generatedPlayableJsonAsset, generatedPlayableJsonPath);
+                TextAsset previewPlayableAsset = GetPreviewPlayableJsonAsset();
+                string previewPlayablePath = GetPreviewPlayableJsonPath();
+                string previewLabel = GetPreviewLabel();
+                DrawGeneratedAssetStatus(previewLabel + " JSON Asset", previewPlayableAsset, previewPlayablePath);
+                EditorGUILayout.LabelField("Previewing: " + previewLabel, EditorStyles.miniBoldLabel);
 
                 if (GUILayout.Button("Refresh Generated Assets"))
                 {
                     AssetDatabase.Refresh();
                     TryLoadGeneratedJsonAssets();
+                    TryLoadStyleVariantAssets();
                     timelinePreviewError = string.Empty;
                     statusMessage = "Generated assets refreshed.";
                 }
@@ -471,7 +523,7 @@ namespace PulseForge.Editor.AudioPipeline
                     EditorGUILayout.HelpBox(timelinePreviewError, MessageType.Warning);
                 }
 
-                timelinePreviewDrawer.Draw(generatedRawJsonAsset, generatedPlayableJsonAsset, 180f);
+                timelinePreviewDrawer.Draw(generatedRawJsonAsset, previewPlayableAsset, 180f);
             }
             catch (ExitGUIException)
             {
@@ -482,6 +534,29 @@ namespace PulseForge.Editor.AudioPipeline
                 timelinePreviewError = "Beatmap timeline preview failed: " + exception.Message;
                 EditorGUILayout.HelpBox(timelinePreviewError, MessageType.Warning);
             }
+        }
+
+        private TextAsset GetPreviewPlayableJsonAsset()
+        {
+            int selectedIndex = GetSelectedVariantIndex();
+            return selectedIndex < 0 ? generatedPlayableJsonAsset : generatedVariantJsonAssets[selectedIndex];
+        }
+
+        private string GetPreviewPlayableJsonPath()
+        {
+            int selectedIndex = GetSelectedVariantIndex();
+            return selectedIndex < 0 ? generatedPlayableJsonPath : generatedVariantJsonPaths[selectedIndex];
+        }
+
+        private string GetPreviewLabel()
+        {
+            int selectedIndex = GetSelectedVariantIndex();
+            return selectedIndex < 0 ? "Playable" : StyleVariantLabels[selectedIndex];
+        }
+
+        private int GetSelectedVariantIndex()
+        {
+            return selectedVariant == StyleVariantSelection.None ? -1 : (int)selectedVariant - 1;
         }
 
         private static void DrawGeneratedAssetStatus(string label, TextAsset asset, string assetPath)
@@ -589,6 +664,101 @@ namespace PulseForge.Editor.AudioPipeline
 
             generatedVariantJsonPaths[index] = newPath;
             generatedVariantJsonAssets[index] = null;
+        }
+
+        private StyleVariantSummary BuildStyleVariantSummary(int index, TextAsset variantAsset)
+        {
+            StyleVariantSummary summary = new StyleVariantSummary();
+            summary.DroppedCountText = GetStyleVariantDroppedCountText(index);
+
+            if (variantAsset == null)
+            {
+                return summary;
+            }
+
+            try
+            {
+                IReadOnlyList<BeatEventData> events = DebugBeatMapJsonParser.BuildBeatEvents(variantAsset.text);
+                summary.SetEvents(events);
+            }
+            catch (Exception exception)
+            {
+                summary.SetParseError("Parse error: " + exception.Message);
+            }
+
+            return summary;
+        }
+
+        private string GetStyleVariantDroppedCountText(int index)
+        {
+            string safeOutputName = GetSafeOutputName();
+            bool sawReportError = false;
+
+            if (TryReadStyleVariantDroppedCount(
+                    BuildStyleVariantReportPath(safeOutputName, StyleVariantCliValues[index]),
+                    out int droppedCount,
+                    out bool reportExists,
+                    out bool reportError))
+            {
+                return FormatInt(droppedCount);
+            }
+
+            sawReportError |= reportExists && reportError;
+
+            if (TryReadStyleVariantDroppedCount(
+                    BuildStyleVariantReportPath(safeOutputName, StyleVariantLabels[index]),
+                    out droppedCount,
+                    out reportExists,
+                    out reportError))
+            {
+                return FormatInt(droppedCount);
+            }
+
+            sawReportError |= reportExists && reportError;
+            return sawReportError ? "report error" : "n/a";
+        }
+
+        private static bool TryReadStyleVariantDroppedCount(
+            string reportPath,
+            out int droppedCount,
+            out bool reportExists,
+            out bool reportError)
+        {
+            droppedCount = 0;
+            reportExists = false;
+            reportError = false;
+
+            string fullPath = ToProjectFullPath(reportPath);
+            if (!File.Exists(fullPath))
+            {
+                return false;
+            }
+
+            reportExists = true;
+            try
+            {
+                string json = File.ReadAllText(fullPath);
+                if (string.IsNullOrWhiteSpace(json))
+                {
+                    reportError = true;
+                    return false;
+                }
+
+                StyleVariantPostprocessReport report = JsonUtility.FromJson<StyleVariantPostprocessReport>(json);
+                if (report == null)
+                {
+                    reportError = true;
+                    return false;
+                }
+
+                droppedCount = report.droppedEventCount;
+                return true;
+            }
+            catch (Exception)
+            {
+                reportError = true;
+                return false;
+            }
         }
 
         private void UpdateReportPathsFromInputs()
@@ -865,6 +1035,11 @@ namespace PulseForge.Editor.AudioPipeline
             return Path.Combine(outputDirectoryPath, "BM_Playable_" + safeOutputName + "_" + styleLabel + ".json").Replace('\\', '/');
         }
 
+        private static string BuildStyleVariantReportPath(string safeOutputName, string styleName)
+        {
+            return Path.Combine(ReportDirectory, safeOutputName + "_" + styleName + "_postprocess_report.json").Replace('\\', '/');
+        }
+
         private static string BuildReportPath(string safeOutputName, string suffix)
         {
             return Path.Combine(ReportDirectory, safeOutputName + suffix).Replace('\\', '/');
@@ -873,6 +1048,16 @@ namespace PulseForge.Editor.AudioPipeline
         private static string GetProjectRoot()
         {
             return Directory.GetParent(Application.dataPath).FullName;
+        }
+
+        private static string ToProjectFullPath(string path)
+        {
+            if (Path.IsPathRooted(path))
+            {
+                return path;
+            }
+
+            return Path.Combine(GetProjectRoot(), path);
         }
 
         private static void AppendOption(StringBuilder builder, string option, string value)
@@ -1007,9 +1192,84 @@ namespace PulseForge.Editor.AudioPipeline
             return value.ToString("0.######", CultureInfo.InvariantCulture);
         }
 
+        private static string FormatInt(int value)
+        {
+            return value.ToString(CultureInfo.InvariantCulture);
+        }
+
+        private static string FormatSeconds(double value)
+        {
+            return value.ToString("0.###", CultureInfo.InvariantCulture) + "s";
+        }
+
         private static bool IsValidBurstWindowSeconds(float value)
         {
             return !float.IsNaN(value) && !float.IsInfinity(value) && value >= 0f;
+        }
+
+        private sealed class StyleVariantSummary
+        {
+            public string EventCountText { get; private set; } = "n/a";
+
+            public string GuardCountText { get; private set; } = "n/a";
+
+            public string StrikeCountText { get; private set; } = "n/a";
+
+            public string FirstTimeText { get; private set; } = "n/a";
+
+            public string LastTimeText { get; private set; } = "n/a";
+
+            public string DroppedCountText { get; set; } = "n/a";
+
+            public string ParseErrorText { get; private set; } = string.Empty;
+
+            public void SetEvents(IReadOnlyList<BeatEventData> events)
+            {
+                int eventCount = events == null ? 0 : events.Count;
+                int guardCount = 0;
+                int strikeCount = 0;
+                double firstTimeSeconds = double.MaxValue;
+                double lastTimeSeconds = double.MinValue;
+
+                for (int i = 0; i < eventCount; i++)
+                {
+                    BeatEventData beatEvent = events[i];
+                    if (beatEvent.Action == RhythmAction.Guard)
+                    {
+                        guardCount++;
+                    }
+                    else if (beatEvent.Action == RhythmAction.Strike)
+                    {
+                        strikeCount++;
+                    }
+
+                    firstTimeSeconds = Math.Min(firstTimeSeconds, beatEvent.TargetTimeSeconds);
+                    lastTimeSeconds = Math.Max(lastTimeSeconds, beatEvent.TargetTimeSeconds);
+                }
+
+                EventCountText = FormatInt(eventCount);
+                GuardCountText = FormatInt(guardCount);
+                StrikeCountText = FormatInt(strikeCount);
+                FirstTimeText = eventCount == 0 ? "n/a" : FormatSeconds(firstTimeSeconds);
+                LastTimeText = eventCount == 0 ? "n/a" : FormatSeconds(lastTimeSeconds);
+                ParseErrorText = string.Empty;
+            }
+
+            public void SetParseError(string errorText)
+            {
+                EventCountText = "error";
+                GuardCountText = "error";
+                StrikeCountText = "error";
+                FirstTimeText = "error";
+                LastTimeText = "error";
+                ParseErrorText = errorText;
+            }
+        }
+
+        [Serializable]
+        private sealed class StyleVariantPostprocessReport
+        {
+            public int droppedEventCount = 0;
         }
 
         private enum DetectionMode
@@ -1036,6 +1296,15 @@ namespace PulseForge.Editor.AudioPipeline
         private enum CombatStyle
         {
             Legacy,
+            Balanced,
+            Defensive,
+            Aggressive,
+            Bursty
+        }
+
+        private enum StyleVariantSelection
+        {
+            None,
             Balanced,
             Defensive,
             Aggressive,
