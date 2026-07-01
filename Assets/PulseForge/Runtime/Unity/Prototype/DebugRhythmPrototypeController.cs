@@ -12,12 +12,25 @@ namespace PulseForge.Runtime.Unity.Prototype
     {
         private const double PerfectWindowSeconds = 0.045d;
         private const double GoodWindowSeconds = 0.100d;
-        private const float RhythmLaneHeight = 96f;
+        private const float RhythmLaneHeight = 116f;
         private const float LayoutMargin = 10f;
         private const float PanelGap = 10f;
         private const float RightPanelPreferredWidth = 360f;
         private const float RightPanelMinWidth = 300f;
         private const float MainAreaMinWidth = 260f;
+        private const float PanelPadding = 10f;
+        private const float CardSpacing = 10f;
+
+        private static readonly Color HudPanelColor = new Color(0.055f, 0.065f, 0.08f, 0.94f);
+        private static readonly Color CardColor = new Color(0.105f, 0.12f, 0.145f, 0.96f);
+        private static readonly Color TextPrimaryColor = new Color(0.92f, 0.95f, 0.98f, 1f);
+        private static readonly Color TextMutedColor = new Color(0.62f, 0.68f, 0.74f, 1f);
+        private static readonly Color GuardColor = new Color(0.22f, 0.82f, 1f, 1f);
+        private static readonly Color StrikeColor = new Color(1f, 0.38f, 0.22f, 1f);
+        private static readonly Color PerfectColor = new Color(0.98f, 0.94f, 0.42f, 1f);
+        private static readonly Color GoodColor = new Color(0.44f, 0.92f, 0.55f, 1f);
+        private static readonly Color MissColor = new Color(1f, 0.24f, 0.22f, 1f);
+        private static readonly Color PendingColor = new Color(0.82f, 0.86f, 0.9f, 1f);
 
         [SerializeField] private TextAsset debugBeatMapJson = null;
         [SerializeField] private DebugBeatMapAsset debugBeatMapAsset = null;
@@ -48,6 +61,12 @@ namespace PulseForge.Runtime.Unity.Prototype
         private bool pendingInputIsAmbiguous;
         private bool hasLastInputTimingError;
         private double lastInputTimingErrorMs;
+        private GUIStyle titleStyle;
+        private GUIStyle sectionTitleStyle;
+        private GUIStyle mutedLabelStyle;
+        private GUIStyle metricLabelStyle;
+        private GUIStyle metricValueStyle;
+        private GUIStyle badgeStyle;
 
         private void Start()
         {
@@ -88,6 +107,7 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private void OnGUI()
         {
+            EnsureHudStyles();
             HandleKeyboardEvent(Event.current);
 
             CalculateHudRects(out Rect mainAreaRect, out Rect rightPanelRect);
@@ -119,25 +139,27 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private void DrawMainArea(Rect area)
         {
-            GUILayout.BeginArea(area, GUI.skin.box);
+            DrawSolidRect(area, HudPanelColor);
+            GUILayout.BeginArea(InsetRect(area, PanelPadding));
             eventListScroll = GUILayout.BeginScrollView(eventListScroll);
 
-            GUILayout.Label("PulseForge Debug Rhythm Prototype");
-            GUILayout.Space(8f);
+            GUILayout.Label("PulseForge Debug Rhythm Prototype", titleStyle);
+            GUILayout.Label("Debug rhythm-combat HUD", mutedLabelStyle);
+            GUILayout.Space(CardSpacing);
             DrawRuntimeSummary();
 
-            GUILayout.Space(8f);
-            GUILayout.Label("Rhythm lane");
+            GUILayout.Space(CardSpacing);
+            DrawSectionTitle("Rhythm Lane");
             Rect rhythmLaneRect = GUILayoutUtility.GetRect(1f, RhythmLaneHeight, GUILayout.ExpandWidth(true));
             rhythmLaneRenderer.Draw(rhythmLaneRect, session == null ? null : session.Events, CurrentTimeSeconds);
 
-            GUILayout.Space(8f);
-            GUILayout.Label("Combat Debug");
+            GUILayout.Space(CardSpacing);
+            DrawSectionTitle("Combat Debug");
             Rect combatPanelRect = GUILayoutUtility.GetRect(1f, DebugCombatFeedbackRenderer.PanelHeight, GUILayout.ExpandWidth(true));
             combatFeedbackRenderer.Draw(combatPanelRect, GetPresentationTimeSeconds(), IsSessionRunning);
 
-            GUILayout.Space(8f);
-            GUILayout.Label("Events");
+            GUILayout.Space(CardSpacing);
+            DrawSectionTitle("Events");
             DrawEventList();
 
             GUILayout.EndScrollView();
@@ -146,7 +168,8 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private void DrawRightPanel(Rect area)
         {
-            GUILayout.BeginArea(area, GUI.skin.box);
+            DrawSolidRect(area, HudPanelColor);
+            GUILayout.BeginArea(InsetRect(area, PanelPadding));
             rightPanelScroll = GUILayout.BeginScrollView(rightPanelScroll);
 
             DrawSessionControls();
@@ -162,90 +185,235 @@ namespace PulseForge.Runtime.Unity.Prototype
         private void DrawRuntimeSummary()
         {
             ScoreSnapshot snapshot = GetSnapshot();
-            GUILayout.BeginVertical(GUI.skin.box);
-            GUILayout.Label("Status: " + GetSessionStatusText());
-            GUILayout.Label("Score: " + snapshot.TotalScore.ToString(CultureInfo.InvariantCulture));
-            GUILayout.Label(
-                "Combo: "
-                + snapshot.CurrentCombo.ToString(CultureInfo.InvariantCulture)
-                + " / Max "
-                + snapshot.MaxCombo.ToString(CultureInfo.InvariantCulture));
-            GUILayout.Label(
-                "Perfect / Good / Miss: "
-                + snapshot.PerfectCount.ToString(CultureInfo.InvariantCulture)
-                + " / "
-                + snapshot.GoodCount.ToString(CultureInfo.InvariantCulture)
-                + " / "
-                + snapshot.MissCount.ToString(CultureInfo.InvariantCulture));
-            GUILayout.EndVertical();
+            DrawCard(() =>
+            {
+                GUILayout.BeginHorizontal();
+                DrawMetric("Status", GetSessionStatusText());
+                DrawMetric("Score", snapshot.TotalScore.ToString(CultureInfo.InvariantCulture));
+                DrawMetric(
+                    "Combo",
+                    snapshot.CurrentCombo.ToString(CultureInfo.InvariantCulture)
+                    + " / "
+                    + snapshot.MaxCombo.ToString(CultureInfo.InvariantCulture));
+                GUILayout.EndHorizontal();
+
+                GUILayout.Space(6f);
+                GUILayout.BeginHorizontal();
+                DrawBadge("Perfect " + snapshot.PerfectCount.ToString(CultureInfo.InvariantCulture), PerfectColor);
+                DrawBadge("Good " + snapshot.GoodCount.ToString(CultureInfo.InvariantCulture), GoodColor);
+                DrawBadge("Miss " + snapshot.MissCount.ToString(CultureInfo.InvariantCulture), MissColor);
+                GUILayout.FlexibleSpace();
+                GUILayout.EndHorizontal();
+            });
         }
 
         private void DrawSessionControls()
         {
-            GUILayout.Label("Session Controls");
-            GUILayout.BeginVertical(GUI.skin.box);
-            if (GUILayout.Button("Start / Restart"))
+            DrawSectionTitle("Session Controls");
+            DrawCard(() =>
             {
-                RestartSession();
-            }
+                if (GUILayout.Button("Start / Restart"))
+                {
+                    RestartSession();
+                }
 
-            GUILayout.Label("Status: " + GetSessionStatusText());
-            if (isCountdownActive)
-            {
-                GUILayout.Label("Starting in: " + FormatCountdownSeconds(GetCountdownRemainingSeconds()));
-            }
+                GUILayout.Label("Status: " + GetSessionStatusText(), mutedLabelStyle);
+                if (isCountdownActive)
+                {
+                    GUILayout.Label("Starting in: " + FormatCountdownSeconds(GetCountdownRemainingSeconds()), metricValueStyle);
+                }
 
-            GUILayout.Label("Current time: " + FormatSeconds(CurrentTimeSeconds));
-            GUILayout.EndVertical();
+                GUILayout.Label("Current time: " + FormatSeconds(CurrentTimeSeconds), mutedLabelStyle);
+            });
         }
 
         private void DrawManualInputControls()
         {
-            GUILayout.Space(8f);
-            GUILayout.Label("Manual Inputs");
-            GUILayout.BeginVertical(GUI.skin.box);
-            bool previousGuiEnabled = GUI.enabled;
-            GUI.enabled = IsSessionRunning;
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Guard (Space)"))
+            GUILayout.Space(CardSpacing);
+            DrawSectionTitle("Manual Inputs");
+            DrawCard(() =>
             {
-                HandleInput(RhythmAction.Guard);
-            }
+                bool previousGuiEnabled = GUI.enabled;
+                GUI.enabled = IsSessionRunning;
+                GUILayout.BeginHorizontal();
+                if (DrawActionButton("Guard (Space)", GuardColor))
+                {
+                    HandleInput(RhythmAction.Guard);
+                }
 
-            if (GUILayout.Button("Strike (J)"))
-            {
-                HandleInput(RhythmAction.Strike);
-            }
+                if (DrawActionButton("Strike (J)", StrikeColor))
+                {
+                    HandleInput(RhythmAction.Strike);
+                }
 
-            GUILayout.EndHorizontal();
-            GUI.enabled = previousGuiEnabled;
-            GUILayout.Label("Space = Guard");
-            GUILayout.Label("J = Strike");
-            GUILayout.Label("Ambiguous input: " + GetAmbiguousInputStatusText());
-            GUILayout.EndVertical();
+                GUILayout.EndHorizontal();
+                GUI.enabled = previousGuiEnabled;
+                GUILayout.Label("Space = Guard", mutedLabelStyle);
+                GUILayout.Label("J = Strike", mutedLabelStyle);
+                GUILayout.Label("Ambiguous input: " + GetAmbiguousInputStatusText(), mutedLabelStyle);
+            });
         }
 
         private void DrawSourceInfo()
         {
-            GUILayout.Space(8f);
-            GUILayout.Label("Source Info");
-            GUILayout.BeginVertical(GUI.skin.box);
-            GUILayout.Label("Active clock: " + GetClockName());
-            GUILayout.Label("Audio clip: " + GetAudioClipStatus());
-            GUILayout.Label("Beatmap source:");
-            GUILayout.Label(GetBeatMapSourceName());
-            GUILayout.Label("Event count: " + GetEventCountText());
-            GUILayout.EndVertical();
+            GUILayout.Space(CardSpacing);
+            DrawSectionTitle("Source Info");
+            DrawCard(() =>
+            {
+                GUILayout.Label("Active clock: " + GetClockName(), mutedLabelStyle);
+                GUILayout.Label("Audio clip: " + GetAudioClipStatus(), mutedLabelStyle);
+                GUILayout.Label("Beatmap source:", mutedLabelStyle);
+                GUILayout.Label(GetBeatMapSourceName(), metricValueStyle);
+                GUILayout.Label("Event count: " + GetEventCountText(), mutedLabelStyle);
+            });
         }
 
         private void DrawLastFeedbackPanel()
         {
-            GUILayout.Space(8f);
-            GUILayout.Label("Last Feedback");
+            GUILayout.Space(CardSpacing);
+            DrawSectionTitle("Last Feedback");
+            DrawCard(() =>
+            {
+                GUILayout.Label(lastFeedback, metricValueStyle);
+                GUILayout.Label("Last timing: " + GetLastInputTimingErrorText(), mutedLabelStyle);
+            });
+        }
+
+        private void EnsureHudStyles()
+        {
+            if (titleStyle != null)
+            {
+                return;
+            }
+
+            titleStyle = new GUIStyle(GUI.skin.label);
+            titleStyle.fontSize = 18;
+            titleStyle.fontStyle = FontStyle.Bold;
+            titleStyle.normal.textColor = TextPrimaryColor;
+
+            sectionTitleStyle = new GUIStyle(GUI.skin.label);
+            sectionTitleStyle.fontSize = 13;
+            sectionTitleStyle.fontStyle = FontStyle.Bold;
+            sectionTitleStyle.normal.textColor = TextPrimaryColor;
+
+            mutedLabelStyle = new GUIStyle(GUI.skin.label);
+            mutedLabelStyle.normal.textColor = TextMutedColor;
+            mutedLabelStyle.wordWrap = true;
+
+            metricLabelStyle = new GUIStyle(GUI.skin.label);
+            metricLabelStyle.fontSize = 10;
+            metricLabelStyle.normal.textColor = TextMutedColor;
+
+            metricValueStyle = new GUIStyle(GUI.skin.label);
+            metricValueStyle.fontSize = 14;
+            metricValueStyle.fontStyle = FontStyle.Bold;
+            metricValueStyle.normal.textColor = TextPrimaryColor;
+            metricValueStyle.wordWrap = true;
+
+            badgeStyle = new GUIStyle(GUI.skin.box);
+            badgeStyle.alignment = TextAnchor.MiddleCenter;
+            badgeStyle.fontStyle = FontStyle.Bold;
+            badgeStyle.normal.textColor = Color.black;
+        }
+
+        private void DrawSectionTitle(string title)
+        {
+            GUILayout.Label(title, sectionTitleStyle);
+        }
+
+        private void DrawCard(Action drawContent)
+        {
+            Color previousColor = GUI.color;
+            GUI.color = CardColor;
             GUILayout.BeginVertical(GUI.skin.box);
-            GUILayout.Label(lastFeedback);
-            GUILayout.Label("Last timing: " + GetLastInputTimingErrorText());
+            GUI.color = previousColor;
+            GUILayout.Space(2f);
+            drawContent();
+            GUILayout.Space(2f);
             GUILayout.EndVertical();
+        }
+
+        private void DrawMetric(string label, string value)
+        {
+            GUILayout.BeginVertical(GUILayout.MinWidth(86f));
+            GUILayout.Label(label, metricLabelStyle);
+            GUILayout.Label(value, metricValueStyle);
+            GUILayout.EndVertical();
+        }
+
+        private void DrawActionAccent(RhythmAction action)
+        {
+            Rect rect = GUILayoutUtility.GetRect(5f, 20f, GUILayout.Width(5f));
+            DrawSolidRect(rect, GetActionColor(action));
+        }
+
+        private void DrawActionBadge(RhythmAction action)
+        {
+            string text = action == RhythmAction.Guard ? "Guard" : "Strike";
+            DrawBadge(text, GetActionColor(action), GUILayout.Width(62f));
+        }
+
+        private void DrawStateBadge(BeatEventState state)
+        {
+            DrawBadge(state.ToString(), GetStateColor(state), GUILayout.Width(66f));
+        }
+
+        private void DrawBadge(string text, Color color, params GUILayoutOption[] options)
+        {
+            Color previousColor = GUI.color;
+            Color previousContentColor = GUI.contentColor;
+            GUI.color = color;
+            GUI.contentColor = Color.black;
+            GUILayout.Box(text, badgeStyle, options);
+            GUI.color = previousColor;
+            GUI.contentColor = previousContentColor;
+        }
+
+        private bool DrawActionButton(string label, Color color)
+        {
+            Color previousBackgroundColor = GUI.backgroundColor;
+            Color previousContentColor = GUI.contentColor;
+            GUI.backgroundColor = color;
+            GUI.contentColor = Color.black;
+            bool clicked = GUILayout.Button(label);
+            GUI.backgroundColor = previousBackgroundColor;
+            GUI.contentColor = previousContentColor;
+            return clicked;
+        }
+
+        private static Rect InsetRect(Rect rect, float inset)
+        {
+            return new Rect(
+                rect.x + inset,
+                rect.y + inset,
+                Mathf.Max(1f, rect.width - inset * 2f),
+                Mathf.Max(1f, rect.height - inset * 2f));
+        }
+
+        private static void DrawSolidRect(Rect rect, Color color)
+        {
+            Color previousColor = GUI.color;
+            GUI.color = color;
+            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+            GUI.color = previousColor;
+        }
+
+        private static Color GetActionColor(RhythmAction action)
+        {
+            return action == RhythmAction.Guard ? GuardColor : StrikeColor;
+        }
+
+        private static Color GetStateColor(BeatEventState state)
+        {
+            switch (state)
+            {
+                case BeatEventState.Hit:
+                    return GoodColor;
+                case BeatEventState.Missed:
+                    return MissColor;
+                default:
+                    return PendingColor;
+            }
         }
 
         private string GetSessionStatusText()
@@ -696,73 +864,76 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private void DrawEventList()
         {
-            if (session == null)
+            DrawCard(() =>
             {
-                GUILayout.Label("No session");
-                return;
-            }
+                if (session == null)
+                {
+                    GUILayout.Label("No session", mutedLabelStyle);
+                    return;
+                }
 
-            for (int i = 0; i < session.Events.Count; i++)
-            {
-                BeatEventRuntime beatEvent = session.Events[i];
-                GUILayout.Label(
-                    FormatSeconds(beatEvent.Data.TargetTimeSeconds)
-                    + "  "
-                    + beatEvent.Data.Action
-                    + "  "
-                    + beatEvent.State
-                    + "  "
-                    + beatEvent.Data.EventId);
-            }
+                for (int i = 0; i < session.Events.Count; i++)
+                {
+                    BeatEventRuntime beatEvent = session.Events[i];
+                    GUILayout.BeginHorizontal();
+                    DrawActionAccent(beatEvent.Data.Action);
+                    GUILayout.Label(FormatSeconds(beatEvent.Data.TargetTimeSeconds), mutedLabelStyle, GUILayout.Width(64f));
+                    DrawActionBadge(beatEvent.Data.Action);
+                    DrawStateBadge(beatEvent.State);
+                    GUILayout.Label(beatEvent.Data.EventId, mutedLabelStyle);
+                    GUILayout.EndHorizontal();
+                }
+            });
         }
 
         private void DrawTimingCalibrationPanel()
         {
-            GUILayout.Space(8f);
-            GUILayout.Label("Timing Calibration");
-            GUILayout.BeginVertical(GUI.skin.box);
-            GUILayout.Label("Beatmap offset: " + FormatSignedMilliseconds(debugBeatMapOffsetSeconds));
-            GUILayout.Label("Input offset: " + FormatSignedMilliseconds(inputTimingOffsetSeconds));
-            GUILayout.Label("Last input timing error: " + GetLastInputTimingErrorText());
-            GUILayout.Label("Beatmap offset shifts event times. Applies on next Start/Restart.");
-            GUILayout.Label("Input offset shifts judgement input time.");
-
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Beatmap -10 ms"))
+            GUILayout.Space(CardSpacing);
+            DrawSectionTitle("Timing Calibration");
+            DrawCard(() =>
             {
-                AdjustBeatMapOffset(-10f);
-            }
+                GUILayout.Label("Beatmap offset: " + FormatSignedMilliseconds(debugBeatMapOffsetSeconds), metricValueStyle);
+                GUILayout.Label("Input offset: " + FormatSignedMilliseconds(inputTimingOffsetSeconds), metricValueStyle);
+                GUILayout.Label("Last input timing error: " + GetLastInputTimingErrorText(), mutedLabelStyle);
+                GUILayout.Label("Beatmap offset shifts event times. Applies on next Start/Restart.", mutedLabelStyle);
+                GUILayout.Label("Input offset shifts judgement input time.", mutedLabelStyle);
 
-            if (GUILayout.Button("Beatmap +10 ms"))
-            {
-                AdjustBeatMapOffset(10f);
-            }
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Beatmap -10 ms"))
+                {
+                    AdjustBeatMapOffset(-10f);
+                }
 
-            if (GUILayout.Button("Beatmap reset"))
-            {
-                debugBeatMapOffsetSeconds = 0f;
-            }
+                if (GUILayout.Button("Beatmap +10 ms"))
+                {
+                    AdjustBeatMapOffset(10f);
+                }
 
-            GUILayout.EndHorizontal();
+                if (GUILayout.Button("Beatmap reset"))
+                {
+                    debugBeatMapOffsetSeconds = 0f;
+                }
 
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Input -10 ms"))
-            {
-                AdjustInputTimingOffset(-10f);
-            }
+                GUILayout.EndHorizontal();
 
-            if (GUILayout.Button("Input +10 ms"))
-            {
-                AdjustInputTimingOffset(10f);
-            }
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Input -10 ms"))
+                {
+                    AdjustInputTimingOffset(-10f);
+                }
 
-            if (GUILayout.Button("Input reset"))
-            {
-                inputTimingOffsetSeconds = 0f;
-            }
+                if (GUILayout.Button("Input +10 ms"))
+                {
+                    AdjustInputTimingOffset(10f);
+                }
 
-            GUILayout.EndHorizontal();
-            GUILayout.EndVertical();
+                if (GUILayout.Button("Input reset"))
+                {
+                    inputTimingOffsetSeconds = 0f;
+                }
+
+                GUILayout.EndHorizontal();
+            });
         }
 
         private void AdjustBeatMapOffset(float milliseconds)

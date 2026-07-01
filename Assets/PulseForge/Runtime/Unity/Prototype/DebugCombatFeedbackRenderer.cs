@@ -8,6 +8,15 @@ namespace PulseForge.Runtime.Unity.Prototype
         public const float PanelHeight = 118f;
 
         private const double FeedbackDurationSeconds = 0.35d;
+        private static readonly Color PanelBackgroundColor = new Color(0.06f, 0.065f, 0.08f, 1f);
+        private static readonly Color PlayerColor = new Color(0.16f, 0.42f, 0.72f, 1f);
+        private static readonly Color EnemyColor = new Color(0.62f, 0.18f, 0.16f, 1f);
+        private static readonly Color EmptyFeedbackColor = new Color(0.22f, 0.24f, 0.28f, 1f);
+        private static readonly Color GuardPerfectColor = new Color(0.28f, 0.95f, 1f, 1f);
+        private static readonly Color GuardGoodColor = new Color(0.2f, 0.66f, 0.92f, 1f);
+        private static readonly Color StrikePerfectColor = new Color(1f, 0.64f, 0.22f, 1f);
+        private static readonly Color StrikeGoodColor = new Color(0.95f, 0.34f, 0.2f, 1f);
+        private static readonly Color MissColor = new Color(1f, 0.2f, 0.18f, 1f);
 
         private string feedbackText = string.Empty;
         private double feedbackUntilTime;
@@ -49,19 +58,21 @@ namespace PulseForge.Runtime.Unity.Prototype
             _ = isSessionRunning;
 
             Color previousColor = GUI.color;
+            Color previousContentColor = GUI.contentColor;
             try
             {
-                GUI.color = new Color(0.12f, 0.12f, 0.12f, 1f);
+                GUI.color = PanelBackgroundColor;
                 GUI.Box(area, GUIContent.none);
 
                 Rect playerRect = new Rect(area.x + 24f, area.y + 44f, 150f, 48f);
                 Rect enemyRect = new Rect(area.xMax - 174f, area.y + 44f, 150f, 48f);
                 Rect feedbackRect = new Rect(area.center.x - 150f, area.y + 34f, 300f, 42f);
 
-                GUI.color = new Color(0.28f, 0.48f, 0.95f, 1f);
+                GUI.contentColor = Color.white;
+                GUI.color = PlayerColor;
                 GUI.Box(playerRect, "PLAYER");
 
-                GUI.color = new Color(0.95f, 0.32f, 0.28f, 1f);
+                GUI.color = EnemyColor;
                 GUI.Box(enemyRect, "ENEMY");
 
                 if (IsFeedbackActive(nowSeconds))
@@ -69,17 +80,20 @@ namespace PulseForge.Runtime.Unity.Prototype
                     Color feedbackColor = GetFeedbackColor();
                     feedbackColor.a = GetFeedbackAlpha(nowSeconds);
                     GUI.color = feedbackColor;
+                    GUI.contentColor = GetFeedbackTextColor();
                     GUI.Box(feedbackRect, feedbackText);
                 }
                 else
                 {
-                    GUI.color = new Color(0.35f, 0.35f, 0.35f, 1f);
+                    GUI.color = EmptyFeedbackColor;
+                    GUI.contentColor = new Color(0.75f, 0.78f, 0.82f, 1f);
                     GUI.Box(feedbackRect, string.Empty);
                 }
             }
             finally
             {
                 GUI.color = previousColor;
+                GUI.contentColor = previousContentColor;
             }
         }
 
@@ -103,20 +117,30 @@ namespace PulseForge.Runtime.Unity.Prototype
         {
             if (lastGrade == HitGrade.Miss)
             {
-                return new Color(1f, 0.35f, 0.25f, 1f);
+                return MissColor;
             }
 
             if (lastAction == RhythmAction.Guard)
             {
-                return new Color(0.25f, 0.9f, 1f, 1f);
+                return lastGrade == HitGrade.Perfect ? GuardPerfectColor : GuardGoodColor;
             }
 
             if (lastAction == RhythmAction.Strike)
             {
-                return new Color(1f, 0.86f, 0.25f, 1f);
+                return lastGrade == HitGrade.Perfect ? StrikePerfectColor : StrikeGoodColor;
             }
 
             return Color.white;
+        }
+
+        private Color GetFeedbackTextColor()
+        {
+            if (lastGrade == HitGrade.Miss || lastAction == RhythmAction.Strike)
+            {
+                return Color.white;
+            }
+
+            return Color.black;
         }
 
         private static string FormatHitFeedbackText(RhythmAction action, HitGrade grade)
