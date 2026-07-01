@@ -8,7 +8,7 @@
 
 ## Mevcut durum
 
-Şu ana kadar dört ana milestone tamamlandı:
+Şu ana kadar beş ana milestone tamamlandı:
 
 | Milestone | Durum | Açıklama |
 |---|---:|---|
@@ -16,6 +16,7 @@
 | Milestone 2: Audio Pipeline Prototype | Tamamlandı | Python tabanlı WAV analyzer, diagnostics, postprocessor, comparison tool, pipeline runner ve Unity Editor pipeline window. |
 | Milestone 3: Forge Preview / Beatmap Visualization | Tamamlandı | Unity Editor Audio Pipeline penceresinde raw/playable timeline preview, report summary paneli ve generated JSON atama akışı. |
 | Milestone 4: Combat Visualization Prototype | Tamamlandı | OnGUI feedback'e ek olarak sahnede player/enemy, parry, slash, miss/hit taken ve intensity tabanlı efekt şiddeti gösteren debug combat visualization katmanı. |
+| Milestone 5: Combat Style Variants | Tamamlandı | Aynı ritim analizinden Balanced, Defensive, Aggressive ve Bursty playable beatmap varyantları üretme, karşılaştırma, preview etme ve prototype'a atama akışı. |
 
 Şu anda sistem şu akışı destekler:
 
@@ -27,6 +28,8 @@ Python audio analyzer
 Raw beatmap JSON
   ↓
 Playable beatmap postprocessor
+  ↓
+Combat style variants
   ↓
 Unity Editor Forge Preview / visualization
   ↓
@@ -93,8 +96,13 @@ OnGUI + scene combat feedback
   - Raw analyzer output’unu daha oynanabilir beatmap’e dönüştürür.
   - `easy`, `normal`, `hard` difficulty presetleri.
   - `preserve`, `alternate`, `pattern`, `intensity` action mapping modları.
+  - `legacy`, `balanced`, `defensive`, `aggressive`, `bursty` combat-style presetleri.
 - `run_debug_pipeline.py`
   - WAV → raw JSON → playable JSON → optional compare report akışını tek komutla çalıştırır.
+  - `--combat-style` ile tek bir combat-style playable output üretebilir.
+- `generate_style_variants.py`
+  - Aynı WAV veya raw beatmap üzerinden Balanced / Defensive / Aggressive / Bursty playable JSON varyantları üretir.
+  - Variant postprocess ve optional compare raporlarını diagnostics klasörüne yazabilir.
 
 ### Unity Editor tool
 
@@ -110,12 +118,16 @@ Bu pencere üzerinden:
 - Detection mode seçilebilir.
 - Difficulty seçilebilir.
 - Action pattern verilebilir.
+- Combat style seçilebilir.
 - Python pipeline çalıştırılabilir.
+- Style variant outputları üretilebilir.
 - Raw ve playable beatmap JSON üretimi aynı pencerede görülebilir.
 - Raw/playable eventler timeline üzerinde karşılaştırılabilir.
+- Balanced / Defensive / Aggressive / Bursty variantları event count, Guard count, Strike count ve dropped count ile karşılaştırılabilir.
+- Seçilen variant timeline preview hedefi yapılabilir.
 - Analysis, postprocess ve compare raporları okunabilir özet olarak incelenebilir.
 - Üretilen playable JSON Project panelinde seçilebilir.
-- Seçili `DebugRhythmPrototypeController` objesine generated JSON atanabilir.
+- Seçili `DebugRhythmPrototypeController` objesine generated JSON veya style variant JSON atanabilir.
 
 ---
 
@@ -125,6 +137,8 @@ Demo videosu veya portfolyo kaydı için ayrıntılı akış: [docs/10-demo-reco
 
 Demo sonrası repository temizliği için kontrol listesi: [docs/11-repository-cleanup-checklist.md](docs/11-repository-cleanup-checklist.md)
 
+Combat Style Variants milestone ayrıntıları: [docs/12-combat-style-variants-milestone.md](docs/12-combat-style-variants-milestone.md)
+
 Kısa demo akışı:
 
 1. `Tools > PulseForge > Audio Pipeline` penceresini aç.
@@ -132,6 +146,15 @@ Kısa demo akışı:
 3. Timeline preview ve report summary alanlarını kontrol et.
 4. Generated playable JSON'u seçili `DebugRhythmPrototypeController` objesine ata.
 5. Demo sahnesini Play Mode'da çalıştır.
+
+Kısa style variant test akışı:
+
+1. `Tools > PulseForge > Audio Pipeline` penceresini aç.
+2. WAV dosyasını seç.
+3. `Generate Style Variants` çalıştır.
+4. `Aggressive` veya `Defensive` variantını preview et.
+5. Seçili `DebugRhythmPrototypeController` objesine variant JSON'u ata.
+6. Play Mode'da Guard / Strike dağılımını ve sahne feedback'ini test et.
 
 ### 1. Unity demo sahnesini aç
 
@@ -196,6 +219,10 @@ Bu sahne feedback'i final art veya gerçek animasyon sistemi değildir. Harici s
 8. `Ping / Select Generated JSON` ile generated playable JSON'u Project panelinde seç.
 9. Sahnede `DebugRhythmPrototypeController` bulunan GameObject'i seç.
 10. `Assign to Selected Debug Prototype` ile generated playable JSON'u prototype'a ata.
+11. Style variant testi için `Generate Style Variants` çalıştır.
+12. `Style Variant Comparison` panelinde Balanced / Defensive / Aggressive / Bursty dağılımlarını kontrol et.
+13. `Preview` ile istediğin variantı timeline preview'de göster.
+14. `Assign` ile seçilen variant JSON'u prototype'a ata.
 
 ---
 
@@ -251,6 +278,25 @@ tools/audio_analyzer/out/Debug_120BPM_postprocess_report.json
 tools/audio_analyzer/out/Debug_120BPM_compare_report.json
 ```
 
+### Combat-style varyantları üret
+
+Milestone 5 ile aynı WAV veya raw beatmap üzerinden dört playable variant üretilebilir:
+
+```powershell
+python tools/audio_analyzer/generate_style_variants.py --input-wav Assets/PulseForge/Demo/Audio/PF_Debug_120BPM_DefaultBeatMap.wav --output-dir Assets/PulseForge/Demo/BeatMaps --name Debug_120BPM --difficulty hard --detection-mode amplitude --summary
+```
+
+Bu akış varsayılan olarak şu playable JSON dosyalarını üretir:
+
+```text
+Assets/PulseForge/Demo/BeatMaps/BM_Playable_Debug_120BPM_Balanced.json
+Assets/PulseForge/Demo/BeatMaps/BM_Playable_Debug_120BPM_Defensive.json
+Assets/PulseForge/Demo/BeatMaps/BM_Playable_Debug_120BPM_Aggressive.json
+Assets/PulseForge/Demo/BeatMaps/BM_Playable_Debug_120BPM_Bursty.json
+```
+
+`Defensive` Guard ağırlıklı, `Aggressive` Strike ağırlıklı dağılımı kontrol etmek için kullanışlıdır. Ayrıntılar: [docs/12-combat-style-variants-milestone.md](docs/12-combat-style-variants-milestone.md)
+
 `tools/audio_analyzer/out/` klasörü debug çıktıları içindir ve Git’e alınmamalıdır.
 
 ---
@@ -287,11 +333,24 @@ hard
 Action Mode:
 pattern
 
+Combat Style:
+legacy
+
 Use Expected Compare:
 true
 ```
 
-`Run Pipeline` sonrası generated JSON bulunursa pencere bunu gösterebilir. Milestone 3 ile pencere ayrıca raw/playable beatmap eventlerini timeline üzerinde gösterir ve analysis, postprocess, compare raporlarını okunabilir özetlere dönüştürür. Böylece raw analyzer output'u ile playable postprocessor output'u arasındaki fark Unity içinde görülebilir.
+`Run Pipeline` sonrası generated JSON bulunursa pencere bunu gösterebilir. `Combat Style` değeri `legacy` iken eski `Action Mode` / `Pattern` workflow'u korunur. `balanced`, `defensive`, `aggressive` veya `bursty` seçildiğinde action mapping combat-style preset tarafından kontrol edilir.
+
+Milestone 3 ile pencere raw/playable beatmap eventlerini timeline üzerinde gösterir ve analysis, postprocess, compare raporlarını okunabilir özetlere dönüştürür. Böylece raw analyzer output'u ile playable postprocessor output'u arasındaki fark Unity içinde görülebilir.
+
+Milestone 5 ile aynı pencerede ek olarak:
+
+- `Generate Style Variants` ile Balanced / Defensive / Aggressive / Bursty playable JSON dosyaları üretilebilir.
+- `Style Variant Comparison` panelinde event count, Guard count, Strike count, first/last time ve dropped count incelenebilir.
+- Her variant `Ping / Select` ile Project panelinde bulunabilir.
+- `Preview` ile timeline preview hedefi seçilen variant'a çevrilebilir.
+- `Assign` ile seçili `DebugRhythmPrototypeController` objesine ilgili variant JSON atanabilir.
 
 İstenirse `Ping / Select Generated JSON` ile generated playable JSON Project panelinde seçilebilir. Sahnede `DebugRhythmPrototypeController` olan GameObject seçiliyken `Assign to Selected Debug Prototype` butonu ile generated JSON component’e atanabilir.
 
@@ -343,7 +402,13 @@ tools/audio_analyzer/
 ├── compare_beatmaps.py
 ├── postprocess_beatmap.py
 ├── run_debug_pipeline.py
+├── generate_style_variants.py
 ├── tests/
+│   ├── test_compare_beatmaps.py
+│   ├── test_generate_style_variants.py
+│   ├── test_postprocess_beatmap.py
+│   ├── test_pulseforge_audio_analyzer.py
+│   └── test_run_debug_pipeline.py
 └── README.md
 ```
 
@@ -366,11 +431,13 @@ Unity editor layer
 → Python pipeline’ı Unity içinden çalıştırır.
 → Generated JSON’u bulur ve prototype’a atamayı kolaylaştırır.
 → Raw/playable timeline preview ve pipeline report summary sağlar.
+→ Style variant generation, comparison, preview ve assign akışını taşır.
 
 Python tools
 → WAV analiz eder.
 → Raw beatmap üretir.
 → Playable beatmap’e postprocess eder.
+→ Combat-style playable variantları üretir.
 → Karşılaştırma ve diagnostics sağlar.
 ```
 
@@ -414,6 +481,7 @@ Test edilen ana davranışlar:
 - Beatmap comparison.
 - Playable postprocessor.
 - Tek komutluk pipeline runner.
+- Combat-style presetleri ve style variant generation.
 
 ---
 
@@ -430,6 +498,10 @@ Test edilen ana davranışlar:
 - Tam beatmap editor yok.
 - Forge Preview final beatmap editor veya waveform editor değildir.
 - Timeline preview şimdilik inceleme amaçlıdır; event authoring aracı değildir.
+- Combat-style presetleri final koreografi üreticisi değildir; basit ve deterministik Guard / Strike dağılımlarıdır.
+- JSON `schemaVersion: 1` hâlâ `Guard` / `Strike` aksiyonlarıyla sınırlıdır.
+- Verse, chorus, drop gibi yapısal müzik analizi yoktur.
+- HeavySlash, Burst veya benzeri ayrı combat event type'ları henüz yoktur.
 - Seviye seçme veya kullanıcı profili yok.
 - Online skor yok.
 
@@ -439,34 +511,39 @@ Bunlar eksiklik değil, bu milestone’un sınırları. Sınır koymak, projenin
 
 ## Roadmap
 
-Milestone 4 ile Combat Visualization Prototype tamamlandı. Önerilen sıradaki hazırlık veya milestone başlıkları:
+Milestone 5 ile Combat Style Variants tamamlandı. Önerilen sıradaki hazırlık veya milestone başlıkları:
 
 1. Project Cleanup / Demo Recording Prep
    - Demo sahnesi, README ve milestone dokümanlarını video kaydına hazır hale getirmek.
-   - Kısa portfolyo akışını netleştirmek: pipeline → generated JSON → Play Mode → sahne combat feedback.
+   - Kısa portfolyo akışını netleştirmek: pipeline → style variants → preview → assign → Play Mode → sahne combat feedback.
    - Gereksiz debug çıktılarını ve geçici dosyaları kontrol etmek.
 
-2. Rhythm-to-Combat Mapping v2
-   - Action pattern ve intensity bilgisini daha bilinçli combat sunumuna bağlamak.
-   - Event tiplerine göre farklı feedback varyasyonları denemek.
-   - Final art'a geçmeden önce prototype readability seviyesini artırmak.
+2. Gerçek müzik WAV testleri
+   - Debug click track dışındaki WAV dosyalarında analyzer ve combat-style presetlerini test etmek.
+   - Defensive / Aggressive / Bursty çıktılarının gerçek müzikte ne kadar okunabilir olduğunu ölçmek.
+   - Threshold, min-gap ve burst window değerlerini diagnostics üzerinden iyileştirmek.
+
+3. Combat event type genişletmesi
+   - `Guard` / `Strike` sınırının ötesinde metadata veya yeni action tipleri araştırmak.
+   - HeavySlash, Burst veya GuardBreak gibi fikirleri JSON schema değişikliği gerektirmeden önce tasarlamak.
+   - Runtime feedback tarafında hangi yeni actionların gerçekten değer kattığını test etmek.
 
 Sonraki iyileştirme başlıkları:
 
-3. Beatmap authoring/editing
+4. Beatmap authoring/editing
    - Generated beatmap üzerinde küçük düzeltmeler yapabilme.
    - Offset, action ve event silme/ekleme araçları.
 
-4. Analyzer tuning
+5. Analyzer tuning
    - Gerçek müzik benzeri WAV dosyalarında onset mode ayarlarını test etmek.
    - Diagnostics CSV üzerinden threshold, baseline ve min-gap değerlerini iyileştirmek.
 
-5. Forge Preview polish
+6. Forge Preview polish
    - Timeline zoom veya ölçek kontrolü.
    - Daha ayrıntılı compare görselleştirmesi.
    - Waveform veya energy curve debug görünümü araştırması.
 
-6. Daha gelişmiş audio analysis
+7. Daha gelişmiş audio analysis
    - Dış bağımlılıklar değerlendirilirse librosa/essentia tabanlı ikinci analiz pipeline’ı.
    - BPM ve beat tracking.
    - Section/intensity segmentation.
@@ -487,6 +564,9 @@ PulseForge şu açılardan portfolyoda güçlü durur:
 - Forge Preview / Audio Pipeline Editor visualization.
 - Combat Visualization Prototype.
 - BeatEvent intensity değerinin sahne efekt şiddetine bağlanması.
+- Combat Style Variants ile aynı inputtan farklı playable output üretimi.
+- Unity Editor içinde variant comparison, preview ve assign workflow'u.
+- Procedural content generation tarafına kontrollü ilk adım.
 - Pipeline report summary panelleri.
 - Audio analysis başlangıcı.
 - Data-driven beatmap workflow.
@@ -504,6 +584,7 @@ Bu proje sadece “Unity’de butona bastım” projesi değil. Runtime, tooling
 - [docs/09-combat-visualization-milestone.md](docs/09-combat-visualization-milestone.md)
 - [docs/10-demo-recording-guide.md](docs/10-demo-recording-guide.md)
 - [docs/11-repository-cleanup-checklist.md](docs/11-repository-cleanup-checklist.md)
+- [docs/12-combat-style-variants-milestone.md](docs/12-combat-style-variants-milestone.md)
 - [tools/audio_analyzer/README.md](tools/audio_analyzer/README.md)
 
 ---
@@ -519,6 +600,7 @@ Unity bu beatmap’i okuyup DSP audio clock ile senkron debug ritim-dövüş pro
 Unity Editor tarafı raw/playable farkını timeline preview ve report summary panelleriyle görünür kılar.
 Runtime prototype, hit/miss sonuçlarını OnGUI feedback'e ek olarak sahne üstünde parry/slash/hit taken feedback'ine dönüştürebilir.
 BeatEvent intensity değeri sahne efektlerinin ölçek, parlaklık ve shake şiddetini etkileyebilir.
+Aynı ritim analizinden Balanced, Defensive, Aggressive ve Bursty playable JSON varyantları üretilebilir ve Unity Editor içinde karşılaştırılıp prototype'a atanabilir.
 ```
 
 Bu henüz final oyun değildir. Ama final oyuna doğru iyi kurulmuş bir temel ve gösterilebilir bir teknik prototiptir.
