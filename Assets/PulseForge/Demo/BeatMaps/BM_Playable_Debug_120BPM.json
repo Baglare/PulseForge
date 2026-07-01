@@ -6,13 +6,13 @@
     {
       "eventId": "event-001",
       "targetTimeSeconds": 1.0,
-      "action": "Guard",
+      "action": "Strike",
       "intensity": 1.0
     },
     {
       "eventId": "event-002",
       "targetTimeSeconds": 1.5,
-      "action": "Guard",
+      "action": "Strike",
       "intensity": 1.0
     },
     {
@@ -24,7 +24,7 @@
     {
       "eventId": "event-004",
       "targetTimeSeconds": 2.5,
-      "action": "Guard",
+      "action": "Strike",
       "intensity": 1.0
     },
     {
@@ -42,7 +42,7 @@
     {
       "eventId": "event-007",
       "targetTimeSeconds": 3.75,
-      "action": "Guard",
+      "action": "Strike",
       "intensity": 1.0
     },
     {
@@ -54,7 +54,7 @@
     {
       "eventId": "event-009",
       "targetTimeSeconds": 4.75,
-      "action": "Guard",
+      "action": "Strike",
       "intensity": 1.0
     },
     {

@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using PulseForge.Runtime.Unity.Prototype;
@@ -17,6 +18,7 @@ namespace PulseForge.Editor.AudioPipeline
         private const string DefaultOutputDirectory = "Assets/PulseForge/Demo/BeatMaps";
         private const string DefaultOutputName = "Debug_120BPM";
         private const string DefaultPattern = "Guard,Guard,Strike,Guard,Strike,Strike,Guard,Strike,Guard,Strike";
+        private const float DefaultBurstWindowSeconds = 0.35f;
 
         private AudioClip inputAudioClip;
         private TextAsset expectedBeatMapJson;
@@ -25,6 +27,8 @@ namespace PulseForge.Editor.AudioPipeline
         private DetectionMode detectionMode = DetectionMode.Amplitude;
         private Difficulty difficulty = Difficulty.Normal;
         private ActionMode actionMode = ActionMode.Pattern;
+        private CombatStyle combatStyle = CombatStyle.Legacy;
+        private float burstWindowSeconds = DefaultBurstWindowSeconds;
         private bool writeDebugCsv;
         private bool useExpectedCompare;
         private string pythonExecutable = "python";
@@ -64,10 +68,9 @@ namespace PulseForge.Editor.AudioPipeline
             inputAudioClip = (AudioClip)EditorGUILayout.ObjectField("Input Audio Clip", inputAudioClip, typeof(AudioClip), false);
             expectedBeatMapJson = (TextAsset)EditorGUILayout.ObjectField("Expected Beat Map JSON", expectedBeatMapJson, typeof(TextAsset), false);
             outputName = EditorGUILayout.TextField("Output Name", outputName);
-            pattern = EditorGUILayout.TextField("Pattern", pattern);
+            DrawCombatStyleControls();
             detectionMode = (DetectionMode)EditorGUILayout.EnumPopup("Detection Mode", detectionMode);
             difficulty = (Difficulty)EditorGUILayout.EnumPopup("Difficulty", difficulty);
-            actionMode = (ActionMode)EditorGUILayout.EnumPopup("Action Mode", actionMode);
             writeDebugCsv = EditorGUILayout.Toggle("Write Debug CSV", writeDebugCsv);
             useExpectedCompare = EditorGUILayout.Toggle("Use Expected Compare", useExpectedCompare);
             pythonExecutable = EditorGUILayout.TextField("Python Executable", pythonExecutable);
@@ -104,6 +107,32 @@ namespace PulseForge.Editor.AudioPipeline
             EditorGUILayout.TextArea(lastStderr, GUILayout.MinHeight(120f));
             EditorGUILayout.EndScrollView();
             EditorGUILayout.EndScrollView();
+        }
+
+        private void DrawCombatStyleControls()
+        {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Combat Style", EditorStyles.boldLabel);
+            combatStyle = (CombatStyle)EditorGUILayout.EnumPopup("Combat Style", combatStyle);
+
+            bool useLegacyMapping = combatStyle == CombatStyle.Legacy;
+            using (new EditorGUI.DisabledScope(!useLegacyMapping))
+            {
+                actionMode = (ActionMode)EditorGUILayout.EnumPopup("Action Mode", actionMode);
+                pattern = EditorGUILayout.TextField("Pattern", pattern);
+            }
+
+            if (!useLegacyMapping)
+            {
+                EditorGUILayout.HelpBox("Combat style controls action mapping. Action Mode and Pattern will not be sent to Python.", MessageType.Info);
+            }
+
+            using (new EditorGUI.DisabledScope(useLegacyMapping))
+            {
+                burstWindowSeconds = EditorGUILayout.FloatField("Burst Window Seconds", burstWindowSeconds);
+            }
+
+            EditorGUILayout.HelpBox("Burst Window Seconds is sent for non-legacy combat styles and is used by the bursty preset.", MessageType.None);
         }
 
         private void RunPipeline()
@@ -455,10 +484,25 @@ namespace PulseForge.Editor.AudioPipeline
             AppendOption(builder, "--input-wav", audioPath);
             AppendOption(builder, "--output-dir", outputDirectory.Trim());
             AppendOption(builder, "--name", safeOutputName);
-            AppendOption(builder, "--pattern", pattern);
+            AppendOption(builder, "--combat-style", ToCliValue(combatStyle));
             AppendOption(builder, "--detection-mode", ToCliValue(detectionMode));
             AppendOption(builder, "--difficulty", ToCliValue(difficulty));
-            AppendOption(builder, "--action-mode", ToCliValue(actionMode));
+            if (combatStyle == CombatStyle.Legacy)
+            {
+                AppendOption(builder, "--pattern", pattern);
+                AppendOption(builder, "--action-mode", ToCliValue(actionMode));
+            }
+            else
+            {
+                if (!IsValidBurstWindowSeconds(burstWindowSeconds))
+                {
+                    validationError = "Burst Window Seconds must be a finite number greater than or equal to zero.";
+                    return false;
+                }
+
+                AppendOption(builder, "--burst-window-seconds", ToCliFloat(burstWindowSeconds));
+            }
+
             AppendArgument(builder, "--summary");
 
             if (writeDebugCsv)
@@ -620,6 +664,33 @@ namespace PulseForge.Editor.AudioPipeline
             }
         }
 
+        private static string ToCliValue(CombatStyle value)
+        {
+            switch (value)
+            {
+                case CombatStyle.Balanced:
+                    return "balanced";
+                case CombatStyle.Defensive:
+                    return "defensive";
+                case CombatStyle.Aggressive:
+                    return "aggressive";
+                case CombatStyle.Bursty:
+                    return "bursty";
+                default:
+                    return "legacy";
+            }
+        }
+
+        private static string ToCliFloat(float value)
+        {
+            return value.ToString("0.######", CultureInfo.InvariantCulture);
+        }
+
+        private static bool IsValidBurstWindowSeconds(float value)
+        {
+            return !float.IsNaN(value) && !float.IsInfinity(value) && value >= 0f;
+        }
+
         private enum DetectionMode
         {
             Amplitude,
@@ -639,6 +710,15 @@ namespace PulseForge.Editor.AudioPipeline
             Alternate,
             Pattern,
             Intensity
+        }
+
+        private enum CombatStyle
+        {
+            Legacy,
+            Balanced,
+            Defensive,
+            Aggressive,
+            Bursty
         }
     }
 }
