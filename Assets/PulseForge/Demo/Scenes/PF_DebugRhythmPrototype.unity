@@ -148,7 +148,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1edc91ba8c6041399b16f7e16f063445, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.Prototype.DebugRhythmPrototypeController
-  debugBeatMapJson: {fileID: 4900000, guid: 4d62cdd27962fd74cb04abe918d184fd, type: 3}
+  debugBeatMapJson: {fileID: 4900000, guid: 8158eb77d2520e24fa803d4fd665184d, type: 3}
   debugBeatMapAsset: {fileID: 0}
   debugAudioClip: {fileID: 8300000, guid: b6c559ae053cda14686717601101f293, type: 3}
   useAudioClockWhenClipAssigned: 1
@@ -157,6 +157,7 @@ MonoBehaviour:
   simultaneousInputWindowSeconds: 0.035
   debugBeatMapOffsetSeconds: 0
   inputTimingOffsetSeconds: 0
+  combatSceneView: {fileID: 2063618744}
 --- !u!4 &473293104
 Transform:
   m_ObjectHideFlags: 0
@@ -264,9 +265,71 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &2063618743
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2063618745}
+  - component: {fileID: 2063618744}
+  m_Layer: 0
+  m_Name: Debug Combat Scene View
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2063618744
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2063618743}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 18a8e20fedd34cf7be482773d596d42f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.Prototype.DebugCombatSceneView
+  playerPosition: {x: -2.2, y: 0}
+  enemyPosition: {x: 2.2, y: 0}
+  characterSize: {x: 0.8, y: 1.4}
+  feedbackDurationSeconds: 0
+  perfectEffectScale: 1.25
+  goodEffectScale: 1
+  minIntensityEffectScale: 0.75
+  maxIntensityEffectScale: 1.35
+  minShakeDistance: 0.08
+  maxShakeDistance: 0.22
+  playerBaseColor: {r: 0.2, g: 0.42, b: 0.95, a: 1}
+  enemyBaseColor: {r: 0.92, g: 0.25, b: 0.22, a: 1}
+  parryColor: {r: 0.2, g: 0.92, b: 1, a: 1}
+  slashColor: {r: 1, g: 0.82, b: 0.2, a: 1}
+  missColor: {r: 1, g: 0.32, b: 0.18, a: 1}
+  perfectColor: {r: 1, g: 0.95, b: 0.35, a: 1}
+  goodColor: {r: 0.75, g: 0.95, b: 1, a: 1}
+--- !u!4 &2063618745
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2063618743}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -2.00466, y: -1.35011, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 1744210611}
   - {fileID: 473293104}
+  - {fileID: 2063618745}
