@@ -28,6 +28,7 @@ namespace PulseForge.Runtime.Unity.Prototype
         [SerializeField] private float simultaneousInputWindowSeconds = 0.035f;
         [SerializeField] private float debugBeatMapOffsetSeconds = 0f;
         [SerializeField] private float inputTimingOffsetSeconds = 0f;
+        [SerializeField] private DebugCombatSceneView combatSceneView = null;
 
         private RhythmSession session;
         private ScoreTracker scoreTracker;
@@ -78,6 +79,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             {
                 RecordResult(timedOutResults[i]);
                 combatFeedbackRenderer.ShowMiss(presentationTimeSeconds);
+                ShowCombatSceneMiss();
                 lastFeedback = FormatFeedback(timedOutResults[i]);
             }
 
@@ -280,6 +282,8 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private void RestartSession()
         {
+            ResetCombatSceneView();
+
             try
             {
                 session = new RhythmSession(
@@ -556,14 +560,51 @@ namespace PulseForge.Runtime.Unity.Prototype
             if (result.HitResult.Grade == HitGrade.Miss)
             {
                 combatFeedbackRenderer.ShowMiss(presentationTimeSeconds);
+                ShowCombatSceneMiss();
             }
             else
             {
                 combatFeedbackRenderer.ShowHit(action, result.HitResult.Grade, presentationTimeSeconds);
+                ShowCombatSceneHit(action, result.HitResult.Grade);
             }
 
             lastFeedback = FormatFeedback(result.HitResult);
             StopIfComplete();
+        }
+
+        private void ResetCombatSceneView()
+        {
+            ResolveCombatSceneView();
+            if (combatSceneView != null)
+            {
+                combatSceneView.ResetView();
+            }
+        }
+
+        private void ShowCombatSceneHit(RhythmAction action, HitGrade grade)
+        {
+            ResolveCombatSceneView();
+            if (combatSceneView != null)
+            {
+                combatSceneView.ShowHit(action, grade);
+            }
+        }
+
+        private void ShowCombatSceneMiss()
+        {
+            ResolveCombatSceneView();
+            if (combatSceneView != null)
+            {
+                combatSceneView.ShowMiss();
+            }
+        }
+
+        private void ResolveCombatSceneView()
+        {
+            if (combatSceneView == null)
+            {
+                combatSceneView = FindFirstObjectByType<DebugCombatSceneView>();
+            }
         }
 
         private void RecordResult(HitResult result)
