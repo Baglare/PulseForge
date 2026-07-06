@@ -8,7 +8,6 @@
 /[Uu]ser[Ss]ettings/
 /[Mm]emoryCaptures/
 /[Rr]ecordings/
-.codex-compile-temp/
 
 # IDE generated files
 .vs/
@@ -38,6 +37,8 @@ sysinfo.txt
 
 # Local analyzer diagnostics
 tools/audio_analyzer/out/
+
+# Python cache
 __pycache__/
 *.pyc
 *.pyo
@@ -47,6 +48,9 @@ prompts/
 checklists/
 START-HERE.md
 AGENTS.md
+
+# Local Codex / compile artifacts
+.codex-compile-temp/
 
 # OS files
 .DS_Store

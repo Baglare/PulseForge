@@ -1,8 +1,13 @@
 # PulseForge
 
-**PulseForge**, bir ses dosyasındaki ritmik vuruşları analiz edip bunları oynanabilir bir ritim-dövüş prototipine dönüştürmeyi amaçlayan deneysel bir Unity projesidir.
+**PulseForge**, bir ses dosyasındaki ritmik vuruşları analiz edip bunları oynanabilir bir
+ritim-dövüş prototipine dönüştürmeyi amaçlayan deneysel bir Unity projesidir.
 
-Şu anki sürüm final oyun değildir. Bu repo, önce sağlam bir ritim oynanış çekirdeği kurmayı, sonra ses analizinden gelen veriyi Unity içinde oynanabilir beatmap olarak kullanmayı hedefleyen aşamalı bir prototiptir. Yani her şarkıyı kusursuz şekilde oyuna çeviren final bir sistem değil; ölçülebilir, test edilebilir ve geliştirilebilir bir teknik temeldir.
+Şu anki sürüm final oyun değildir. Bu repo, önce sağlam bir ritim oynanış çekirdeği
+kurmayı, sonra ses analizinden gelen veriyi Unity içinde oynanabilir beatmap olarak
+kullanmayı hedefleyen aşamalı bir prototiptir. Yani her şarkıyı kusursuz şekilde oyuna
+çeviren final bir sistem değil; ölçülebilir, test edilebilir ve geliştirilebilir bir teknik
+temeldir.
 
 ---
 
@@ -178,7 +183,8 @@ Debug Beat Map Json:
 BM_Playable_Debug_120BPM.json
 ```
 
-`Debug Beat Map Json` boşsa, proje `DebugBeatMapAsset` veya fallback hardcoded beatmap ile çalışabilir. Ancak pipeline-generated demo için JSON atanması tercih edilir.
+`Debug Beat Map Json` boşsa, proje `DebugBeatMapAsset` veya fallback hardcoded beatmap ile
+çalışabilir. Ancak pipeline-generated demo için JSON atanması tercih edilir.
 
 ### 3. Play Mode’da çalıştır
 
@@ -205,7 +211,9 @@ Milestone 4 ile OnGUI combat feedback'e ek olarak sahnede basit 2D combat feedba
 4. Bilerek input kaçır veya event timeout olana kadar bekle; player tarafında `MISS / HIT TAKEN` feedback'i görünmeli.
 5. Farklı intensity değerlerine sahip eventlerde efekt ölçeği, parlaklığı ve miss shake şiddetinin değiştiğini kontrol et.
 
-Bu sahne feedback'i final art veya gerçek animasyon sistemi değildir. Harici sprite, texture, material veya Animator Controller kullanmadan, ritim sonucunun sahnede okunabilir dövüş feedback'ine dönüşmesini gösteren prototype katmanıdır.
+Bu sahne feedback'i final art veya gerçek animasyon sistemi değildir. Harici sprite, texture,
+material veya Animator Controller kullanmadan, ritim sonucunun sahnede okunabilir dövüş
+feedback'ine dönüşmesini gösteren prototype katmanıdır.
 
 ### 5. Audio Pipeline penceresiyle Forge Preview akışı
 
@@ -250,7 +258,10 @@ python tools/audio_analyzer/pulseforge_audio_analyzer.py Assets/PulseForge/Demo/
 
 ### Playable beatmap üret
 
-Debug click track içinde 3.00 ve 3.25 saniyelerde yakın eventler olduğu için demo map’te `hard` difficulty kullanmak daha uygundur. `normal` preset bu iki eventten birini seyreltebilir. Bu hata değil; postprocessor’ın oynanabilirlik filtresinin beklenen davranışıdır.
+Debug click track içinde 3.00 ve 3.25 saniyelerde yakın eventler olduğu için demo map’te
+`hard` difficulty kullanmak daha uygundur. `normal` preset bu iki eventten birini
+seyreltebilir. Bu hata değil; postprocessor’ın oynanabilirlik filtresinin beklenen
+davranışıdır.
 
 ```powershell
 python tools/audio_analyzer/postprocess_beatmap.py Assets/PulseForge/Demo/BeatMaps/BM_Raw_Debug_120BPM.json --output Assets/PulseForge/Demo/BeatMaps/BM_Playable_Debug_120BPM.json --display-name "Playable Debug 120 BPM" --difficulty hard --action-mode pattern --pattern Guard,Guard,Strike,Guard,Strike,Strike,Guard,Strike,Guard,Strike --report-output tools/audio_analyzer/out/postprocess_debug_120bpm_report.json
@@ -295,7 +306,9 @@ Assets/PulseForge/Demo/BeatMaps/BM_Playable_Debug_120BPM_Aggressive.json
 Assets/PulseForge/Demo/BeatMaps/BM_Playable_Debug_120BPM_Bursty.json
 ```
 
-`Defensive` Guard ağırlıklı, `Aggressive` Strike ağırlıklı dağılımı kontrol etmek için kullanışlıdır. Ayrıntılar: [docs/12-combat-style-variants-milestone.md](docs/12-combat-style-variants-milestone.md)
+`Defensive` Guard ağırlıklı, `Aggressive` Strike ağırlıklı dağılımı kontrol etmek için
+kullanışlıdır. Ayrıntılar:
+[docs/12-combat-style-variants-milestone.md](docs/12-combat-style-variants-milestone.md)
 
 `tools/audio_analyzer/out/` klasörü debug çıktıları içindir ve Git’e alınmamalıdır.
 
@@ -340,9 +353,15 @@ Use Expected Compare:
 true
 ```
 
-`Run Pipeline` sonrası generated JSON bulunursa pencere bunu gösterebilir. `Combat Style` değeri `legacy` iken eski `Action Mode` / `Pattern` workflow'u korunur. `balanced`, `defensive`, `aggressive` veya `bursty` seçildiğinde action mapping combat-style preset tarafından kontrol edilir.
+`Run Pipeline` sonrası generated JSON bulunursa pencere bunu gösterebilir. `Combat Style`
+değeri `legacy` iken eski `Action Mode` / `Pattern` workflow'u korunur. `balanced`,
+`defensive`, `aggressive` veya `bursty` seçildiğinde action mapping combat-style preset
+tarafından kontrol edilir.
 
-Milestone 3 ile pencere raw/playable beatmap eventlerini timeline üzerinde gösterir ve analysis, postprocess, compare raporlarını okunabilir özetlere dönüştürür. Böylece raw analyzer output'u ile playable postprocessor output'u arasındaki fark Unity içinde görülebilir.
+Milestone 3 ile pencere raw/playable beatmap eventlerini timeline üzerinde gösterir ve
+analysis, postprocess, compare raporlarını okunabilir özetlere dönüştürür. Böylece raw
+analyzer output'u ile playable postprocessor output'u arasındaki fark Unity içinde
+görülebilir.
 
 Milestone 5 ile aynı pencerede ek olarak:
 
@@ -352,9 +371,13 @@ Milestone 5 ile aynı pencerede ek olarak:
 - `Preview` ile timeline preview hedefi seçilen variant'a çevrilebilir.
 - `Assign` ile seçili `DebugRhythmPrototypeController` objesine ilgili variant JSON atanabilir.
 
-İstenirse `Ping / Select Generated JSON` ile generated playable JSON Project panelinde seçilebilir. Sahnede `DebugRhythmPrototypeController` olan GameObject seçiliyken `Assign to Selected Debug Prototype` butonu ile generated JSON component’e atanabilir.
+İstenirse `Ping / Select Generated JSON` ile generated playable JSON Project panelinde
+seçilebilir. Sahnede `DebugRhythmPrototypeController` olan GameObject seçiliyken
+`Assign to Selected Debug Prototype` butonu ile generated JSON component’e atanabilir.
 
-Bu pencere final beatmap editor veya waveform editor değildir. Şu anki rolü pipeline çıktısını incelemek, raporları özetlemek ve generated playable JSON'u prototype'a bağlamayı kolaylaştırmaktır.
+Bu pencere final beatmap editor veya waveform editor değildir. Şu anki rolü pipeline çıktısını
+incelemek, raporları özetlemek ve generated playable JSON'u prototype'a bağlamayı
+kolaylaştırmaktır.
 
 Bu işlem sahneyi otomatik kaydetmez. Bu tercih, editor aracının kullanıcı onayı olmadan sahne dosyasını değiştirmesini önlemek için korunur.
 
@@ -441,13 +464,16 @@ Python tools
 → Karşılaştırma ve diagnostics sağlar.
 ```
 
-Bu ayrımın amacı basit: Ses analizi değişince Unity gameplay çekirdeği yıkılmasın. Unity UI veya sahne feedback'i değişince Python analyzer etkilenmesin. Her katmanın sorumluluğu sınırlı kaldığında değişikliklerin etkisi daha kolay izlenir.
+Bu ayrımın amacı basit: Ses analizi değişince Unity gameplay çekirdeği yıkılmasın. Unity UI
+veya sahne feedback'i değişince Python analyzer etkilenmesin. Her katmanın sorumluluğu
+sınırlı kaldığında değişikliklerin etkisi daha kolay izlenir.
 
 ---
 
 ## Test stratejisi
 
-Demo veya commit öncesinde en az Python unittest komutunu ve Unity Edit Mode test akışını hatırla. Unity testleri bu ortamda çalıştırılamadıysa bunu sonuç raporunda açıkça belirt.
+Demo veya commit öncesinde en az Python unittest komutunu ve Unity Edit Mode test akışını
+hatırla. Unity testleri bu ortamda çalıştırılamadıysa bunu sonuç raporunda açıkça belirt.
 
 ### Unity Edit Mode testleri
 
@@ -505,7 +531,8 @@ Test edilen ana davranışlar:
 - Seviye seçme veya kullanıcı profili yok.
 - Online skor yok.
 
-Bunlar eksiklik olarak değil, bu milestone’un bilinçli sınırları olarak değerlendirilmelidir. Sınırların açık tutulması, prototipin teknik hedefini ve değerlendirme kapsamını netleştirir.
+Bunlar eksiklik olarak değil, bu milestone’un bilinçli sınırları olarak değerlendirilmelidir.
+Sınırların açık tutulması, prototipin teknik hedefini ve değerlendirme kapsamını netleştirir.
 
 ---
 
@@ -572,7 +599,10 @@ PulseForge şu açılardan portfolyoda güçlü durur:
 - Data-driven beatmap workflow.
 - Dokümante edilmiş milestone geliştirme süreci.
 
-Bu proje yalnızca bir Unity sahnesinden ibaret değildir. Runtime, tooling, veri akışı ve test tarafları birlikte ele alınmış bir teknik prototiptir. Doğru sunulduğunda teknik görüşmelerde mimari kararlar, veri pipeline’ı ve doğrulama yaklaşımı üzerinden güçlü tartışma zemini sağlar.
+Bu proje yalnızca bir Unity sahnesinden ibaret değildir. Runtime, tooling, veri akışı ve test
+tarafları birlikte ele alınmış bir teknik prototiptir. Doğru sunulduğunda teknik görüşmelerde
+mimari kararlar, veri pipeline’ı ve doğrulama yaklaşımı üzerinden güçlü tartışma zemini
+sağlar.
 
 ---
 
