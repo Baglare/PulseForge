@@ -577,35 +577,6 @@ Sonraki iyileştirme başlıkları:
 
 ---
 
-## Portfolyo değeri
-
-PulseForge şu açılardan portfolyoda güçlü durur:
-
-- Unity gameplay runtime.
-- Ritim judgement sistemi.
-- Test edilmiş domain mimarisi.
-- DSP audio clock kullanımı.
-- JSON data pipeline.
-- Python CLI tooling.
-- Unity Editor tooling.
-- Forge Preview / Audio Pipeline Editor visualization.
-- Combat Visualization Prototype.
-- BeatEvent intensity değerinin sahne efekt şiddetine bağlanması.
-- Combat Style Variants ile aynı inputtan farklı playable output üretimi.
-- Unity Editor içinde variant comparison, preview ve assign workflow'u.
-- Procedural content generation tarafına kontrollü ilk adım.
-- Pipeline report summary panelleri.
-- Audio analysis başlangıcı.
-- Data-driven beatmap workflow.
-- Dokümante edilmiş milestone geliştirme süreci.
-
-Bu proje yalnızca bir Unity sahnesinden ibaret değildir. Runtime, tooling, veri akışı ve test
-tarafları birlikte ele alınmış bir teknik prototiptir. Doğru sunulduğunda teknik görüşmelerde
-mimari kararlar, veri pipeline’ı ve doğrulama yaklaşımı üzerinden güçlü tartışma zemini
-sağlar.
-
----
-
 ## İlgili dokümanlar
 
 - [docs/06-debug-prototype-milestone.md](docs/06-debug-prototype-milestone.md)
@@ -616,21 +587,3 @@ sağlar.
 - [docs/11-repository-cleanup-checklist.md](docs/11-repository-cleanup-checklist.md)
 - [docs/12-combat-style-variants-milestone.md](docs/12-combat-style-variants-milestone.md)
 - [tools/audio_analyzer/README.md](tools/audio_analyzer/README.md)
-
----
-
-## Kısa teknik özet
-
-PulseForge şu an şunu kanıtlar:
-
-```text
-Ses dosyasından otomatik veya yarı otomatik ritim eventleri çıkarılabilir.
-Bu eventler postprocess edilerek oynanabilir beatmap’e dönüştürülebilir.
-Unity bu beatmap’i okuyup DSP audio clock ile senkron debug ritim-dövüş prototipinde oynatabilir.
-Unity Editor tarafı raw/playable farkını timeline preview ve report summary panelleriyle görünür kılar.
-Runtime prototype, hit/miss sonuçlarını OnGUI feedback'e ek olarak sahne üstünde parry/slash/hit taken feedback'ine dönüştürebilir.
-BeatEvent intensity değeri sahne efektlerinin ölçek, parlaklık ve shake şiddetini etkileyebilir.
-Aynı ritim analizinden Balanced, Defensive, Aggressive ve Bursty playable JSON varyantları üretilebilir ve Unity Editor içinde karşılaştırılıp prototype'a atanabilir.
-```
-
-Bu henüz final oyun değildir. Ama final oyuna doğru iyi kurulmuş bir temel ve gösterilebilir bir teknik prototiptir.
