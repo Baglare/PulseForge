@@ -42,6 +42,12 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Local workflow notes
+prompts/
+checklists/
+START-HERE.md
+AGENTS.md
+
 # OS files
 .DS_Store
 Thumbs.db

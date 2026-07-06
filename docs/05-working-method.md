@@ -1,6 +1,6 @@
 # PulseForge Çalışma Yöntemi
 
-Her Codex görevi aşağıdaki sırayla yürütülür. Amaç aracı serbest bırakmak değil, denetlenebilir küçük değişiklikler üretmektir.
+AI destekli geliştirme görevleri aşağıdaki sırayla yürütülür. Amaç aracı proje sahibinin yerine koymak değil; kapsamı, mimari kararları, testleri, entegrasyonu ve doğrulamayı geliştirici yönetirken denetlenebilir küçük değişiklikler üretmektir.
 
 ## 1. Görev öncesi
 
@@ -12,9 +12,9 @@ Her görev için şunları yazarız:
 - Kabul ölçütleri: İşin tamamlandığını nasıl kanıtlayacağız?
 - Testler: Hangi davranışlar otomatik doğrulanacak?
 
-## 2. Codex'e verilen talimat
+## 2. AI aracına verilen görev tanımı
 
-Prompt şu parçaları içerir:
+Görev tanımı şu parçaları içerir:
 
 1. Proje bağlamı.
 2. Tek ve dar hedef.
@@ -25,9 +25,9 @@ Prompt şu parçaları içerir:
 7. Beklenen testler.
 8. Son rapor biçimi.
 
-## 3. Codex çalışırken beklenen davranış
+## 3. AI aracı çalışırken beklenen davranış
 
-Codex:
+AI aracı:
 
 - Önce repository yapısını incelemelidir.
 - Gereksiz dosyalara dokunmamalıdır.
@@ -90,4 +90,4 @@ Bir görev şu üç koşul olmadan tamamlanmış sayılmaz:
 2. İlgili testler geçiyor veya neden çalıştırılamadığı açıkça belirtiliyor.
 3. Diff, görev kapsamı dışındaki değişiklikleri içermiyor.
 
-Bu koşullardan biri eksikse yeni özelliğe geçilmez; düzeltme promptu hazırlanır.
+Bu koşullardan biri eksikse yeni özelliğe geçilmez; düzeltme görevi hazırlanır.

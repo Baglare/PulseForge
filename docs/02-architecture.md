@@ -120,7 +120,7 @@ Assets/
     └── Settings/
 ```
 
-İlk Codex görevi yalnızca `Runtime/Domain/Rhythm` ve `Tests/EditMode` alanlarına dokunmalıdır.
+İlk geliştirme görevi yalnızca `Runtime/Domain/Rhythm` ve `Tests/EditMode` alanlarına dokunmalıdır.
 
 ## 6. Uzun vadeli Python yapısı
 
@@ -193,6 +193,6 @@ songTime = currentDspTime - scheduledSongStartDspTime + userOffset
 - Bir sınıf iki farklı nedenden değişiyorsa sorumluluğu yeniden değerlendirilir.
 - `Manager` adı varsayılan çözüm değildir.
 - Global singleton kullanılmaz.
-- Kod üretim aracı gereksiz paket ekleyemez.
+- Gereksiz paket eklenmez.
 - Her görev küçük, gözden geçirilebilir ve test edilebilir tutulur.
 - Yeni soyutlama yalnızca gerçek bir bağımlılık sınırı veya test ihtiyacı varsa eklenir.

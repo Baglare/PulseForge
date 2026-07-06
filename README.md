@@ -2,7 +2,7 @@
 
 **PulseForge**, bir ses dosyasındaki ritmik vuruşları analiz edip bunları oynanabilir bir ritim-dövüş prototipine dönüştürmeyi amaçlayan deneysel bir Unity projesidir.
 
-Şu anki sürüm final oyun değildir. Bu repo, önce sağlam bir ritim oynanış çekirdeği kurmayı, sonra ses analizinden gelen veriyi Unity içinde oynanabilir beatmap olarak kullanmayı hedefleyen aşamalı bir prototiptir. Yani büyülü “her şarkıyı kusursuz oyuna çeviren” sistem değil; ölçülebilir, test edilebilir ve geliştirilebilir bir temel. Daha az masal, daha çok mühendislik.
+Şu anki sürüm final oyun değildir. Bu repo, önce sağlam bir ritim oynanış çekirdeği kurmayı, sonra ses analizinden gelen veriyi Unity içinde oynanabilir beatmap olarak kullanmayı hedefleyen aşamalı bir prototiptir. Yani her şarkıyı kusursuz şekilde oyuna çeviren final bir sistem değil; ölçülebilir, test edilebilir ve geliştirilebilir bir teknik temeldir.
 
 ---
 
@@ -250,7 +250,7 @@ python tools/audio_analyzer/pulseforge_audio_analyzer.py Assets/PulseForge/Demo/
 
 ### Playable beatmap üret
 
-Debug click track içinde 3.00 ve 3.25 saniyelerde yakın eventler olduğu için demo map’te `hard` difficulty kullanmak daha uygundur. `normal` preset bu iki eventten birini seyreltebilir. Bu hata değil; postprocessor’ın oynanabilirlik filtresi çalışıyor, fazla itaatkâr küçük şey.
+Debug click track içinde 3.00 ve 3.25 saniyelerde yakın eventler olduğu için demo map’te `hard` difficulty kullanmak daha uygundur. `normal` preset bu iki eventten birini seyreltebilir. Bu hata değil; postprocessor’ın oynanabilirlik filtresinin beklenen davranışıdır.
 
 ```powershell
 python tools/audio_analyzer/postprocess_beatmap.py Assets/PulseForge/Demo/BeatMaps/BM_Raw_Debug_120BPM.json --output Assets/PulseForge/Demo/BeatMaps/BM_Playable_Debug_120BPM.json --display-name "Playable Debug 120 BPM" --difficulty hard --action-mode pattern --pattern Guard,Guard,Strike,Guard,Strike,Strike,Guard,Strike,Guard,Strike --report-output tools/audio_analyzer/out/postprocess_debug_120bpm_report.json
@@ -356,7 +356,7 @@ Milestone 5 ile aynı pencerede ek olarak:
 
 Bu pencere final beatmap editor veya waveform editor değildir. Şu anki rolü pipeline çıktısını incelemek, raporları özetlemek ve generated playable JSON'u prototype'a bağlamayı kolaylaştırmaktır.
 
-Bu işlem sahneyi otomatik kaydetmez. Bilinçli tercih. Otomatik sahne kaydetmek, editor tool dünyasında küçük bir mayın tarlasıdır.
+Bu işlem sahneyi otomatik kaydetmez. Bu tercih, editor aracının kullanıcı onayı olmadan sahne dosyasını değiştirmesini önlemek için korunur.
 
 ---
 
@@ -441,7 +441,7 @@ Python tools
 → Karşılaştırma ve diagnostics sağlar.
 ```
 
-Bu ayrımın amacı basit: Ses analizi değişince Unity gameplay çekirdeği yıkılmasın. Unity UI veya sahne feedback'i değişince Python analyzer etkilenmesin. Her sınıf kendi haddini bilsin; yazılımda bu hâlâ devrim niteliğinde bir beklenti.
+Bu ayrımın amacı basit: Ses analizi değişince Unity gameplay çekirdeği yıkılmasın. Unity UI veya sahne feedback'i değişince Python analyzer etkilenmesin. Her katmanın sorumluluğu sınırlı kaldığında değişikliklerin etkisi daha kolay izlenir.
 
 ---
 
@@ -505,7 +505,7 @@ Test edilen ana davranışlar:
 - Seviye seçme veya kullanıcı profili yok.
 - Online skor yok.
 
-Bunlar eksiklik değil, bu milestone’un sınırları. Sınır koymak, projenin kendini batırmasını önler. İnsanlık bunu keşfedeli uzun zaman oldu ama uygulama kısmı hâlâ zayıf.
+Bunlar eksiklik olarak değil, bu milestone’un bilinçli sınırları olarak değerlendirilmelidir. Sınırların açık tutulması, prototipin teknik hedefini ve değerlendirme kapsamını netleştirir.
 
 ---
 
@@ -572,7 +572,7 @@ PulseForge şu açılardan portfolyoda güçlü durur:
 - Data-driven beatmap workflow.
 - Dokümante edilmiş milestone geliştirme süreci.
 
-Bu proje sadece “Unity’de butona bastım” projesi değil. Runtime, tooling, veri akışı ve test tarafları birlikte düşünülmüş bir sistem. Bunu doğru anlatırsan teknik mülakatta malzeme çıkar. Yanlış anlatırsan yine “bir ritim oyunu yaptım” seviyesine düşer; o da fena değil ama daha düşük rütbe.
+Bu proje yalnızca bir Unity sahnesinden ibaret değildir. Runtime, tooling, veri akışı ve test tarafları birlikte ele alınmış bir teknik prototiptir. Doğru sunulduğunda teknik görüşmelerde mimari kararlar, veri pipeline’ı ve doğrulama yaklaşımı üzerinden güçlü tartışma zemini sağlar.
 
 ---
 

@@ -211,7 +211,7 @@ Bu milestone bilinçli olarak şu özellikleri hedeflemez:
 - Beatmap schema değişikliği.
 - Runtime audio analysis.
 
-Görseller primitive ve değiştirilebilir seviyededir. Bu iyi bir şeydir: Sistem final art'a kilitlenmeden önce ritim sonucunun sahnede nasıl okunacağını test eder.
+Görseller primitive ve değiştirilebilir seviyededir. Bu yaklaşım, sistem final art'a kilitlenmeden önce ritim sonucunun sahnede nasıl okunacağını test etmeyi sağlar.
 
 ## 11. Portfolyo değeri
 
