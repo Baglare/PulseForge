@@ -38,6 +38,10 @@ sysinfo.txt
 # Local analyzer diagnostics
 tools/audio_analyzer/out/
 
+# Local FFmpeg binary prepared for runtime tester builds
+/Assets/StreamingAssets/PulseForge/ffmpeg.exe
+/Assets/StreamingAssets/PulseForge/ffmpeg.exe.meta
+
 # Python cache
 __pycache__/
 *.pyc

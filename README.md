@@ -13,7 +13,7 @@ temeldir.
 
 ## Mevcut durum
 
-Şu ana kadar beş ana milestone tamamlandı:
+Şu ana kadar altı ana milestone tamamlandı:
 
 | Milestone | Durum | Açıklama |
 |---|---:|---|
@@ -22,6 +22,7 @@ temeldir.
 | Milestone 3: Forge Preview / Beatmap Visualization | Tamamlandı | Unity Editor Audio Pipeline penceresinde raw/playable timeline preview, report summary paneli ve generated JSON atama akışı. |
 | Milestone 4: Combat Visualization Prototype | Tamamlandı | OnGUI feedback'e ek olarak sahnede player/enemy, parry, slash, miss/hit taken ve intensity tabanlı efekt şiddeti gösteren debug combat visualization katmanı. |
 | Milestone 5: Combat Style Variants | Tamamlandı | Aynı ritim analizinden Balanced, Defensive, Aggressive ve Bursty playable beatmap varyantları üretme, karşılaştırma, preview etme ve prototype'a atama akışı. |
+| Milestone 6: Runtime Custom Song Import | Tamamlandı | Windows build içinde tester ses dosyası seçimi, FFmpeg ile PCM WAV dönüşümü, runtime Audio Pipeline ayarları ve kullanıcı kontrollü Start/Pause akışı. |
 
 Şu anda sistem şu akışı destekler:
 
@@ -43,6 +44,22 @@ Unity JSON import
 Debug rhythm-combat prototype
   ↓
 OnGUI + scene combat feedback
+```
+
+Windows tester build'i ayrıca şu runtime akışını destekler:
+
+```text
+MP3 / WAV / M4A / AAC / FLAC / OGG / OPUS / WMA / AIFF
+  ↓
+FFmpeg ile 44.1 kHz stereo PCM WAV
+  ↓
+Runtime hızlı onset analizi
+  ↓
+Guard / Strike quick beatmap
+  ↓
+Hazır runtime session
+  ↓
+Start / Restart ile DSP oynanış
 ```
 
 ---
@@ -72,6 +89,12 @@ OnGUI + scene combat feedback
   - Perfect / Good ve `BeatEvent` intensity değerine göre görsel şiddet farkı.
 - `RealtimeSongClock` ve `DspAudioSongClock` desteği.
 - AudioClip atanırsa DSP tabanlı zamanlama.
+- Windows build içinde `Choose Audio File` ile özel şarkı seçimi.
+- Seçilen şarkıyı otomatik PCM WAV'a dönüştürme ve runtime hızlı beatmap üretimi.
+- Runtime sahnede `Detection`, `Difficulty` ve `Combat Style` seçimi.
+- Açılışta ve başarılı pipeline çalışmasından sonra şarkıyı bekleme durumunda tutma.
+- Aynı kontrol satırında `Start / Restart` ve `Pause / Resume` düğmeleri.
+- Özel şarkı seçilmezse mevcut Inspector AudioClip/beatmap kaynaklarına geri düşme.
 - Debug beatmap için üç kaynak:
   1. JSON `TextAsset`
   2. `DebugBeatMapAsset` ScriptableObject
@@ -144,6 +167,8 @@ Demo sonrası repository temizliği için kontrol listesi: [docs/11-repository-c
 
 Combat Style Variants milestone ayrıntıları: [docs/12-combat-style-variants-milestone.md](docs/12-combat-style-variants-milestone.md)
 
+Windows tester build'i için özel şarkı hazırlama ve kullanım adımları: [docs/13-runtime-custom-song-import.md](docs/13-runtime-custom-song-import.md)
+
 Kısa demo akışı:
 
 1. `Tools > PulseForge > Audio Pipeline` penceresini aç.
@@ -160,6 +185,15 @@ Kısa style variant test akışı:
 4. `Aggressive` veya `Defensive` variantını preview et.
 5. Seçili `DebugRhythmPrototypeController` objesine variant JSON'u ata.
 6. Play Mode'da Guard / Strike dağılımını ve sahne feedback'ini test et.
+
+Kısa runtime custom song test akışı:
+
+1. Repository kökünde `powershell -ExecutionPolicy Bypass -File .\tools\runtime_audio\setup_ffmpeg.ps1` çalıştır.
+2. Windows build al.
+3. Build'i açıp sağ panelde `Runtime Audio Pipeline` ayarlarını seç.
+4. `Choose Audio & Run Pipeline` ile desteklenen bir ses dosyası seç.
+5. `Ready: ... (... beats)` mesajından sonra `Start / Restart` düğmesine bas.
+6. Oynanış sırasında `Pause`; devam etmek için aynı yerde `Resume` kullan.
 
 ### 1. Unity demo sahnesini aç
 
@@ -515,9 +549,9 @@ Test edilen ana davranışlar:
 
 Şu an sistemin yapmadıkları:
 
-- MP3 runtime import yok.
-- Gerçek zamanlı ses analizi yok.
-- Librosa, numpy, scipy, ffmpeg gibi dış bağımlılıklar yok.
+- Runtime custom song import yalnızca Windows build'de var.
+- Runtime analiz hızlı onset/peak üretimidir; final beat tracking değildir.
+- Editor Python pipeline'ı dış bağımlılıksızdır; runtime format dönüşümü için build'e ayrıca FFmpeg hazırlanır.
 - Gerçek müziklerde kusursuz beat detection iddiası yok.
 - Final UI yok.
 - Sahne combat feedback'i prototype seviyesindedir; final animasyon/sprite combat sistemi yok.
@@ -538,7 +572,7 @@ Sınırların açık tutulması, prototipin teknik hedefini ve değerlendirme ka
 
 ## Roadmap
 
-Milestone 5 ile Combat Style Variants tamamlandı. Önerilen sıradaki hazırlık veya milestone başlıkları:
+Milestone 6 ile Windows Runtime Custom Song Import tamamlandı. Önerilen sıradaki hazırlık veya milestone başlıkları:
 
 1. Project Cleanup / Demo Recording Prep
    - Demo sahnesi, README ve milestone dokümanlarını video kaydına hazır hale getirmek.
@@ -586,4 +620,5 @@ Sonraki iyileştirme başlıkları:
 - [docs/10-demo-recording-guide.md](docs/10-demo-recording-guide.md)
 - [docs/11-repository-cleanup-checklist.md](docs/11-repository-cleanup-checklist.md)
 - [docs/12-combat-style-variants-milestone.md](docs/12-combat-style-variants-milestone.md)
+- [docs/13-runtime-custom-song-import.md](docs/13-runtime-custom-song-import.md)
 - [tools/audio_analyzer/README.md](tools/audio_analyzer/README.md)

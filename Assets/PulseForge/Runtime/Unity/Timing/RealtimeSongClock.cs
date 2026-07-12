@@ -9,6 +9,8 @@ namespace PulseForge.Runtime.Unity.Timing
 
         public bool IsRunning { get; private set; }
 
+        public bool IsPaused { get; private set; }
+
         public double CurrentTimeSeconds
         {
             get
@@ -28,9 +30,21 @@ namespace PulseForge.Runtime.Unity.Timing
             startRealtimeSeconds = Time.realtimeSinceStartupAsDouble;
             stoppedTimeSeconds = 0d;
             IsRunning = true;
+            IsPaused = false;
         }
 
         public void Stop()
+        {
+            if (IsRunning)
+            {
+                stoppedTimeSeconds = CurrentTimeSeconds;
+            }
+
+            IsRunning = false;
+            IsPaused = false;
+        }
+
+        public void Pause()
         {
             if (!IsRunning)
             {
@@ -39,6 +53,19 @@ namespace PulseForge.Runtime.Unity.Timing
 
             stoppedTimeSeconds = CurrentTimeSeconds;
             IsRunning = false;
+            IsPaused = true;
+        }
+
+        public void Resume()
+        {
+            if (!IsPaused)
+            {
+                return;
+            }
+
+            startRealtimeSeconds = Time.realtimeSinceStartupAsDouble - stoppedTimeSeconds;
+            IsPaused = false;
+            IsRunning = true;
         }
 
         public void Restart()

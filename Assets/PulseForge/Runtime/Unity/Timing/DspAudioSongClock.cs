@@ -9,6 +9,7 @@ namespace PulseForge.Runtime.Unity.Timing
         private readonly AudioClip audioClip;
         private readonly double scheduleLeadTimeSeconds;
         private double scheduledStartDspTime;
+        private double pausedTimeSeconds;
 
         public DspAudioSongClock(AudioSource audioSource, AudioClip audioClip, double scheduleLeadTimeSeconds = 0.1d)
         {
@@ -34,10 +35,17 @@ namespace PulseForge.Runtime.Unity.Timing
 
         public bool IsRunning { get; private set; }
 
+        public bool IsPaused { get; private set; }
+
         public double CurrentTimeSeconds
         {
             get
             {
+                if (IsPaused)
+                {
+                    return pausedTimeSeconds;
+                }
+
                 if (!IsRunning)
                 {
                     return 0d;
@@ -54,12 +62,42 @@ namespace PulseForge.Runtime.Unity.Timing
             scheduledStartDspTime = AudioSettings.dspTime + scheduleLeadTimeSeconds;
             audioSource.PlayScheduled(scheduledStartDspTime);
             IsRunning = true;
+            IsPaused = false;
+            pausedTimeSeconds = 0d;
         }
 
         public void Stop()
         {
             audioSource.Stop();
             IsRunning = false;
+            IsPaused = false;
+            pausedTimeSeconds = 0d;
+        }
+
+        public void Pause()
+        {
+            if (!IsRunning)
+            {
+                return;
+            }
+
+            pausedTimeSeconds = CurrentTimeSeconds;
+            audioSource.Pause();
+            IsRunning = false;
+            IsPaused = true;
+        }
+
+        public void Resume()
+        {
+            if (!IsPaused)
+            {
+                return;
+            }
+
+            scheduledStartDspTime = AudioSettings.dspTime - pausedTimeSeconds;
+            audioSource.UnPause();
+            IsPaused = false;
+            IsRunning = true;
         }
 
         public void Restart()

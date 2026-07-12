@@ -4,11 +4,17 @@ namespace PulseForge.Runtime.Unity.Timing
     {
         bool IsRunning { get; }
 
+        bool IsPaused { get; }
+
         double CurrentTimeSeconds { get; }
 
         void Start();
 
         void Stop();
+
+        void Pause();
+
+        void Resume();
 
         void Restart();
     }

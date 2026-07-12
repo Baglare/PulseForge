@@ -1,0 +1,11 @@
+PulseForge runtime custom-song import requires ffmpeg.exe in this folder.
+
+From the repository root, run:
+powershell -ExecutionPolicy Bypass -File .\tools\runtime_audio\setup_ffmpeg.ps1
+
+The executable is intentionally not committed to Git. Before distributing a
+tester build, review the license of the exact FFmpeg binary you ship and include
+the notices/source-access materials required by that build's license.
+
+FFmpeg project: https://ffmpeg.org/
+FFmpeg legal information: https://ffmpeg.org/legal.html
