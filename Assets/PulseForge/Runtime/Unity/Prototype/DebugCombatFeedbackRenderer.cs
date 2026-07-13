@@ -1,4 +1,5 @@
 using PulseForge.Domain.Rhythm;
+using PulseForge.Runtime.Unity.UI;
 using UnityEngine;
 
 namespace PulseForge.Runtime.Unity.Prototype
@@ -51,6 +52,21 @@ namespace PulseForge.Runtime.Unity.Prototype
             lastGrade = HitGrade.Miss;
             feedbackText = "MISS / HIT TAKEN";
             feedbackUntilTime = nowSeconds + FeedbackDurationSeconds;
+        }
+
+        public PulseForgeFeedbackPresentation GetPresentation(double nowSeconds)
+        {
+            if (!IsFeedbackActive(nowSeconds))
+            {
+                return PulseForgeFeedbackPresentation.Hidden;
+            }
+
+            return new PulseForgeFeedbackPresentation(
+                true,
+                feedbackText,
+                lastAction,
+                lastGrade,
+                GetFeedbackAlpha(nowSeconds));
         }
 
         public void Draw(Rect area, double nowSeconds, bool isSessionRunning)

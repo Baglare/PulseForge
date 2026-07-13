@@ -2,11 +2,14 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using PulseForge.Domain.Rhythm;
 using PulseForge.Runtime.Unity.Audio;
 using PulseForge.Runtime.Unity.BeatMaps;
 using PulseForge.Runtime.Unity.Timing;
+using PulseForge.Runtime.Unity.UI;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace PulseForge.Runtime.Unity.Prototype
 {
@@ -78,10 +81,181 @@ namespace PulseForge.Runtime.Unity.Prototype
         private RuntimeDifficulty runtimeDifficulty = RuntimeDifficulty.Normal;
         private RuntimeCombatStyle runtimeCombatStyle = RuntimeCombatStyle.Legacy;
         private RuntimeAudioPipelineSettings appliedRuntimePipelineSettings = RuntimeAudioPipelineSettings.Default;
+        private readonly PulseForgeRuntimeFlow runtimeFlow = new PulseForgeRuntimeFlow();
+        private bool useRuntimeSessionSource;
+        private bool legacyDebugOverlayVisible;
+        private string setupStatusMessage = "Choose a song, select your settings, then analyze.";
+
+        public PulseForgeUIState UIState
+        {
+            get { return runtimeFlow.State; }
+        }
+
+        public PulseForgeProcessingStage ProcessingStage
+        {
+            get { return runtimeFlow.ProcessingStage; }
+        }
+
+        public RuntimeAudioPipelineSettings SelectedPipelineSettings
+        {
+            get { return new RuntimeAudioPipelineSettings(runtimeDetectionMode, runtimeDifficulty, runtimeCombatStyle); }
+        }
+
+        public RuntimeAudioPipelineSettings AppliedPipelineSettings
+        {
+            get { return appliedRuntimePipelineSettings; }
+        }
+
+        public ScoreSnapshot Score
+        {
+            get { return GetSnapshot(); }
+        }
+
+        public IReadOnlyList<BeatEventRuntime> SessionEvents
+        {
+            get { return session == null ? Array.Empty<BeatEventRuntime>() : session.Events; }
+        }
+
+        public int SessionEventCount
+        {
+            get { return session == null ? 0 : session.TotalEventCount; }
+        }
+
+        public bool HasBuiltInDemo
+        {
+            get
+            {
+                return debugAudioClip != null
+                    && (debugBeatMapJson != null || debugBeatMapAsset != null);
+            }
+        }
+
+        public bool HasSelectedAudio
+        {
+            get { return !string.IsNullOrWhiteSpace(runtimeFlow.SelectedAudioPath); }
+        }
+
+        public string SelectedAudioFileName
+        {
+            get
+            {
+                return HasSelectedAudio
+                    ? Path.GetFileName(runtimeFlow.SelectedAudioPath)
+                    : string.Empty;
+            }
+        }
+
+        public string SetupStatusMessage
+        {
+            get { return setupStatusMessage; }
+        }
+
+        public string RuntimeAudioImportStatus
+        {
+            get { return runtimeAudioImportStatus; }
+        }
+
+        public string ErrorMessage
+        {
+            get { return runtimeFlow.ErrorMessage; }
+        }
+
+        public string SongName
+        {
+            get
+            {
+                string value = useRuntimeSessionSource && !string.IsNullOrWhiteSpace(runtimeAudioDisplayName)
+                    ? runtimeAudioDisplayName
+                    : debugAudioClip == null ? "Built-in Demo" : debugAudioClip.name;
+                return value.Replace('_', ' ');
+            }
+        }
+
+        public string AppliedDetectionLabel
+        {
+            get
+            {
+                return useRuntimeSessionSource
+                    ? appliedRuntimePipelineSettings.DetectionMode.ToString()
+                    : "Built-in";
+            }
+        }
+
+        public string AppliedDifficultyLabel
+        {
+            get
+            {
+                return useRuntimeSessionSource
+                    ? appliedRuntimePipelineSettings.Difficulty.ToString()
+                    : ResolveBuiltInDifficultyLabel();
+            }
+        }
+
+        public string AppliedCombatStyleLabel
+        {
+            get
+            {
+                return useRuntimeSessionSource
+                    ? appliedRuntimePipelineSettings.CombatStyle.ToString()
+                    : ResolveBuiltInCombatStyleLabel();
+            }
+        }
+
+        public bool CanAnalyzeSelectedAudio
+        {
+            get
+            {
+                return UIState == PulseForgeUIState.Setup
+                    && HasSelectedAudio
+                    && !isRuntimeAudioImportBusy;
+            }
+        }
+
+        public bool CanStart
+        {
+            get { return UIState == PulseForgeUIState.Ready && session != null && !isRuntimeAudioImportBusy; }
+        }
+
+        public bool CanPause
+        {
+            get { return UIState == PulseForgeUIState.Playing && CanTogglePause; }
+        }
+
+        public bool IsPaused
+        {
+            get { return UIState == PulseForgeUIState.Paused; }
+        }
+
+        public bool IsComplete
+        {
+            get { return UIState == PulseForgeUIState.Completed; }
+        }
+
+        public double CurrentSongTimeSeconds
+        {
+            get { return CurrentTimeSeconds; }
+        }
+
+        public double SessionDurationSeconds
+        {
+            get { return GetSessionDurationSeconds(); }
+        }
+
+        public double CountdownRemainingSeconds
+        {
+            get { return GetCountdownRemainingSeconds(); }
+        }
+
+        public PulseForgeFeedbackPresentation CurrentFeedback
+        {
+            get { return combatFeedbackRenderer.GetPresentation(GetPresentationTimeSeconds()); }
+        }
 
         private void Start()
         {
+            runtimeFlow.ReturnToSetup(false);
             PrepareSession(false);
+            PulseForgeUIBootstrap.EnsureFor(this);
         }
 
         private void OnDestroy()
@@ -95,6 +269,8 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private void Update()
         {
+            HandleRuntimeKeyboardInput();
+
             if (isCountdownActive)
             {
                 UpdateCountdown();
@@ -127,8 +303,12 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private void OnGUI()
         {
+            if (!legacyDebugOverlayVisible)
+            {
+                return;
+            }
+
             EnsureHudStyles();
-            HandleKeyboardEvent(Event.current);
 
             CalculateHudRects(out Rect mainAreaRect, out Rect rightPanelRect);
             DrawMainArea(mainAreaRect);
@@ -355,6 +535,179 @@ namespace PulseForge.Runtime.Unity.Prototype
             }
         }
 
+        public void SetDetectionMode(RuntimeDetectionMode detectionMode)
+        {
+            if (UIState == PulseForgeUIState.Setup && !isRuntimeAudioImportBusy)
+            {
+                runtimeDetectionMode = detectionMode;
+            }
+        }
+
+        public void SetDifficulty(RuntimeDifficulty difficulty)
+        {
+            if (UIState == PulseForgeUIState.Setup && !isRuntimeAudioImportBusy)
+            {
+                runtimeDifficulty = difficulty;
+            }
+        }
+
+        public void SetCombatStyle(RuntimeCombatStyle combatStyle)
+        {
+            if (UIState == PulseForgeUIState.Setup && !isRuntimeAudioImportBusy)
+            {
+                runtimeCombatStyle = combatStyle;
+            }
+        }
+
+        public void SelectAudioFile()
+        {
+            if (isRuntimeAudioImportBusy)
+            {
+                return;
+            }
+
+            if (!WindowsAudioFilePicker.TryPickAudioFile(out string selectedPath, out string pickerError))
+            {
+                if (!string.IsNullOrEmpty(pickerError))
+                {
+                    runtimeAudioImportStatus = pickerError;
+                    setupStatusMessage = pickerError;
+                    lastFeedback = pickerError;
+                    runtimeFlow.MarkError(pickerError);
+                }
+
+                return;
+            }
+
+            if (runtimeFlow.SelectAudioPath(selectedPath))
+            {
+                runtimeAudioImportStatus = "Audio selected: " + Path.GetFileName(selectedPath);
+                setupStatusMessage = "Song selected. Choose settings, then analyze.";
+            }
+        }
+
+        public void AnalyzeSelectedAudio()
+        {
+            if (isRuntimeAudioImportBusy || !runtimeFlow.BeginProcessing())
+            {
+                return;
+            }
+
+            RuntimeAudioPipelineSettings settings = SelectedPipelineSettings;
+            StartCoroutine(ImportRuntimeAudio(runtimeFlow.SelectedAudioPath, settings));
+        }
+
+        public void RetryAnalysis()
+        {
+            if (isRuntimeAudioImportBusy)
+            {
+                return;
+            }
+
+            if (!HasSelectedAudio)
+            {
+                runtimeFlow.ReturnToSetup(false);
+                return;
+            }
+
+            AnalyzeSelectedAudio();
+        }
+
+        public void PlayBuiltInDemo()
+        {
+            if (!HasBuiltInDemo || isRuntimeAudioImportBusy)
+            {
+                return;
+            }
+
+            StopClock();
+            isCountdownActive = false;
+            ClearPendingInput();
+            useRuntimeSessionSource = false;
+            if (PrepareSession(false))
+            {
+                runtimeFlow.MarkReady();
+            }
+        }
+
+        public void StartSession()
+        {
+            if (CanStart)
+            {
+                RestartSession();
+            }
+        }
+
+        public void RestartSession()
+        {
+            if (isRuntimeAudioImportBusy)
+            {
+                return;
+            }
+
+            runtimeFlow.MarkReady();
+            PrepareSession(true);
+        }
+
+        public void PauseSession()
+        {
+            if (!CanPause)
+            {
+                return;
+            }
+
+            ClearPendingInput();
+            songClock.Pause();
+            runtimeFlow.Pause();
+            lastFeedback = "Session paused";
+        }
+
+        public void ResumeSession()
+        {
+            if (UIState != PulseForgeUIState.Paused || songClock == null || !songClock.IsPaused)
+            {
+                return;
+            }
+
+            ClearPendingInput();
+            songClock.Resume();
+            runtimeFlow.Resume();
+            lastFeedback = "Session resumed";
+        }
+
+        public void RequestGuard()
+        {
+            HandleInput(RhythmAction.Guard);
+        }
+
+        public void RequestStrike()
+        {
+            HandleInput(RhythmAction.Strike);
+        }
+
+        public void ChangeSettings()
+        {
+            ReturnToSetup(false);
+        }
+
+        public void ChooseAnotherSong()
+        {
+            ReturnToSetup(true);
+        }
+
+        private void ReturnToSetup(bool clearSelectedAudio)
+        {
+            StopClock();
+            isCountdownActive = false;
+            ClearPendingInput();
+            runtimeFlow.ReturnToSetup(clearSelectedAudio);
+            setupStatusMessage = clearSelectedAudio
+                ? "Choose a song, select your settings, then analyze."
+                : HasSelectedAudio
+                    ? "Adjust settings, then analyze the song again."
+                    : "Choose a song, select your settings, then analyze.";
+        }
+
         private void DrawSourceInfo()
         {
             GUILayout.Space(CardSpacing);
@@ -554,12 +907,7 @@ namespace PulseForge.Runtime.Unity.Prototype
                 + " ms)";
         }
 
-        private void RestartSession()
-        {
-            PrepareSession(true);
-        }
-
-        private void PrepareSession(bool startAfterPreparation)
+        private bool PrepareSession(bool startAfterPreparation)
         {
             ResetCombatSceneView();
 
@@ -584,6 +932,8 @@ namespace PulseForge.Runtime.Unity.Prototype
                     isCountdownActive = false;
                     lastFeedback = "Press Start / Restart";
                 }
+
+                return true;
             }
             catch (Exception exception)
             {
@@ -595,13 +945,15 @@ namespace PulseForge.Runtime.Unity.Prototype
                 combatFeedbackRenderer.Clear();
                 ClearLastInputTimingError();
                 lastFeedback = FormatBeatMapError(exception);
+                runtimeFlow.MarkError(lastFeedback);
+                return false;
             }
         }
 
         private IReadOnlyList<BeatEventData> CreateSessionBeatEvents()
         {
             IReadOnlyList<BeatEventData> beatEvents;
-            if (runtimeBeatEvents != null)
+            if (useRuntimeSessionSource && runtimeBeatEvents != null)
             {
                 beatEvents = runtimeBeatEvents;
             }
@@ -670,6 +1022,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             countdownDurationSeconds = Mathf.Max(0f, startCountdownSeconds);
             countdownStartedAtSeconds = GetPresentationTimeSeconds();
             ClearPendingInput();
+            runtimeFlow.BeginSession(countdownDurationSeconds > 0d);
 
             if (countdownDurationSeconds <= 0d)
             {
@@ -702,8 +1055,14 @@ namespace PulseForge.Runtime.Unity.Prototype
             }
 
             songClock.Start();
+            runtimeFlow.MarkPlaying();
             lastFeedback = "Session started";
             StopIfComplete();
+        }
+
+        private void LateUpdate()
+        {
+            RefreshCombatSceneVisibility();
         }
 
         private void StopClock()
@@ -755,22 +1114,21 @@ namespace PulseForge.Runtime.Unity.Prototype
                 return;
             }
 
-            ClearPendingInput();
             if (songClock.IsPaused)
             {
-                songClock.Resume();
-                lastFeedback = "Session resumed";
+                ResumeSession();
             }
             else
             {
-                songClock.Pause();
-                lastFeedback = "Session paused";
+                PauseSession();
             }
         }
 
         private AudioClip GetActiveAudioClip()
         {
-            return runtimeAudioClip != null ? runtimeAudioClip : debugAudioClip;
+            return useRuntimeSessionSource && runtimeAudioClip != null
+                ? runtimeAudioClip
+                : debugAudioClip;
         }
 
         private void BeginRuntimeAudioImport()
@@ -791,11 +1149,10 @@ namespace PulseForge.Runtime.Unity.Prototype
                 return;
             }
 
-            RuntimeAudioPipelineSettings settings = new RuntimeAudioPipelineSettings(
-                runtimeDetectionMode,
-                runtimeDifficulty,
-                runtimeCombatStyle);
-            StartCoroutine(ImportRuntimeAudio(selectedPath, settings));
+            if (runtimeFlow.SelectAudioPath(selectedPath))
+            {
+                AnalyzeSelectedAudio();
+            }
         }
 
         private IEnumerator ImportRuntimeAudio(
@@ -803,14 +1160,16 @@ namespace PulseForge.Runtime.Unity.Prototype
             RuntimeAudioPipelineSettings pipelineSettings)
         {
             isRuntimeAudioImportBusy = true;
-            runtimeAudioImportStatus = "Preparing " + System.IO.Path.GetFileName(sourcePath) + "...";
+            runtimeAudioImportStatus = "Audio selected";
+            runtimeFlow.SetProcessingStage(PulseForgeProcessingStage.AudioSelected);
+            yield return null;
 
             RuntimeAudioImportResult importResult = null;
             string importError = string.Empty;
             yield return RuntimeAudioImportService.ImportAudio(
                 sourcePath,
                 pipelineSettings,
-                status => runtimeAudioImportStatus = status,
+                SetRuntimeAudioImportStatus,
                 result => importResult = result,
                 error => importError = error);
 
@@ -821,49 +1180,113 @@ namespace PulseForge.Runtime.Unity.Prototype
                     ? "Audio import did not return a result."
                     : importError;
                 lastFeedback = runtimeAudioImportStatus;
+                runtimeFlow.MarkError(runtimeAudioImportStatus);
                 yield break;
             }
 
             StopClock();
             AudioClip previousRuntimeAudioClip = runtimeAudioClip;
+            IReadOnlyList<BeatEventData> previousRuntimeBeatEvents = runtimeBeatEvents;
+            string previousRuntimeAudioDisplayName = runtimeAudioDisplayName;
+            RuntimeAudioPipelineSettings previousAppliedSettings = appliedRuntimePipelineSettings;
+            bool previousUseRuntimeSessionSource = useRuntimeSessionSource;
             runtimeAudioClip = importResult.AudioClip;
             runtimeBeatEvents = importResult.BeatEvents;
             runtimeAudioDisplayName = importResult.DisplayName;
             appliedRuntimePipelineSettings = pipelineSettings;
-            runtimeAudioImportStatus = "Ready: "
-                + runtimeAudioDisplayName
-                + " ("
-                + runtimeBeatEvents.Count.ToString(CultureInfo.InvariantCulture)
-                + " beats, "
-                + pipelineSettings.Difficulty
-                + ", "
-                + pipelineSettings.CombatStyle
-                + ")";
+            useRuntimeSessionSource = true;
+
+            if (!PrepareSession(false))
+            {
+                string preparationError = lastFeedback;
+                runtimeAudioClip = previousRuntimeAudioClip;
+                runtimeBeatEvents = previousRuntimeBeatEvents;
+                runtimeAudioDisplayName = previousRuntimeAudioDisplayName;
+                appliedRuntimePipelineSettings = previousAppliedSettings;
+                useRuntimeSessionSource = previousUseRuntimeSessionSource;
+                Destroy(importResult.AudioClip);
+                PrepareSession(false);
+                runtimeAudioImportStatus = preparationError;
+                lastFeedback = preparationError;
+                runtimeFlow.MarkError(preparationError);
+                yield break;
+            }
 
             if (previousRuntimeAudioClip != null && previousRuntimeAudioClip != runtimeAudioClip)
             {
                 Destroy(previousRuntimeAudioClip);
             }
 
-            PrepareSession(false);
+            runtimeAudioImportStatus = "Ready";
+            runtimeFlow.SetProcessingStage(PulseForgeProcessingStage.Ready);
+            yield return null;
+            runtimeFlow.MarkReady();
+            setupStatusMessage = "Song analyzed and ready to play.";
         }
 
-        private void HandleKeyboardEvent(Event currentEvent)
+        private void SetRuntimeAudioImportStatus(string status)
         {
-            if (!IsSessionRunning || currentEvent == null || currentEvent.type != EventType.KeyDown)
+            runtimeAudioImportStatus = status ?? string.Empty;
+            if (runtimeAudioImportStatus.IndexOf("Converting", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                runtimeFlow.SetProcessingStage(PulseForgeProcessingStage.ConvertingToWav);
+            }
+            else if (runtimeAudioImportStatus.IndexOf("Loading", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                runtimeFlow.SetProcessingStage(PulseForgeProcessingStage.LoadingConvertedAudio);
+            }
+            else if (runtimeAudioImportStatus.IndexOf("Detecting", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                runtimeFlow.SetProcessingStage(PulseForgeProcessingStage.DetectingRhythm);
+            }
+            else if (runtimeAudioImportStatus.IndexOf("Building", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                runtimeFlow.SetProcessingStage(PulseForgeProcessingStage.BuildingCombatSequence);
+            }
+            else if (runtimeAudioImportStatus.IndexOf("Ready", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                runtimeFlow.SetProcessingStage(PulseForgeProcessingStage.Ready);
+            }
+        }
+
+        private void HandleRuntimeKeyboardInput()
+        {
+            Keyboard keyboard = Keyboard.current;
+            if (keyboard == null)
             {
                 return;
             }
 
-            if (currentEvent.keyCode == KeyCode.Space)
+            if (keyboard.f1Key.wasPressedThisFrame)
+            {
+                legacyDebugOverlayVisible = !legacyDebugOverlayVisible;
+            }
+
+            if (keyboard.escapeKey.wasPressedThisFrame)
+            {
+                if (UIState == PulseForgeUIState.Playing)
+                {
+                    PauseSession();
+                }
+                else if (UIState == PulseForgeUIState.Paused)
+                {
+                    ResumeSession();
+                }
+            }
+
+            if (UIState != PulseForgeUIState.Playing)
+            {
+                return;
+            }
+
+            if (keyboard.spaceKey.wasPressedThisFrame)
             {
                 HandleInput(RhythmAction.Guard);
-                currentEvent.Use();
             }
-            else if (currentEvent.keyCode == KeyCode.J)
+
+            if (keyboard.jKey.wasPressedThisFrame)
             {
                 HandleInput(RhythmAction.Strike);
-                currentEvent.Use();
             }
         }
 
@@ -986,6 +1409,20 @@ namespace PulseForge.Runtime.Unity.Prototype
             }
         }
 
+        private void RefreshCombatSceneVisibility()
+        {
+            ResolveCombatSceneView();
+            if (combatSceneView == null)
+            {
+                return;
+            }
+
+            bool isVisible = UIState == PulseForgeUIState.Countdown
+                || UIState == PulseForgeUIState.Playing
+                || UIState == PulseForgeUIState.Paused;
+            combatSceneView.SetVisible(isVisible);
+        }
+
         private void ShowCombatSceneHit(RhythmAction action, HitGrade grade, float intensity)
         {
             ResolveCombatSceneView();
@@ -1095,6 +1532,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             }
 
             songClock.Stop();
+            runtimeFlow.Complete();
             lastFeedback = "Session complete";
         }
 
@@ -1228,7 +1666,7 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private string GetAudioClipStatus()
         {
-            if (runtimeAudioClip != null)
+            if (useRuntimeSessionSource && runtimeAudioClip != null)
             {
                 return "Runtime: " + runtimeAudioDisplayName;
             }
@@ -1238,7 +1676,7 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private string GetBeatMapSourceName()
         {
-            if (runtimeBeatEvents != null)
+            if (useRuntimeSessionSource && runtimeBeatEvents != null)
             {
                 return "Runtime pipeline: "
                     + runtimeAudioDisplayName
@@ -1280,7 +1718,7 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private string FormatBeatMapError(Exception exception)
         {
-            if (runtimeBeatEvents != null)
+            if (useRuntimeSessionSource && runtimeBeatEvents != null)
             {
                 return "Runtime beat map error: " + exception.Message;
             }
@@ -1291,6 +1729,79 @@ namespace PulseForge.Runtime.Unity.Prototype
             }
 
             return "Beat map error: " + exception.Message;
+        }
+
+        private double GetSessionDurationSeconds()
+        {
+            AudioClip activeAudioClip = GetActiveAudioClip();
+            if (activeAudioClip != null && activeAudioClip.length > 0f)
+            {
+                return activeAudioClip.length;
+            }
+
+            if (session == null || session.Events.Count == 0)
+            {
+                return 0d;
+            }
+
+            double lastEventTimeSeconds = 0d;
+            for (int i = 0; i < session.Events.Count; i++)
+            {
+                lastEventTimeSeconds = Math.Max(
+                    lastEventTimeSeconds,
+                    session.Events[i].Data.TargetTimeSeconds);
+            }
+
+            return lastEventTimeSeconds + GoodWindowSeconds;
+        }
+
+        private string ResolveBuiltInDifficultyLabel()
+        {
+            string sourceName = GetBuiltInBeatMapName();
+            if (sourceName.IndexOf("Easy", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return RuntimeDifficulty.Easy.ToString();
+            }
+
+            if (sourceName.IndexOf("Hard", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return RuntimeDifficulty.Hard.ToString();
+            }
+
+            return RuntimeDifficulty.Normal.ToString();
+        }
+
+        private string ResolveBuiltInCombatStyleLabel()
+        {
+            string sourceName = GetBuiltInBeatMapName();
+            RuntimeCombatStyle[] styles =
+            {
+                RuntimeCombatStyle.Balanced,
+                RuntimeCombatStyle.Defensive,
+                RuntimeCombatStyle.Aggressive,
+                RuntimeCombatStyle.Bursty
+            };
+
+            for (int i = 0; i < styles.Length; i++)
+            {
+                string styleName = styles[i].ToString();
+                if (sourceName.IndexOf(styleName, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return styleName;
+                }
+            }
+
+            return RuntimeCombatStyle.Legacy.ToString();
+        }
+
+        private string GetBuiltInBeatMapName()
+        {
+            if (debugBeatMapJson != null)
+            {
+                return debugBeatMapJson.name;
+            }
+
+            return debugBeatMapAsset == null ? string.Empty : debugBeatMapAsset.name;
         }
 
         private double GetCountdownRemainingSeconds()

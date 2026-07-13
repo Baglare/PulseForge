@@ -362,7 +362,7 @@ namespace PulseForge.Runtime.Unity.Audio
         }
     }
 
-    internal readonly struct RuntimeAudioPipelineSettings
+    public readonly struct RuntimeAudioPipelineSettings
     {
         public RuntimeAudioPipelineSettings(
             RuntimeDetectionMode detectionMode,
@@ -392,20 +392,20 @@ namespace PulseForge.Runtime.Unity.Audio
         public RuntimeCombatStyle CombatStyle { get; }
     }
 
-    internal enum RuntimeDetectionMode
+    public enum RuntimeDetectionMode
     {
         Amplitude,
         Onset
     }
 
-    internal enum RuntimeDifficulty
+    public enum RuntimeDifficulty
     {
         Easy,
         Normal,
         Hard
     }
 
-    internal enum RuntimeCombatStyle
+    public enum RuntimeCombatStyle
     {
         Legacy,
         Balanced,

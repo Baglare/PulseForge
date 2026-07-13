@@ -89,7 +89,7 @@ namespace PulseForge.Tests.EditMode
                 SetNonPublicField(controller, "startCountdownSeconds", 0f);
 
                 InvokeNonPublic(controller, "Start");
-                InvokeNonPublic(controller, "RestartSession");
+                Invoke(controller, "RestartSession");
 
                 object clock = GetNonPublicField(controller, "songClock");
                 AssertClockState(clock, true, false);

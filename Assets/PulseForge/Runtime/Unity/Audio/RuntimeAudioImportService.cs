@@ -55,7 +55,7 @@ namespace PulseForge.Runtime.Unity.Audio
 
             string outputDirectory = Path.Combine(Application.persistentDataPath, "ImportedAudio");
             string outputPath = Path.Combine(outputDirectory, "pulseforge-imported.wav");
-            statusChanged("Converting to PCM WAV...");
+            statusChanged("Converting to WAV...");
 
             Task<ConversionResult> conversionTask = Task.Run(
                 () => ConvertToWav(ffmpegPath, sourcePath, outputDirectory, outputPath));
@@ -81,7 +81,7 @@ namespace PulseForge.Runtime.Unity.Audio
                 yield break;
             }
 
-            statusChanged("Loading converted WAV...");
+            statusChanged("Loading converted audio...");
             string audioUri = new Uri(outputPath).AbsoluteUri;
             using (UnityWebRequest request = UnityWebRequestMultimedia.GetAudioClip(audioUri, AudioType.WAV))
             {
@@ -113,7 +113,8 @@ namespace PulseForge.Runtime.Unity.Audio
                 }
 
                 audioClip.name = Path.GetFileNameWithoutExtension(sourcePath);
-                statusChanged("Creating a quick runtime beatmap...");
+                statusChanged("Detecting rhythm...");
+                yield return null;
 
                 IReadOnlyList<BeatEventData> beatEvents;
                 try
@@ -126,6 +127,9 @@ namespace PulseForge.Runtime.Unity.Audio
                     failed("Beat detection failed: " + exception.Message);
                     yield break;
                 }
+
+                statusChanged("Building combat sequence...");
+                yield return null;
 
                 completed(new RuntimeAudioImportResult(
                     audioClip,

@@ -32,6 +32,7 @@ namespace PulseForge.Runtime.Unity.Prototype
         private SpriteRenderer[] parrySparkRenderers;
         private SpriteRenderer slashGlowRenderer;
         private SpriteRenderer slashCoreRenderer;
+        private Transform visualRoot;
         private Transform parryEffectRoot;
         private Transform slashEffectRoot;
         private TextMesh playerLabel;
@@ -62,6 +63,15 @@ namespace PulseForge.Runtime.Unity.Prototype
             activeFeedbackDurationSeconds = 0f;
             feedbackRemainingSeconds = 0f;
             ApplyHiddenFeedbackState();
+        }
+
+        public void SetVisible(bool isVisible)
+        {
+            EnsureViewObjects();
+            if (visualRoot.gameObject.activeSelf != isVisible)
+            {
+                visualRoot.gameObject.SetActive(isVisible);
+            }
         }
 
         public void ShowHit(RhythmAction action, HitGrade grade)
@@ -158,22 +168,23 @@ namespace PulseForge.Runtime.Unity.Prototype
         private void EnsureViewObjects()
         {
             Sprite sprite = GetOrCreateSprite();
+            visualRoot = GetOrCreateChild("Combat Visual Root", transform);
 
-            playerRenderer = GetOrCreateSpriteRenderer("Player", transform);
+            playerRenderer = GetOrCreateSpriteRenderer("Player", visualRoot);
             playerRenderer.sprite = sprite;
             playerRenderer.sortingOrder = CharacterSortingOrder;
 
-            enemyRenderer = GetOrCreateSpriteRenderer("Enemy", transform);
+            enemyRenderer = GetOrCreateSpriteRenderer("Enemy", visualRoot);
             enemyRenderer.sprite = sprite;
             enemyRenderer.sortingOrder = CharacterSortingOrder;
 
-            playerLabel = GetOrCreateTextMesh("PlayerLabel", transform);
+            playerLabel = GetOrCreateTextMesh("PlayerLabel", visualRoot);
             ConfigureLabel(playerLabel, "PLAYER");
 
-            enemyLabel = GetOrCreateTextMesh("EnemyLabel", transform);
+            enemyLabel = GetOrCreateTextMesh("EnemyLabel", visualRoot);
             ConfigureLabel(enemyLabel, "ENEMY");
 
-            parryEffectRoot = GetOrCreateChild("ParryEffect", transform);
+            parryEffectRoot = GetOrCreateChild("ParryEffect", visualRoot);
             parryEffectRoot.localRotation = Quaternion.identity;
             parrySparkRenderers = new[]
             {
@@ -184,12 +195,12 @@ namespace PulseForge.Runtime.Unity.Prototype
                 ConfigureEffectSprite("SparkSlashB", parryEffectRoot, sprite, new Vector2(0.62f, 0.05f), -45f)
             };
 
-            slashEffectRoot = GetOrCreateChild("SlashEffect", transform);
+            slashEffectRoot = GetOrCreateChild("SlashEffect", visualRoot);
             slashEffectRoot.localRotation = Quaternion.Euler(0f, 0f, -28f);
             slashGlowRenderer = ConfigureEffectSprite("SlashGlow", slashEffectRoot, sprite, new Vector2(1.55f, 0.18f), 0f);
             slashCoreRenderer = ConfigureEffectSprite("SlashCore", slashEffectRoot, sprite, new Vector2(1.32f, 0.07f), 0f);
 
-            feedbackText = GetOrCreateTextMesh("FeedbackText", transform);
+            feedbackText = GetOrCreateTextMesh("FeedbackText", visualRoot);
             ConfigureFeedbackText();
             ApplyCharacterBaseState();
         }
