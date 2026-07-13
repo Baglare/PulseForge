@@ -133,6 +133,8 @@ GameObject:
   - component: {fileID: 1054522}
   - component: {fileID: 1054521}
   - component: {fileID: 1054525}
+  - component: {fileID: 1054527}
+  - component: {fileID: 1054526}
   m_Layer: 0
   m_Name: Change Settings
   m_TagString: Untagged
@@ -277,6 +279,32 @@ MonoBehaviour:
   m_EffectColor: {r: 0.16078432, g: 0.23137255, b: 0.3137255, a: 0.94}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &1054526
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1054519}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 599061839}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion
+  button: {fileID: 0}
+  runner: {fileID: 0}
+--- !u!225 &1054527
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1054519}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &7019981
 GameObject:
   m_ObjectHideFlags: 0
@@ -523,6 +551,7 @@ GameObject:
   - component: {fileID: 95301093}
   - component: {fileID: 95301092}
   - component: {fileID: 95301095}
+  - component: {fileID: 95301096}
   m_Layer: 0
   m_Name: Legacy
   m_TagString: Untagged
@@ -647,6 +676,20 @@ MonoBehaviour:
   m_EffectColor: {r: 0.16078432, g: 0.23137255, b: 0.3137255, a: 0.94}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &95301096
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 95301090}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 599061839}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion
+  button: {fileID: 0}
+  runner: {fileID: 0}
 --- !u!1 &111352851
 GameObject:
   m_ObjectHideFlags: 0
@@ -835,6 +878,7 @@ GameObject:
   - component: {fileID: 136210809}
   - component: {fileID: 136210808}
   - component: {fileID: 136210807}
+  - component: {fileID: 136210810}
   m_Layer: 0
   m_Name: Detecting rhythm
   m_TagString: Untagged
@@ -923,6 +967,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 136210805}
   m_CullTransparentMesh: 1
+--- !u!225 &136210810
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 136210805}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &138797290
 GameObject:
   m_ObjectHideFlags: 0
@@ -1114,6 +1170,7 @@ GameObject:
   - component: {fileID: 171226761}
   - component: {fileID: 171226760}
   - component: {fileID: 171226759}
+  - component: {fileID: 171226762}
   m_Layer: 0
   m_Name: Detection
   m_TagString: Untagged
@@ -1202,6 +1259,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 171226757}
   m_CullTransparentMesh: 1
+--- !u!225 &171226762
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 171226757}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &174420870
 GameObject:
   m_ObjectHideFlags: 0
@@ -1214,6 +1283,7 @@ GameObject:
   - component: {fileID: 174420874}
   - component: {fileID: 174420873}
   - component: {fileID: 174420871}
+  - component: {fileID: 174420875}
   m_Layer: 0
   m_Name: Error Panel
   m_TagString: Untagged
@@ -1295,6 +1365,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 174420870}
   m_CullTransparentMesh: 1
+--- !u!225 &174420875
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 174420870}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &186565869
 GameObject:
   m_ObjectHideFlags: 0
@@ -1307,6 +1389,7 @@ GameObject:
   - component: {fileID: 186565873}
   - component: {fileID: 186565872}
   - component: {fileID: 186565871}
+  - component: {fileID: 186565874}
   m_Layer: 0
   m_Name: Events
   m_TagString: Untagged
@@ -1395,6 +1478,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 186565869}
   m_CullTransparentMesh: 1
+--- !u!225 &186565874
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 186565869}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &200382134
 GameObject:
   m_ObjectHideFlags: 0
@@ -1486,6 +1581,7 @@ GameObject:
   - component: {fileID: 202617030}
   - component: {fileID: 202617029}
   - component: {fileID: 202617028}
+  - component: {fileID: 202617031}
   m_Layer: 0
   m_Name: Difficulty
   m_TagString: Untagged
@@ -1574,6 +1670,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 202617026}
   m_CullTransparentMesh: 1
+--- !u!225 &202617031
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 202617026}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &213493717
 GameObject:
   m_ObjectHideFlags: 0
@@ -1586,6 +1694,7 @@ GameObject:
   - component: {fileID: 213493721}
   - component: {fileID: 213493720}
   - component: {fileID: 213493719}
+  - component: {fileID: 213493722}
   m_Layer: 0
   m_Name: Converting to WAV
   m_TagString: Untagged
@@ -1674,6 +1783,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 213493717}
   m_CullTransparentMesh: 1
+--- !u!225 &213493722
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 213493717}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &213559245
 GameObject:
   m_ObjectHideFlags: 0
@@ -1686,6 +1807,7 @@ GameObject:
   - component: {fileID: 213559249}
   - component: {fileID: 213559248}
   - component: {fileID: 213559247}
+  - component: {fileID: 213559250}
   m_Layer: 0
   m_Name: Combat Style
   m_TagString: Untagged
@@ -1774,6 +1896,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 213559245}
   m_CullTransparentMesh: 1
+--- !u!225 &213559250
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 213559245}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &217995421
 GameObject:
   m_ObjectHideFlags: 0
@@ -1786,6 +1920,7 @@ GameObject:
   - component: {fileID: 217995425}
   - component: {fileID: 217995424}
   - component: {fileID: 217995423}
+  - component: {fileID: 217995426}
   m_Layer: 0
   m_Name: Good
   m_TagString: Untagged
@@ -1874,6 +2009,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 217995421}
   m_CullTransparentMesh: 1
+--- !u!225 &217995426
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 217995421}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &226140523
 GameObject:
   m_ObjectHideFlags: 0
@@ -2309,6 +2456,7 @@ GameObject:
   - component: {fileID: 289488428}
   - component: {fileID: 289488427}
   - component: {fileID: 289488426}
+  - component: {fileID: 289488429}
   m_Layer: 0
   m_Name: Audio Source Label
   m_TagString: Untagged
@@ -2397,6 +2545,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 289488424}
   m_CullTransparentMesh: 1
+--- !u!225 &289488429
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 289488424}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &296496905
 GameObject:
   m_ObjectHideFlags: 0
@@ -2409,6 +2569,7 @@ GameObject:
   - component: {fileID: 296496908}
   - component: {fileID: 296496907}
   - component: {fileID: 296496909}
+  - component: {fileID: 296496910}
   m_Layer: 0
   m_Name: Ready Panel
   m_TagString: Untagged
@@ -2495,6 +2656,18 @@ MonoBehaviour:
   startButton: {fileID: 1181280377}
   settingsButton: {fileID: 1054522}
   anotherSongButton: {fileID: 2090184659}
+--- !u!225 &296496910
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 296496905}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &325293354
 GameObject:
   m_ObjectHideFlags: 0
@@ -2544,6 +2717,7 @@ GameObject:
   - component: {fileID: 333249854}
   - component: {fileID: 333249853}
   - component: {fileID: 333249855}
+  - component: {fileID: 333249856}
   m_Layer: 0
   m_Name: Results Panel
   m_TagString: Untagged
@@ -2630,6 +2804,18 @@ MonoBehaviour:
   settingsText: {fileID: 425162917}
   replayButton: {fileID: 470401003}
   anotherSongButton: {fileID: 904797221}
+--- !u!225 &333249856
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 333249851}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &337546397
 GameObject:
   m_ObjectHideFlags: 0
@@ -2643,6 +2829,7 @@ GameObject:
   - component: {fileID: 337546400}
   - component: {fileID: 337546399}
   - component: {fileID: 337546402}
+  - component: {fileID: 337546403}
   m_Layer: 0
   m_Name: Choose Custom Audio
   m_TagString: Untagged
@@ -2767,6 +2954,20 @@ MonoBehaviour:
   m_EffectColor: {r: 0.16078432, g: 0.23137255, b: 0.3137255, a: 0.94}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &337546403
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 337546397}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 599061839}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion
+  button: {fileID: 0}
+  runner: {fileID: 0}
 --- !u!1 &356567913
 GameObject:
   m_ObjectHideFlags: 0
@@ -2854,6 +3055,7 @@ GameObject:
   - component: {fileID: 367617378}
   - component: {fileID: 367617377}
   - component: {fileID: 367617379}
+  - component: {fileID: 367617380}
   m_Layer: 0
   m_Name: Pause Overlay
   m_TagString: Untagged
@@ -2935,6 +3137,18 @@ MonoBehaviour:
   resumeButton: {fileID: 554762369}
   restartButton: {fileID: 2089083391}
   changeSongButton: {fileID: 1239106783}
+--- !u!225 &367617380
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 367617375}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &387638059
 GameObject:
   m_ObjectHideFlags: 0
@@ -3216,6 +3430,7 @@ GameObject:
   - component: {fileID: 425162918}
   - component: {fileID: 425162917}
   - component: {fileID: 425162916}
+  - component: {fileID: 425162919}
   m_Layer: 0
   m_Name: 
   m_TagString: Untagged
@@ -3304,6 +3519,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 425162914}
   m_CullTransparentMesh: 1
+--- !u!225 &425162919
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 425162914}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &451190214
 GameObject:
   m_ObjectHideFlags: 0
@@ -3316,6 +3543,7 @@ GameObject:
   - component: {fileID: 451190217}
   - component: {fileID: 451190216}
   - component: {fileID: 451190218}
+  - component: {fileID: 451190219}
   m_Layer: 0
   m_Name: Top HUD
   m_TagString: Untagged
@@ -3400,6 +3628,18 @@ MonoBehaviour:
   m_EffectColor: {r: 0.16078432, g: 0.23137255, b: 0.3137255, a: 0.72}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!225 &451190219
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 451190214}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &470401000
 GameObject:
   m_ObjectHideFlags: 0
@@ -3414,6 +3654,8 @@ GameObject:
   - component: {fileID: 470401003}
   - component: {fileID: 470401002}
   - component: {fileID: 470401006}
+  - component: {fileID: 470401008}
+  - component: {fileID: 470401007}
   m_Layer: 0
   m_Name: Replay
   m_TagString: Untagged
@@ -3558,6 +3800,32 @@ MonoBehaviour:
   m_EffectColor: {r: 0.23137255, g: 0.7490196, b: 0.9529412, a: 0.92}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &470401007
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 470401000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 599061839}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion
+  button: {fileID: 0}
+  runner: {fileID: 0}
+--- !u!225 &470401008
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 470401000}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &472562066
 GameObject:
   m_ObjectHideFlags: 0
@@ -3571,6 +3839,7 @@ GameObject:
   - component: {fileID: 472562069}
   - component: {fileID: 472562068}
   - component: {fileID: 472562071}
+  - component: {fileID: 472562072}
   m_Layer: 0
   m_Name: Normal
   m_TagString: Untagged
@@ -3695,6 +3964,20 @@ MonoBehaviour:
   m_EffectColor: {r: 0.16078432, g: 0.23137255, b: 0.3137255, a: 0.94}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &472562072
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 472562066}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 599061839}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion
+  button: {fileID: 0}
+  runner: {fileID: 0}
 --- !u!1 &473293102
 GameObject:
   m_ObjectHideFlags: 0
@@ -4020,6 +4303,7 @@ GameObject:
   m_Component:
   - component: {fileID: 498569255}
   - component: {fileID: 498569256}
+  - component: {fileID: 498569257}
   m_Layer: 0
   m_Name: Countdown Overlay
   m_TagString: Untagged
@@ -4061,6 +4345,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.CountdownOverlayView
   panelRoot: {fileID: 498569254}
   countdownText: {fileID: 1020429678}
+--- !u!225 &498569257
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 498569254}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &499628918
 GameObject:
   m_ObjectHideFlags: 0
@@ -4148,6 +4444,7 @@ GameObject:
   - component: {fileID: 550783985}
   - component: {fileID: 550783984}
   - component: {fileID: 550783983}
+  - component: {fileID: 550783986}
   m_Layer: 0
   m_Name: Audio selected
   m_TagString: Untagged
@@ -4236,6 +4533,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 550783981}
   m_CullTransparentMesh: 1
+--- !u!225 &550783986
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 550783981}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &554441327
 GameObject:
   m_ObjectHideFlags: 0
@@ -4249,6 +4558,7 @@ GameObject:
   - component: {fileID: 554441330}
   - component: {fileID: 554441329}
   - component: {fileID: 554441332}
+  - component: {fileID: 554441333}
   m_Layer: 0
   m_Name: Results Panel Card
   m_TagString: Untagged
@@ -4363,6 +4673,18 @@ MonoBehaviour:
   m_EffectColor: {r: 0.16078432, g: 0.23137255, b: 0.3137255, a: 1}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!225 &554441333
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 554441327}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &554762366
 GameObject:
   m_ObjectHideFlags: 0
@@ -4377,6 +4699,7 @@ GameObject:
   - component: {fileID: 554762369}
   - component: {fileID: 554762368}
   - component: {fileID: 554762372}
+  - component: {fileID: 554762373}
   m_Layer: 0
   m_Name: Resume
   m_TagString: Untagged
@@ -4521,6 +4844,20 @@ MonoBehaviour:
   m_EffectColor: {r: 0.23137255, g: 0.7490196, b: 0.9529412, a: 0.92}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &554762373
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 554762366}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 599061839}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion
+  button: {fileID: 0}
+  runner: {fileID: 0}
 --- !u!1 &568439811
 GameObject:
   m_ObjectHideFlags: 0
@@ -4533,6 +4870,7 @@ GameObject:
   - component: {fileID: 568439815}
   - component: {fileID: 568439814}
   - component: {fileID: 568439813}
+  - component: {fileID: 568439816}
   m_Layer: 0
   m_Name: Building combat sequence
   m_TagString: Untagged
@@ -4621,6 +4959,33 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 568439811}
   m_CullTransparentMesh: 1
+--- !u!225 &568439816
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 568439811}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
+--- !u!115 &599061839
+MonoScript:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  serializedVersion: 7
+  m_DefaultReferences: {}
+  m_Icon: {fileID: 0}
+  m_Type: 0
+  m_ExecutionOrder: 0
+  m_ClassName: PulseForgeUIButtonMotion
+  m_Namespace: PulseForge.Runtime.Unity.UI
+  m_AssemblyName: Assembly-CSharp
 --- !u!1 &611914327
 GameObject:
   m_ObjectHideFlags: 0
@@ -4941,6 +5306,7 @@ GameObject:
   - component: {fileID: 680509479}
   - component: {fileID: 680509478}
   - component: {fileID: 680509477}
+  - component: {fileID: 680509480}
   m_Layer: 0
   m_Name: Description
   m_TagString: Untagged
@@ -5029,6 +5395,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 680509475}
   m_CullTransparentMesh: 1
+--- !u!225 &680509480
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 680509475}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &682954392
 GameObject:
   m_ObjectHideFlags: 0
@@ -5042,6 +5420,7 @@ GameObject:
   - component: {fileID: 682954395}
   - component: {fileID: 682954394}
   - component: {fileID: 682954397}
+  - component: {fileID: 682954398}
   m_Layer: 0
   m_Name: Aggressive
   m_TagString: Untagged
@@ -5166,6 +5545,20 @@ MonoBehaviour:
   m_EffectColor: {r: 0.16078432, g: 0.23137255, b: 0.3137255, a: 0.94}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &682954398
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 682954392}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 599061839}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion
+  button: {fileID: 682954394}
+  runner: {fileID: 1664536437}
 --- !u!1 &687526444
 GameObject:
   m_ObjectHideFlags: 0
@@ -5254,6 +5647,7 @@ GameObject:
   - component: {fileID: 699496196}
   - component: {fileID: 699496195}
   - component: {fileID: 699496198}
+  - component: {fileID: 699496199}
   m_Layer: 0
   m_Name: Bursty
   m_TagString: Untagged
@@ -5378,6 +5772,20 @@ MonoBehaviour:
   m_EffectColor: {r: 0.16078432, g: 0.23137255, b: 0.3137255, a: 0.94}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &699496199
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 699496193}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 599061839}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion
+  button: {fileID: 699496195}
+  runner: {fileID: 1664536437}
 --- !u!1 &702210486
 GameObject:
   m_ObjectHideFlags: 0
@@ -5391,6 +5799,7 @@ GameObject:
   - component: {fileID: 702210489}
   - component: {fileID: 702210488}
   - component: {fileID: 702210491}
+  - component: {fileID: 702210492}
   m_Layer: 0
   m_Name: Defensive
   m_TagString: Untagged
@@ -5515,6 +5924,20 @@ MonoBehaviour:
   m_EffectColor: {r: 0.16078432, g: 0.23137255, b: 0.3137255, a: 0.94}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &702210492
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 702210486}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 599061839}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion
+  button: {fileID: 702210488}
+  runner: {fileID: 1664536437}
 --- !u!1 &741468866
 GameObject:
   m_ObjectHideFlags: 0
@@ -5707,6 +6130,7 @@ GameObject:
   - component: {fileID: 749977060}
   - component: {fileID: 749977059}
   - component: {fileID: 749977062}
+  - component: {fileID: 749977063}
   m_Layer: 0
   m_Name: Amplitude
   m_TagString: Untagged
@@ -5831,6 +6255,20 @@ MonoBehaviour:
   m_EffectColor: {r: 0.16078432, g: 0.23137255, b: 0.3137255, a: 0.94}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &749977063
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 749977057}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 599061839}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion
+  button: {fileID: 749977059}
+  runner: {fileID: 1664536437}
 --- !u!1 &819662465
 GameObject:
   m_ObjectHideFlags: 0
@@ -5845,6 +6283,8 @@ GameObject:
   - component: {fileID: 819662468}
   - component: {fileID: 819662467}
   - component: {fileID: 819662471}
+  - component: {fileID: 819662473}
+  - component: {fileID: 819662472}
   m_Layer: 0
   m_Name: Analyze Song
   m_TagString: Untagged
@@ -5989,6 +6429,32 @@ MonoBehaviour:
   m_EffectColor: {r: 0.23137255, g: 0.7490196, b: 0.9529412, a: 0.92}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &819662472
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 819662465}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 599061839}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion
+  button: {fileID: 819662468}
+  runner: {fileID: 1664536437}
+--- !u!225 &819662473
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 819662465}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &839528393
 GameObject:
   m_ObjectHideFlags: 0
@@ -6580,6 +7046,7 @@ GameObject:
   - component: {fileID: 899543865}
   - component: {fileID: 899543864}
   - component: {fileID: 899543867}
+  - component: {fileID: 899543868}
   m_Layer: 0
   m_Name: Pause
   m_TagString: Untagged
@@ -6704,6 +7171,20 @@ MonoBehaviour:
   m_EffectColor: {r: 0, g: 0, b: 0, a: 0}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &899543868
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 899543862}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 599061839}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion
+  button: {fileID: 899543864}
+  runner: {fileID: 1664536437}
 --- !u!1 &904797218
 GameObject:
   m_ObjectHideFlags: 0
@@ -6718,6 +7199,8 @@ GameObject:
   - component: {fileID: 904797221}
   - component: {fileID: 904797220}
   - component: {fileID: 904797224}
+  - component: {fileID: 904797226}
+  - component: {fileID: 904797225}
   m_Layer: 0
   m_Name: Choose Another Song
   m_TagString: Untagged
@@ -6862,6 +7345,32 @@ MonoBehaviour:
   m_EffectColor: {r: 0, g: 0, b: 0, a: 0}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &904797225
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 904797218}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 599061839}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion
+  button: {fileID: 904797221}
+  runner: {fileID: 1664536437}
+--- !u!225 &904797226
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 904797218}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &904848289
 GameObject:
   m_ObjectHideFlags: 0
@@ -6872,6 +7381,7 @@ GameObject:
   m_Component:
   - component: {fileID: 904848290}
   - component: {fileID: 904848291}
+  - component: {fileID: 904848292}
   m_Layer: 0
   m_Name: Gameplay HUD
   m_TagString: Untagged
@@ -6921,6 +7431,18 @@ MonoBehaviour:
   feedbackText: {fileID: 1651650447}
   pauseButton: {fileID: 899543864}
   rhythmLaneView: {fileID: 1289856529}
+--- !u!225 &904848292
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 904848289}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &910306634
 GameObject:
   m_ObjectHideFlags: 0
@@ -6933,6 +7455,7 @@ GameObject:
   - component: {fileID: 910306638}
   - component: {fileID: 910306637}
   - component: {fileID: 910306636}
+  - component: {fileID: 910306639}
   m_Layer: 0
   m_Name: Heading
   m_TagString: Untagged
@@ -7021,6 +7544,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 910306634}
   m_CullTransparentMesh: 1
+--- !u!225 &910306639
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 910306634}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &913899795
 GameObject:
   m_ObjectHideFlags: 0
@@ -7034,6 +7569,7 @@ GameObject:
   - component: {fileID: 913899798}
   - component: {fileID: 913899797}
   - component: {fileID: 913899800}
+  - component: {fileID: 913899801}
   m_Layer: 0
   m_Name: Processing Panel Card
   m_TagString: Untagged
@@ -7148,6 +7684,18 @@ MonoBehaviour:
   m_EffectColor: {r: 0.16078432, g: 0.23137255, b: 0.3137255, a: 1}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!225 &913899801
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 913899795}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &924609239
 GameObject:
   m_ObjectHideFlags: 0
@@ -7279,6 +7827,7 @@ GameObject:
   - component: {fileID: 955288210}
   - component: {fileID: 955288207}
   - component: {fileID: 955288211}
+  - component: {fileID: 955288212}
   m_Layer: 0
   m_Name: Retry
   m_TagString: Untagged
@@ -7423,6 +7972,20 @@ MonoBehaviour:
   m_EffectColor: {r: 0.23137255, g: 0.7490196, b: 0.9529412, a: 0.92}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &955288212
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 955288205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 599061839}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion
+  button: {fileID: 955288210}
+  runner: {fileID: 1664536437}
 --- !u!1 &990408682
 GameObject:
   m_ObjectHideFlags: 0
@@ -7479,6 +8042,7 @@ GameObject:
   - component: {fileID: 1003807839}
   - component: {fileID: 1003807838}
   - component: {fileID: 1003807840}
+  - component: {fileID: 1003807841}
   m_Layer: 0
   m_Name: Processing Panel
   m_TagString: Untagged
@@ -7566,6 +8130,18 @@ MonoBehaviour:
   - {fileID: 136210808}
   - {fileID: 568439814}
   - {fileID: 1599435873}
+--- !u!225 &1003807841
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1003807836}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &1020429676
 GameObject:
   m_ObjectHideFlags: 0
@@ -7985,6 +8561,7 @@ GameObject:
   - component: {fileID: 1128772026}
   - component: {fileID: 1128772025}
   - component: {fileID: 1128772024}
+  - component: {fileID: 1128772027}
   m_Layer: 0
   m_Name: Heading
   m_TagString: Untagged
@@ -8073,6 +8650,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1128772022}
   m_CullTransparentMesh: 1
+--- !u!225 &1128772027
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1128772022}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &1156169027
 GameObject:
   m_ObjectHideFlags: 0
@@ -8241,6 +8830,8 @@ GameObject:
   - component: {fileID: 1181280377}
   - component: {fileID: 1181280376}
   - component: {fileID: 1181280380}
+  - component: {fileID: 1181280382}
+  - component: {fileID: 1181280381}
   m_Layer: 0
   m_Name: Start
   m_TagString: Untagged
@@ -8385,6 +8976,32 @@ MonoBehaviour:
   m_EffectColor: {r: 0.23137255, g: 0.7490196, b: 0.9529412, a: 0.92}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &1181280381
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1181280374}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 599061839}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion
+  button: {fileID: 1181280377}
+  runner: {fileID: 1664536437}
+--- !u!225 &1181280382
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1181280374}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &1207436466
 GameObject:
   m_ObjectHideFlags: 0
@@ -8476,6 +9093,7 @@ GameObject:
   - component: {fileID: 1216786043}
   - component: {fileID: 1216786042}
   - component: {fileID: 1216786041}
+  - component: {fileID: 1216786044}
   m_Layer: 0
   m_Name: Total Score
   m_TagString: Untagged
@@ -8564,6 +9182,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1216786039}
   m_CullTransparentMesh: 1
+--- !u!225 &1216786044
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1216786039}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &1239106780
 GameObject:
   m_ObjectHideFlags: 0
@@ -8578,6 +9208,7 @@ GameObject:
   - component: {fileID: 1239106783}
   - component: {fileID: 1239106782}
   - component: {fileID: 1239106786}
+  - component: {fileID: 1239106787}
   m_Layer: 0
   m_Name: Change Song
   m_TagString: Untagged
@@ -8722,6 +9353,20 @@ MonoBehaviour:
   m_EffectColor: {r: 0, g: 0, b: 0, a: 0}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &1239106787
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1239106780}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 599061839}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion
+  button: {fileID: 1239106783}
+  runner: {fileID: 1664536437}
 --- !u!1 &1250485132
 GameObject:
   m_ObjectHideFlags: 0
@@ -8735,6 +9380,7 @@ GameObject:
   - component: {fileID: 1250485135}
   - component: {fileID: 1250485134}
   - component: {fileID: 1250485137}
+  - component: {fileID: 1250485138}
   m_Layer: 0
   m_Name: Selected Audio Card
   m_TagString: Untagged
@@ -8835,6 +9481,18 @@ MonoBehaviour:
   m_EffectColor: {r: 0.16078432, g: 0.23137255, b: 0.3137255, a: 1}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!225 &1250485138
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1250485132}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &1258518802
 GameObject:
   m_ObjectHideFlags: 0
@@ -8846,6 +9504,7 @@ GameObject:
   - component: {fileID: 1258518803}
   - component: {fileID: 1258518805}
   - component: {fileID: 1258518804}
+  - component: {fileID: 1258518806}
   m_Layer: 0
   m_Name: Combat Style Selector
   m_TagString: Untagged
@@ -8920,6 +9579,18 @@ MonoBehaviour:
   m_FlexibleWidth: 1
   m_FlexibleHeight: 0
   m_LayoutPriority: 1
+--- !u!225 &1258518806
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1258518802}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &1263633466
 GameObject:
   m_ObjectHideFlags: 0
@@ -8933,6 +9604,7 @@ GameObject:
   - component: {fileID: 1263633469}
   - component: {fileID: 1263633468}
   - component: {fileID: 1263633471}
+  - component: {fileID: 1263633472}
   m_Layer: 0
   m_Name: Hard
   m_TagString: Untagged
@@ -9057,6 +9729,20 @@ MonoBehaviour:
   m_EffectColor: {r: 0.16078432, g: 0.23137255, b: 0.3137255, a: 0.94}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &1263633472
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1263633466}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 599061839}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion
+  button: {fileID: 1263633468}
+  runner: {fileID: 1664536437}
 --- !u!1 &1286701823
 GameObject:
   m_ObjectHideFlags: 0
@@ -9344,6 +10030,7 @@ GameObject:
   - component: {fileID: 1355135969}
   - component: {fileID: 1355135968}
   - component: {fileID: 1355135971}
+  - component: {fileID: 1355135972}
   m_Layer: 0
   m_Name: Easy
   m_TagString: Untagged
@@ -9468,6 +10155,20 @@ MonoBehaviour:
   m_EffectColor: {r: 0.16078432, g: 0.23137255, b: 0.3137255, a: 0.94}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &1355135972
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1355135966}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 599061839}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion
+  button: {fileID: 1355135968}
+  runner: {fileID: 1664536437}
 --- !u!1 &1388547724
 GameObject:
   m_ObjectHideFlags: 0
@@ -9480,6 +10181,7 @@ GameObject:
   - component: {fileID: 1388547728}
   - component: {fileID: 1388547727}
   - component: {fileID: 1388547726}
+  - component: {fileID: 1388547729}
   m_Layer: 0
   m_Name: Song
   m_TagString: Untagged
@@ -9568,6 +10270,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1388547724}
   m_CullTransparentMesh: 1
+--- !u!225 &1388547729
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1388547724}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &1414151585
 GameObject:
   m_ObjectHideFlags: 0
@@ -9580,6 +10294,7 @@ GameObject:
   - component: {fileID: 1414151589}
   - component: {fileID: 1414151588}
   - component: {fileID: 1414151587}
+  - component: {fileID: 1414151590}
   m_Layer: 0
   m_Name: Title
   m_TagString: Untagged
@@ -9668,6 +10383,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1414151585}
   m_CullTransparentMesh: 1
+--- !u!225 &1414151590
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1414151585}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &1454667061
 GameObject:
   m_ObjectHideFlags: 0
@@ -10058,6 +10785,7 @@ GameObject:
   - component: {fileID: 1504930551}
   - component: {fileID: 1504930553}
   - component: {fileID: 1504930552}
+  - component: {fileID: 1504930554}
   m_Layer: 0
   m_Name: Detection Selector
   m_TagString: Untagged
@@ -10132,6 +10860,18 @@ MonoBehaviour:
   m_FlexibleWidth: 1
   m_FlexibleHeight: 0
   m_LayoutPriority: 1
+--- !u!225 &1504930554
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1504930550}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &1511481070
 GameObject:
   m_ObjectHideFlags: 0
@@ -10143,6 +10883,7 @@ GameObject:
   - component: {fileID: 1511481071}
   - component: {fileID: 1511481073}
   - component: {fileID: 1511481072}
+  - component: {fileID: 1511481074}
   m_Layer: 0
   m_Name: Difficulty Selector
   m_TagString: Untagged
@@ -10217,6 +10958,18 @@ MonoBehaviour:
   m_FlexibleWidth: 1
   m_FlexibleHeight: 0
   m_LayoutPriority: 1
+--- !u!225 &1511481074
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1511481070}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &1543166787
 GameObject:
   m_ObjectHideFlags: 0
@@ -10329,6 +11082,7 @@ GameObject:
   - component: {fileID: 1545431210}
   - component: {fileID: 1545431209}
   - component: {fileID: 1545431208}
+  - component: {fileID: 1545431211}
   m_Layer: 0
   m_Name: Miss
   m_TagString: Untagged
@@ -10417,6 +11171,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1545431206}
   m_CullTransparentMesh: 1
+--- !u!225 &1545431211
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1545431206}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &1549803945
 GameObject:
   m_ObjectHideFlags: 0
@@ -10505,6 +11271,7 @@ GameObject:
   - component: {fileID: 1562668072}
   - component: {fileID: 1562668071}
   - component: {fileID: 1562668074}
+  - component: {fileID: 1562668075}
   m_Layer: 0
   m_Name: Pause Card
   m_TagString: Untagged
@@ -10614,6 +11381,18 @@ MonoBehaviour:
   m_EffectColor: {r: 0.16078432, g: 0.23137255, b: 0.3137255, a: 1}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!225 &1562668075
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1562668069}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &1566134293
 GameObject:
   m_ObjectHideFlags: 0
@@ -10626,6 +11405,7 @@ GameObject:
   - component: {fileID: 1566134297}
   - component: {fileID: 1566134296}
   - component: {fileID: 1566134295}
+  - component: {fileID: 1566134298}
   m_Layer: 0
   m_Name: Perfect
   m_TagString: Untagged
@@ -10714,6 +11494,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1566134293}
   m_CullTransparentMesh: 1
+--- !u!225 &1566134298
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1566134293}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &1569745241
 GameObject:
   m_ObjectHideFlags: 0
@@ -10802,6 +11594,7 @@ GameObject:
   - component: {fileID: 1599435874}
   - component: {fileID: 1599435873}
   - component: {fileID: 1599435872}
+  - component: {fileID: 1599435875}
   m_Layer: 0
   m_Name: Ready
   m_TagString: Untagged
@@ -10890,6 +11683,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1599435870}
   m_CullTransparentMesh: 1
+--- !u!225 &1599435875
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1599435870}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &1609803007
 GameObject:
   m_ObjectHideFlags: 0
@@ -11067,6 +11872,7 @@ GameObject:
   - component: {fileID: 1647558981}
   - component: {fileID: 1647558980}
   - component: {fileID: 1647558983}
+  - component: {fileID: 1647558984}
   m_Layer: 0
   m_Name: Play Built-in Demo
   m_TagString: Untagged
@@ -11191,6 +11997,20 @@ MonoBehaviour:
   m_EffectColor: {r: 0, g: 0, b: 0, a: 0}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &1647558984
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1647558978}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 599061839}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion
+  button: {fileID: 1647558980}
+  runner: {fileID: 1664536437}
 --- !u!1 &1651650445
 GameObject:
   m_ObjectHideFlags: 0
@@ -11203,13 +12023,14 @@ GameObject:
   - component: {fileID: 1651650448}
   - component: {fileID: 1651650447}
   - component: {fileID: 1651650449}
+  - component: {fileID: 1651650450}
   m_Layer: 0
   m_Name: Combat Feedback
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1651650446
 RectTransform:
   m_ObjectHideFlags: 0
@@ -11286,6 +12107,18 @@ MonoBehaviour:
   m_EffectColor: {r: 0.03137255, g: 0.050980393, b: 0.08627451, a: 0.94}
   m_EffectDistance: {x: 2, y: -2}
   m_UseGraphicAlpha: 1
+--- !u!225 &1651650450
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1651650445}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &1664536432
 GameObject:
   m_ObjectHideFlags: 0
@@ -11297,6 +12130,9 @@ GameObject:
   - component: {fileID: 1664536435}
   - component: {fileID: 1664536434}
   - component: {fileID: 1664536433}
+  - component: {fileID: 1664536437}
+  - component: {fileID: 1664536436}
+  - component: {fileID: 1664536438}
   m_Layer: 0
   m_Name: PulseForge UI
   m_TagString: Untagged
@@ -11339,6 +12175,9 @@ MonoBehaviour:
   resultsPanel: {fileID: 333249855}
   errorPanel: {fileID: 174420871}
   eventSystem: {fileID: 226140525}
+  enableMotion: 1
+  motionController: {fileID: 1664536436}
+  gameplayFeedbackController: {fileID: 1664536438}
 --- !u!224 &1664536435
 RectTransform:
   m_ObjectHideFlags: 0
@@ -11359,6 +12198,46 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1664536436
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1664536432}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b1d37a5bd81a4238ba789ce7f39083e4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIMotionController
+  sceneRoot: {fileID: 1664536434}
+  runner: {fileID: 1664536437}
+--- !u!114 &1664536437
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1664536432}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30ea2b34924841c49f337cf2faf780ec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIMotionRunner
+--- !u!114 &1664536438
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1664536432}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79a2aa468f794a14a6968cdca9b19421, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeGameplayFeedbackController
+  sceneRoot: {fileID: 1664536434}
+  runner: {fileID: 1664536437}
 --- !u!1 &1670152945
 GameObject:
   m_ObjectHideFlags: 0
@@ -11450,6 +12329,7 @@ GameObject:
   - component: {fileID: 1692841078}
   - component: {fileID: 1692841077}
   - component: {fileID: 1692841079}
+  - component: {fileID: 1692841080}
   m_Layer: 0
   m_Name: Setup Panel
   m_TagString: Untagged
@@ -11546,6 +12426,18 @@ MonoBehaviour:
   - {fileID: 702210488}
   - {fileID: 682954394}
   - {fileID: 699496195}
+--- !u!225 &1692841080
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1692841075}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &1744210608
 GameObject:
   m_ObjectHideFlags: 0
@@ -11826,6 +12718,7 @@ GameObject:
   - component: {fileID: 1818798024}
   - component: {fileID: 1818798023}
   - component: {fileID: 1818798026}
+  - component: {fileID: 1818798027}
   m_Layer: 0
   m_Name: Ready Panel Card
   m_TagString: Untagged
@@ -11940,6 +12833,18 @@ MonoBehaviour:
   m_EffectColor: {r: 0.16078432, g: 0.23137255, b: 0.3137255, a: 1}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!225 &1818798027
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1818798021}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &1851005985
 GameObject:
   m_ObjectHideFlags: 0
@@ -12211,6 +13116,7 @@ GameObject:
   - component: {fileID: 1879326494}
   - component: {fileID: 1879326493}
   - component: {fileID: 1879326496}
+  - component: {fileID: 1879326497}
   m_Layer: 0
   m_Name: Onset
   m_TagString: Untagged
@@ -12335,6 +13241,20 @@ MonoBehaviour:
   m_EffectColor: {r: 0.16078432, g: 0.23137255, b: 0.3137255, a: 0.94}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &1879326497
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1879326491}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 599061839}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion
+  button: {fileID: 1879326493}
+  runner: {fileID: 1664536437}
 --- !u!1 &1890008192
 GameObject:
   m_ObjectHideFlags: 0
@@ -12504,6 +13424,7 @@ GameObject:
   - component: {fileID: 1910193899}
   - component: {fileID: 1910193901}
   - component: {fileID: 1910193900}
+  - component: {fileID: 1910193902}
   m_Layer: 0
   m_Name: Audio Source Actions
   m_TagString: Untagged
@@ -12578,6 +13499,18 @@ MonoBehaviour:
   m_FlexibleWidth: 1
   m_FlexibleHeight: 0
   m_LayoutPriority: 1
+--- !u!225 &1910193902
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1910193898}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &1947071078
 GameObject:
   m_ObjectHideFlags: 0
@@ -12770,6 +13703,7 @@ GameObject:
   - component: {fileID: 2020729893}
   - component: {fileID: 2020729892}
   - component: {fileID: 2020729895}
+  - component: {fileID: 2020729896}
   m_Layer: 0
   m_Name: Error Panel Card
   m_TagString: Untagged
@@ -12879,6 +13813,18 @@ MonoBehaviour:
   m_EffectColor: {r: 0.16078432, g: 0.23137255, b: 0.3137255, a: 1}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!225 &2020729896
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2020729890}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &2025507608
 GameObject:
   m_ObjectHideFlags: 0
@@ -12891,6 +13837,7 @@ GameObject:
   - component: {fileID: 2025507612}
   - component: {fileID: 2025507611}
   - component: {fileID: 2025507610}
+  - component: {fileID: 2025507613}
   m_Layer: 0
   m_Name: Loading converted audio
   m_TagString: Untagged
@@ -12979,6 +13926,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2025507608}
   m_CullTransparentMesh: 1
+--- !u!225 &2025507613
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2025507608}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &2051070078
 GameObject:
   m_ObjectHideFlags: 0
@@ -12993,6 +13952,7 @@ GameObject:
   - component: {fileID: 2051070079}
   - component: {fileID: 2051070081}
   - component: {fileID: 2051070084}
+  - component: {fileID: 2051070085}
   m_Layer: 0
   m_Name: Back to Setup
   m_TagString: Untagged
@@ -13137,6 +14097,20 @@ MonoBehaviour:
   m_EffectColor: {r: 0, g: 0, b: 0, a: 0}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &2051070085
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2051070078}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 599061839}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion
+  button: {fileID: 2051070079}
+  runner: {fileID: 1664536437}
 --- !u!1 &2063618743
 GameObject:
   m_ObjectHideFlags: 0
@@ -13444,6 +14418,7 @@ GameObject:
   - component: {fileID: 2084886896}
   - component: {fileID: 2084886895}
   - component: {fileID: 2084886898}
+  - component: {fileID: 2084886899}
   m_Layer: 0
   m_Name: Balanced
   m_TagString: Untagged
@@ -13568,6 +14543,20 @@ MonoBehaviour:
   m_EffectColor: {r: 0.16078432, g: 0.23137255, b: 0.3137255, a: 0.94}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &2084886899
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2084886893}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 599061839}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion
+  button: {fileID: 2084886895}
+  runner: {fileID: 1664536437}
 --- !u!1 &2085516716
 GameObject:
   m_ObjectHideFlags: 0
@@ -13581,6 +14570,7 @@ GameObject:
   - component: {fileID: 2085516719}
   - component: {fileID: 2085516718}
   - component: {fileID: 2085516721}
+  - component: {fileID: 2085516722}
   m_Layer: 0
   m_Name: Setup Card
   m_TagString: Untagged
@@ -13696,6 +14686,18 @@ MonoBehaviour:
   m_EffectColor: {r: 0.16078432, g: 0.23137255, b: 0.3137255, a: 1}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!225 &2085516722
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2085516716}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &2089083388
 GameObject:
   m_ObjectHideFlags: 0
@@ -13710,6 +14712,7 @@ GameObject:
   - component: {fileID: 2089083391}
   - component: {fileID: 2089083390}
   - component: {fileID: 2089083394}
+  - component: {fileID: 2089083395}
   m_Layer: 0
   m_Name: Restart Track
   m_TagString: Untagged
@@ -13854,6 +14857,20 @@ MonoBehaviour:
   m_EffectColor: {r: 0.16078432, g: 0.23137255, b: 0.3137255, a: 0.94}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &2089083395
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2089083388}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 599061839}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion
+  button: {fileID: 2089083391}
+  runner: {fileID: 1664536437}
 --- !u!1 &2090184656
 GameObject:
   m_ObjectHideFlags: 0
@@ -13868,6 +14885,8 @@ GameObject:
   - component: {fileID: 2090184659}
   - component: {fileID: 2090184658}
   - component: {fileID: 2090184662}
+  - component: {fileID: 2090184664}
+  - component: {fileID: 2090184663}
   m_Layer: 0
   m_Name: Choose Another Song
   m_TagString: Untagged
@@ -14012,6 +15031,32 @@ MonoBehaviour:
   m_EffectColor: {r: 0, g: 0, b: 0, a: 0}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &2090184663
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2090184656}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 599061839}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion
+  button: {fileID: 2090184659}
+  runner: {fileID: 1664536437}
+--- !u!225 &2090184664
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2090184656}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &2146017652
 GameObject:
   m_ObjectHideFlags: 0
@@ -14024,6 +15069,7 @@ GameObject:
   - component: {fileID: 2146017656}
   - component: {fileID: 2146017655}
   - component: {fileID: 2146017654}
+  - component: {fileID: 2146017657}
   m_Layer: 0
   m_Name: Max Combo
   m_TagString: Untagged
@@ -14112,6 +15158,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2146017652}
   m_CullTransparentMesh: 1
+--- !u!225 &2146017657
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2146017652}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &2146389320
 GameObject:
   m_ObjectHideFlags: 0
@@ -14124,6 +15182,7 @@ GameObject:
   - component: {fileID: 2146389324}
   - component: {fileID: 2146389323}
   - component: {fileID: 2146389322}
+  - component: {fileID: 2146389325}
   m_Layer: 0
   m_Name: Setup Status
   m_TagString: Untagged
@@ -14212,6 +15271,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2146389320}
   m_CullTransparentMesh: 1
+--- !u!225 &2146389325
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2146389320}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using PulseForge.Runtime.Unity.Prototype;
 using UnityEngine;
@@ -31,6 +32,11 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private Text statusText;
         [SerializeField] private Text[] stageTexts;
 
+        private PulseForgeProcessingStage currentStage = PulseForgeProcessingStage.None;
+
+        public PulseForgeProcessingStage CurrentStage => currentStage;
+        public Text[] StageTexts => stageTexts ?? Array.Empty<Text>();
+
         public static ProcessingPanelView Create(Transform parent)
         {
             RectTransform card = FlowPanelBuilder.CreateScreenWithCard(
@@ -63,6 +69,7 @@ namespace PulseForge.Runtime.Unity.UI
         {
             songText.text = controller.SelectedAudioFileName;
             PulseForgeProcessingStage currentStage = controller.ProcessingStage;
+            this.currentStage = currentStage;
             statusText.text = GetFriendlyStatus(currentStage);
             for (int i = 0; i < Stages.Length; i++)
             {
@@ -82,6 +89,19 @@ namespace PulseForge.Runtime.Unity.UI
                     stageTexts[i].color = PulseForgeUITheme.SecondaryText;
                 }
             }
+        }
+
+        public Text GetStageText(PulseForgeProcessingStage stage)
+        {
+            for (int i = 0; i < Stages.Length; i++)
+            {
+                if (Stages[i] == stage && stageTexts != null && i < stageTexts.Length)
+                {
+                    return stageTexts[i];
+                }
+            }
+
+            return null;
         }
 
         private static string GetFriendlyStatus(PulseForgeProcessingStage stage)

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using PulseForge.Domain.Rhythm;
 using UnityEngine;
@@ -26,6 +27,12 @@ namespace PulseForge.Runtime.Unity.UI
 
         private Lane guardLane;
         private Lane strikeLane;
+        private readonly HashSet<string> resolvedFeedbackEventIds =
+            new HashSet<string>(StringComparer.Ordinal);
+        private readonly Dictionary<string, PulseForgeGameplayResultEvent> pendingFeedback =
+            new Dictionary<string, PulseForgeGameplayResultEvent>(StringComparer.Ordinal);
+        private PulseForgeUIMotionRunner feedbackRunner;
+        private bool gameplayFeedbackManaged;
 
         public RectTransform GuardLaneRoot => guardLaneRoot;
         public RectTransform GuardHitZone => guardHitZone;
@@ -72,6 +79,61 @@ namespace PulseForge.Runtime.Unity.UI
             strikeLane = new Lane(strikeNoteContainer, PulseForgeUITheme.Strike, false);
         }
 
+        public void SetGameplayFeedbackManaged(bool isManaged)
+        {
+            if (gameplayFeedbackManaged == isManaged)
+            {
+                return;
+            }
+
+            gameplayFeedbackManaged = isManaged;
+            if (!isManaged)
+            {
+                ResetFeedbackState();
+            }
+        }
+
+        public void PlayResultFeedback(
+            PulseForgeGameplayResultEvent feedbackEvent,
+            PulseForgeUIMotionRunner runner)
+        {
+            if (!gameplayFeedbackManaged
+                || runner == null
+                || string.IsNullOrEmpty(feedbackEvent.EventId)
+                || !resolvedFeedbackEventIds.Add(feedbackEvent.EventId))
+            {
+                return;
+            }
+
+            feedbackRunner = runner;
+            InitializeRuntimePool();
+            Lane lane = feedbackEvent.Action == RhythmAction.Guard ? guardLane : strikeLane;
+            if (lane != null && lane.TryPlayReaction(feedbackEvent, runner))
+            {
+                return;
+            }
+
+            pendingFeedback[feedbackEvent.EventId] = feedbackEvent;
+        }
+
+        public void ResetFeedbackState(bool clearResolvedEvents = false)
+        {
+            pendingFeedback.Clear();
+            if (clearResolvedEvents)
+            {
+                resolvedFeedbackEventIds.Clear();
+            }
+
+            guardLane?.ResetFeedbackState();
+            strikeLane?.ResetFeedbackState();
+        }
+
+        public void EnsureFeedbackComponents(Func<GameObject, Type, Component> addComponent = null)
+        {
+            EnsureNoteCanvasGroups(guardNoteContainer, addComponent);
+            EnsureNoteCanvasGroups(strikeNoteContainer, addComponent);
+        }
+
         public void Refresh(IReadOnlyList<BeatEventRuntime> events, double currentTimeSeconds)
         {
             InitializeRuntimePool();
@@ -93,10 +155,31 @@ namespace PulseForge.Runtime.Unity.UI
                 double deltaSeconds = beatEvent.Data.TargetTimeSeconds - currentTimeSeconds;
                 if (deltaSeconds > LookAheadSeconds || deltaSeconds < -LookBehindSeconds)
                 {
+                    if (deltaSeconds < -LookBehindSeconds)
+                    {
+                        pendingFeedback.Remove(beatEvent.Data.EventId);
+                    }
+
                     continue;
                 }
 
                 Lane lane = beatEvent.Data.Action == RhythmAction.Guard ? guardLane : strikeLane;
+                if (resolvedFeedbackEventIds.Contains(beatEvent.Data.EventId))
+                {
+                    if (pendingFeedback.TryGetValue(
+                        beatEvent.Data.EventId,
+                        out PulseForgeGameplayResultEvent feedbackEvent))
+                    {
+                        NoteView pendingNote = lane.ShowNextNote(beatEvent, deltaSeconds);
+                        if (pendingNote != null && pendingNote.PlayReaction(feedbackEvent, feedbackRunner))
+                        {
+                            pendingFeedback.Remove(beatEvent.Data.EventId);
+                        }
+                    }
+
+                    continue;
+                }
+
                 lane.ShowNextNote(beatEvent, deltaSeconds);
             }
         }
@@ -127,6 +210,35 @@ namespace PulseForge.Runtime.Unity.UI
             strikeNoteContainer = strike.NoteContainer;
             strikeActionLabel = strike.ActionLabel;
             strikeKeyHint = strike.KeyHint;
+        }
+
+        private static void EnsureNoteCanvasGroups(
+            RectTransform container,
+            Func<GameObject, Type, Component> addComponent)
+        {
+            if (container == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < container.childCount; i++)
+            {
+                GameObject child = container.GetChild(i).gameObject;
+                if (!child.name.StartsWith("Pooled Note ", StringComparison.Ordinal)
+                    || child.GetComponent<CanvasGroup>() != null)
+                {
+                    continue;
+                }
+
+                if (addComponent == null)
+                {
+                    child.AddComponent<CanvasGroup>();
+                }
+                else
+                {
+                    addComponent(child, typeof(CanvasGroup));
+                }
+            }
         }
 
         private static LaneReferences CreateStaticLane(
@@ -256,15 +368,20 @@ namespace PulseForge.Runtime.Unity.UI
                 visibleNoteCount = 0;
                 for (int i = 0; i < notes.Length; i++)
                 {
-                    notes[i].SetActive(false);
+                    notes[i].PrepareFrame();
                 }
             }
 
-            public void ShowNextNote(BeatEventRuntime beatEvent, double deltaSeconds)
+            public NoteView ShowNextNote(BeatEventRuntime beatEvent, double deltaSeconds)
             {
+                while (visibleNoteCount < notes.Length && notes[visibleNoteCount].IsReacting)
+                {
+                    visibleNoteCount++;
+                }
+
                 if (visibleNoteCount >= notes.Length)
                 {
-                    return;
+                    return null;
                 }
 
                 float noteAreaWidth = Mathf.Max(1f, noteContainer.rect.width);
@@ -272,7 +389,34 @@ namespace PulseForge.Runtime.Unity.UI
                 float x = deltaSeconds >= 0d
                     ? HitZoneX + (float)(deltaSeconds / LookAheadSeconds) * travelWidth
                     : HitZoneX + (float)(deltaSeconds / LookBehindSeconds) * 42f;
-                notes[visibleNoteCount++].Show(beatEvent, x, accent);
+                NoteView note = notes[visibleNoteCount++];
+                note.Show(beatEvent, x, accent);
+                return note;
+            }
+
+            public bool TryPlayReaction(
+                PulseForgeGameplayResultEvent feedbackEvent,
+                PulseForgeUIMotionRunner runner)
+            {
+                for (int i = 0; i < notes.Length; i++)
+                {
+                    if (notes[i].Matches(feedbackEvent.EventId)
+                        && notes[i].PlayReaction(feedbackEvent, runner))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            public void ResetFeedbackState()
+            {
+                visibleNoteCount = 0;
+                for (int i = 0; i < notes.Length; i++)
+                {
+                    notes[i].ResetFeedbackState();
+                }
             }
         }
 
@@ -281,12 +425,19 @@ namespace PulseForge.Runtime.Unity.UI
             private readonly RectTransform rectTransform;
             private readonly Image image;
             private readonly Text label;
+            private readonly CanvasGroup canvasGroup;
+            private PulseForgeUIMotionRunner activeRunner;
+            private string eventId = string.Empty;
+            private bool isReacting;
 
-            private NoteView(RectTransform rectTransform, Image image, Text label)
+            public bool IsReacting => isReacting;
+
+            private NoteView(RectTransform rectTransform, Image image, Text label, CanvasGroup canvasGroup)
             {
                 this.rectTransform = rectTransform;
                 this.image = image;
                 this.label = label;
+                this.canvasGroup = canvasGroup;
                 SetActive(false);
             }
 
@@ -297,6 +448,7 @@ namespace PulseForge.Runtime.Unity.UI
                 RectTransform rectTransform;
                 Image image;
                 Text label;
+                CanvasGroup canvasGroup;
                 if (existing == null)
                 {
                     rectTransform = PulseForgeUIFactory.CreateRect(objectName, parent);
@@ -317,15 +469,21 @@ namespace PulseForge.Runtime.Unity.UI
                         TextAnchor.MiddleCenter, FontStyle.Bold);
                     PulseForgeUIFactory.Stretch(label.rectTransform);
                     label.rectTransform.localRotation = Quaternion.Euler(0f, 0f, isGuard ? 0f : -45f);
+                    canvasGroup = rectTransform.gameObject.AddComponent<CanvasGroup>();
                 }
                 else
                 {
                     rectTransform = existing.GetComponent<RectTransform>();
                     image = existing.GetComponent<Image>();
                     label = existing.GetComponentInChildren<Text>(true);
+                    canvasGroup = existing.GetComponent<CanvasGroup>();
+                    if (canvasGroup == null)
+                    {
+                        canvasGroup = existing.gameObject.AddComponent<CanvasGroup>();
+                    }
                 }
 
-                return new NoteView(rectTransform, image, label);
+                return new NoteView(rectTransform, image, label, canvasGroup);
             }
 
             public void SetActive(bool isActive)
@@ -333,9 +491,25 @@ namespace PulseForge.Runtime.Unity.UI
                 rectTransform.gameObject.SetActive(isActive);
             }
 
+            public void PrepareFrame()
+            {
+                if (!isReacting)
+                {
+                    SetActive(false);
+                }
+            }
+
+            public bool Matches(string value)
+            {
+                return rectTransform.gameObject.activeSelf
+                    && string.Equals(eventId, value, StringComparison.Ordinal);
+            }
+
             public void Show(BeatEventRuntime beatEvent, float x, Color accent)
             {
                 rectTransform.gameObject.SetActive(true);
+                eventId = beatEvent.Data.EventId;
+                canvasGroup.alpha = 1f;
                 rectTransform.anchoredPosition = new Vector2(x, 0f);
                 float scale = Mathf.Lerp(0.88f, 1.12f, beatEvent.Data.Intensity);
                 rectTransform.localScale = Vector3.one * scale;
@@ -359,6 +533,91 @@ namespace PulseForge.Runtime.Unity.UI
                         label.color = Color.white;
                         break;
                 }
+            }
+
+            public bool PlayReaction(
+                PulseForgeGameplayResultEvent feedbackEvent,
+                PulseForgeUIMotionRunner runner)
+            {
+                PulseForgeUIMotionRunner motionRunner = runner ?? activeRunner;
+                if (isReacting
+                    || motionRunner == null
+                    || !Matches(feedbackEvent.EventId))
+                {
+                    return false;
+                }
+
+                activeRunner = motionRunner;
+                isReacting = true;
+                canvasGroup.alpha = 1f;
+                image.color = feedbackEvent.Grade == HitGrade.Perfect
+                    ? PulseForgeUITheme.Perfect
+                    : feedbackEvent.Grade == HitGrade.Good
+                        ? PulseForgeUITheme.Good
+                        : PulseForgeUITheme.Miss;
+                label.text = feedbackEvent.Grade == HitGrade.Perfect
+                    ? "P"
+                    : feedbackEvent.Grade == HitGrade.Good ? "+" : "X";
+                label.color = feedbackEvent.Grade == HitGrade.Miss
+                    ? Color.white
+                    : new Color(0.03f, 0.05f, 0.07f, 1f);
+
+                int key = MotionKey();
+                if (feedbackEvent.Grade == HitGrade.Miss)
+                {
+                    Vector2 startPosition = rectTransform.anchoredPosition;
+                    activeRunner.FadeSlide(
+                        key,
+                        canvasGroup,
+                        rectTransform,
+                        1f,
+                        0f,
+                        startPosition,
+                        startPosition + PulseForgeGameplayFeedbackTokens.NoteMissOffset,
+                        PulseForgeGameplayFeedbackTokens.NoteMissDuration,
+                        PulseForgeUIMotionTokens.EaseOut,
+                        0f,
+                        FinishReaction);
+                }
+                else
+                {
+                    Vector3 startScale = rectTransform.localScale;
+                    activeRunner.FadeScale(
+                        key,
+                        canvasGroup,
+                        rectTransform,
+                        1f,
+                        0f,
+                        startScale,
+                        startScale * PulseForgeGameplayFeedbackTokens.NoteHitScale,
+                        PulseForgeGameplayFeedbackTokens.NoteHitDuration,
+                        PulseForgeUIMotionTokens.EaseOut,
+                        0f,
+                        FinishReaction);
+                }
+
+                return true;
+            }
+
+            public void ResetFeedbackState()
+            {
+                activeRunner?.Cancel(MotionKey(), false);
+                FinishReaction();
+            }
+
+            private void FinishReaction()
+            {
+                isReacting = false;
+                activeRunner = null;
+                eventId = string.Empty;
+                canvasGroup.alpha = 1f;
+                rectTransform.localScale = Vector3.one;
+                SetActive(false);
+            }
+
+            private int MotionKey()
+            {
+                return unchecked(rectTransform.GetInstanceID() * 397 ^ 743);
             }
         }
     }

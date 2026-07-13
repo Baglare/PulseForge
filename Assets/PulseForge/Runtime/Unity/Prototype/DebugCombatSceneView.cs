@@ -1,4 +1,5 @@
 using PulseForge.Domain.Rhythm;
+using PulseForge.Runtime.Unity.UI;
 using UnityEngine;
 
 namespace PulseForge.Runtime.Unity.Prototype
@@ -142,7 +143,7 @@ namespace PulseForge.Runtime.Unity.Prototype
                 return;
             }
 
-            feedbackRemainingSeconds -= Time.deltaTime;
+            feedbackRemainingSeconds -= Time.unscaledDeltaTime;
             if (feedbackRemainingSeconds <= 0f)
             {
                 ResetView();
@@ -186,13 +187,21 @@ namespace PulseForge.Runtime.Unity.Prototype
 
             parryEffectRoot = GetOrCreateChild("ParryEffect", visualRoot);
             parryEffectRoot.localRotation = Quaternion.identity;
+            SpriteRenderer arcUpper = ConfigureEffectSprite(
+                "ShieldArcUpper", parryEffectRoot, sprite, new Vector2(0.48f, 0.055f), 28f);
+            arcUpper.transform.localPosition = new Vector3(0.22f, 0.18f, 0f);
+            SpriteRenderer arcLower = ConfigureEffectSprite(
+                "ShieldArcLower", parryEffectRoot, sprite, new Vector2(0.48f, 0.055f), -28f);
+            arcLower.transform.localPosition = new Vector3(0.22f, -0.18f, 0f);
             parrySparkRenderers = new[]
             {
                 ConfigureEffectSprite("SparkCenter", parryEffectRoot, sprite, Vector2.one * 0.18f, 0f),
                 ConfigureEffectSprite("SparkHorizontal", parryEffectRoot, sprite, new Vector2(0.72f, 0.06f), 0f),
                 ConfigureEffectSprite("SparkVertical", parryEffectRoot, sprite, new Vector2(0.06f, 0.72f), 0f),
                 ConfigureEffectSprite("SparkSlashA", parryEffectRoot, sprite, new Vector2(0.62f, 0.05f), 45f),
-                ConfigureEffectSprite("SparkSlashB", parryEffectRoot, sprite, new Vector2(0.62f, 0.05f), -45f)
+                ConfigureEffectSprite("SparkSlashB", parryEffectRoot, sprite, new Vector2(0.62f, 0.05f), -45f),
+                arcUpper,
+                arcLower
             };
 
             slashEffectRoot = GetOrCreateChild("SlashEffect", visualRoot);
@@ -323,6 +332,10 @@ namespace PulseForge.Runtime.Unity.Prototype
             slashEffectRoot.gameObject.SetActive(feedbackKind == FeedbackKind.Slash);
             feedbackText.gameObject.SetActive(feedbackKind != FeedbackKind.None);
             feedbackText.color = ColorWithAlpha(GetFeedbackColor(), alpha * intensityAlpha);
+            feedbackText.transform.localScale = Vector3.one * Mathf.Lerp(
+                1f,
+                feedbackGrade == HitGrade.Perfect ? 1.12f : 1.06f,
+                alpha);
 
             if (feedbackKind == FeedbackKind.Parry)
             {
@@ -332,7 +345,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             else if (feedbackKind == FeedbackKind.Slash)
             {
                 slashEffectRoot.localScale = Vector3.one * gradeScale;
-                slashGlowRenderer.color = ColorWithAlpha(GetHitEffectColor(slashColor), alpha * intensityAlpha * 0.45f);
+                slashGlowRenderer.color = ColorWithAlpha(GetHitEffectColor(slashColor), alpha * intensityAlpha * 0.62f);
                 slashCoreRenderer.color = ColorWithAlpha(GetHitEffectColor(slashColor), alpha * intensityAlpha);
                 enemyRenderer.color = Color.Lerp(enemyBaseColor, slashColor, Mathf.Clamp01(alpha * GetIntensityFlashStrength()));
             }
@@ -340,7 +353,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             {
                 float shakeDistance = GetShakeDistance();
                 Vector3 playerOffset = new Vector3(
-                    -shakeDistance * alpha + Mathf.Sin(Time.time * 70f) * shakeDistance * 0.22f * alpha,
+                    -shakeDistance * alpha + Mathf.Sin(Time.unscaledTime * 70f) * shakeDistance * 0.22f * alpha,
                     0f,
                     0f);
                 playerRenderer.transform.localPosition = GetPlayerBasePosition() + playerOffset;
@@ -422,7 +435,12 @@ namespace PulseForge.Runtime.Unity.Prototype
         private float GetGradeEffectScale()
         {
             float configuredScale = feedbackGrade == HitGrade.Perfect ? perfectEffectScale : goodEffectScale;
-            return Mathf.Max(0.05f, configuredScale);
+            float strength = feedbackGrade == HitGrade.Perfect ? 1f : 0.35f;
+            float multiplier = Mathf.Lerp(
+                1f,
+                PulseForgeGameplayFeedbackTokens.CombatEffectMultiplier,
+                strength);
+            return Mathf.Max(0.05f, configuredScale * multiplier);
         }
 
         private float GetIntensityEffectScale()
@@ -446,7 +464,8 @@ namespace PulseForge.Runtime.Unity.Prototype
         {
             float minDistance = Mathf.Min(minShakeDistance, maxShakeDistance);
             float maxDistance = Mathf.Max(minShakeDistance, maxShakeDistance);
-            return Mathf.Lerp(minDistance, maxDistance, activeIntensity);
+            return Mathf.Lerp(minDistance, maxDistance, activeIntensity)
+                * PulseForgeGameplayFeedbackTokens.CombatEffectMultiplier;
         }
 
         private float GetConfiguredFeedbackDurationSeconds()

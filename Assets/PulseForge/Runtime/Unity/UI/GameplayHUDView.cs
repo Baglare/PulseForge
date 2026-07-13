@@ -17,8 +17,11 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private RhythmLaneView rhythmLaneView;
 
         private DebugRhythmPrototypeController boundController;
+        private bool gameplayFeedbackManaged;
 
         public RhythmLaneView RhythmLaneView => rhythmLaneView;
+        public Text ComboText => comboText;
+        public Text FeedbackText => feedbackText;
 
         public static GameplayHUDView Create(Transform parent)
         {
@@ -106,7 +109,13 @@ namespace PulseForge.Runtime.Unity.UI
         public void Unbind()
         {
             PulseForgeUIFactory.UnbindButton(pauseButton);
+            SetGameplayFeedbackManaged(false);
             boundController = null;
+        }
+
+        public void SetGameplayFeedbackManaged(bool isManaged)
+        {
+            gameplayFeedbackManaged = isManaged;
         }
 
         public void Refresh(DebugRhythmPrototypeController controller)
@@ -126,14 +135,17 @@ namespace PulseForge.Runtime.Unity.UI
             progressFill.offsetMax = Vector2.zero;
             pauseButton.interactable = controller.CanPause;
 
-            PulseForgeFeedbackPresentation feedback = controller.CurrentFeedback;
-            feedbackText.gameObject.SetActive(feedback.IsVisible);
-            if (feedback.IsVisible)
+            if (!gameplayFeedbackManaged)
             {
-                feedbackText.text = feedback.Text;
-                Color color = GetFeedbackColor(feedback);
-                color.a = feedback.Alpha;
-                feedbackText.color = color;
+                PulseForgeFeedbackPresentation feedback = controller.CurrentFeedback;
+                feedbackText.gameObject.SetActive(feedback.IsVisible);
+                if (feedback.IsVisible)
+                {
+                    feedbackText.text = feedback.Text;
+                    Color color = GetFeedbackColor(feedback);
+                    color.a = feedback.Alpha;
+                    feedbackText.color = color;
+                }
             }
 
             rhythmLaneView.Refresh(controller.SessionEvents, controller.CurrentSongTimeSeconds);

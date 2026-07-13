@@ -18,6 +18,9 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private ResultsPanelView resultsPanel;
         [SerializeField] private ErrorPanelView errorPanel;
         [SerializeField] private EventSystem eventSystem;
+        [SerializeField] private bool enableMotion = true;
+        [SerializeField] private PulseForgeUIMotionController motionController;
+        [SerializeField] private PulseForgeGameplayFeedbackController gameplayFeedbackController;
 
         public Canvas Canvas => canvas;
         public GameObject Background => background;
@@ -30,6 +33,9 @@ namespace PulseForge.Runtime.Unity.UI
         public ResultsPanelView ResultsPanel => resultsPanel;
         public ErrorPanelView ErrorPanel => errorPanel;
         public EventSystem EventSystem => eventSystem;
+        public bool EnableMotion => enableMotion;
+        public PulseForgeUIMotionController MotionController => motionController;
+        public PulseForgeGameplayFeedbackController GameplayFeedbackController => gameplayFeedbackController;
 
         public void Configure(
             Canvas sceneCanvas,
@@ -60,7 +66,41 @@ namespace PulseForge.Runtime.Unity.UI
             eventSystem = value;
         }
 
+        public void ConfigureMotion(PulseForgeUIMotionController value)
+        {
+            motionController = value;
+        }
+
+        public void ConfigureGameplayFeedback(PulseForgeGameplayFeedbackController value)
+        {
+            gameplayFeedbackController = value;
+        }
+
         public void ApplyVisibility(PulseForgeUIState state)
+        {
+            if (Application.isPlaying && motionController != null)
+            {
+                motionController.ShowState(state, enableMotion);
+                return;
+            }
+
+            ApplyVisibilityImmediate(state);
+        }
+
+        public void RefreshMotion(PulseForgeUIState state)
+        {
+            if (Application.isPlaying && motionController != null)
+            {
+                motionController.RefreshDynamicMotion(state, enableMotion);
+            }
+        }
+
+        public void CompleteMotionTransitions()
+        {
+            motionController?.CompleteCurrentState();
+        }
+
+        private void ApplyVisibilityImmediate(PulseForgeUIState state)
         {
             bool showGameplay = state == PulseForgeUIState.Countdown
                 || state == PulseForgeUIState.Playing
@@ -106,6 +146,8 @@ namespace PulseForge.Runtime.Unity.UI
             AddMissing(errors, resultsPanel, "Results panel reference is missing.");
             AddMissing(errors, errorPanel, "Error panel reference is missing.");
             AddMissing(errors, eventSystem, "EventSystem reference is missing.");
+            AddMissing(errors, motionController, "M8B.1 motion controller is missing.");
+            AddMissing(errors, gameplayFeedbackController, "M8B.2 gameplay feedback controller is missing.");
 
             setupPanel?.CollectValidationErrors(errors);
             processingPanel?.CollectValidationErrors(errors);
@@ -115,6 +157,8 @@ namespace PulseForge.Runtime.Unity.UI
             pauseOverlay?.CollectValidationErrors(errors);
             resultsPanel?.CollectValidationErrors(errors);
             errorPanel?.CollectValidationErrors(errors);
+            motionController?.CollectValidationErrors(errors);
+            gameplayFeedbackController?.CollectValidationErrors(errors);
             return errors.Count == 0;
         }
 

@@ -64,6 +64,8 @@ namespace PulseForge.Runtime.Unity.UI
                 results,
                 error);
             PulseForgeUIVisualStyle.Apply(root);
+            PulseForgeUIMotionSetup.Apply(root);
+            PulseForgeGameplayFeedbackSetup.Apply(root);
             root.ApplyVisibility(PulseForgeUIState.Setup);
             return root;
         }

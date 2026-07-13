@@ -9,6 +9,9 @@ namespace PulseForge.Runtime.Unity.UI
     {
         [SerializeField] private Text countdownText;
 
+        public Text CountdownText => countdownText;
+        public string DisplayedValue => countdownText == null ? string.Empty : countdownText.text;
+
         public static CountdownOverlayView Create(Transform parent)
         {
             RectTransform root = PulseForgeUIFactory.CreateStretchRect("Countdown Overlay", parent);

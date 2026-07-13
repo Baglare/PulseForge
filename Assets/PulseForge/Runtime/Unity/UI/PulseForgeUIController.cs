@@ -34,6 +34,7 @@ namespace PulseForge.Runtime.Unity.UI
             sceneRoot.PauseOverlay?.Bind(runtimeController);
             sceneRoot.ResultsPanel?.Bind(runtimeController);
             sceneRoot.ErrorPanel?.Bind(runtimeController);
+            sceneRoot.GameplayFeedbackController?.Bind(runtimeController);
             isBound = true;
             Refresh();
         }
@@ -42,6 +43,8 @@ namespace PulseForge.Runtime.Unity.UI
         {
             if (sceneRoot != null)
             {
+                sceneRoot.CompleteMotionTransitions();
+                sceneRoot.GameplayFeedbackController?.Unbind();
                 sceneRoot.SetupPanel?.Unbind();
                 sceneRoot.ReadyPanel?.Unbind();
                 sceneRoot.GameplayHud?.Unbind();
@@ -90,6 +93,8 @@ namespace PulseForge.Runtime.Unity.UI
                     sceneRoot.ErrorPanel?.Refresh(runtimeController);
                     break;
             }
+
+            sceneRoot.RefreshMotion(state);
         }
 
         private void Update()

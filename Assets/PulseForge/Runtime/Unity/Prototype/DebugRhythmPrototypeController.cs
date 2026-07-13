@@ -85,6 +85,14 @@ namespace PulseForge.Runtime.Unity.Prototype
         private bool useRuntimeSessionSource;
         private bool legacyDebugOverlayVisible;
         private string setupStatusMessage = "Choose a song, select your settings, then analyze.";
+        private long gameplayFeedbackSequence;
+        private bool hasPublishedGameplayState;
+        private PulseForgeUIState lastPublishedGameplayState;
+
+        public event Action<PulseForgeGameplayResultEvent> GameplayResultResolved;
+        public event Action<PulseForgeComboChangedEvent> GameplayComboChanged;
+        public event Action GameplaySessionRestarted;
+        public event Action<PulseForgeUIState> GameplayStateChanged;
 
         public PulseForgeUIState UIState
         {
@@ -256,6 +264,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             runtimeFlow.ReturnToSetup(false);
             PrepareSession(false);
             PulseForgeUIBootstrap.EnsureFor(this);
+            PublishGameplayStateIfChanged();
         }
 
         private void OnDestroy()
@@ -933,6 +942,7 @@ namespace PulseForge.Runtime.Unity.Prototype
                     lastFeedback = "Press Start / Restart";
                 }
 
+                GameplaySessionRestarted?.Invoke();
                 return true;
             }
             catch (Exception exception)
@@ -1062,6 +1072,7 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private void LateUpdate()
         {
+            PublishGameplayStateIfChanged();
             RefreshCombatSceneVisibility();
         }
 
@@ -1509,7 +1520,76 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private void RecordResult(HitResult result)
         {
+            ScoreSnapshot previousSnapshot = GetSnapshot();
             scoreTracker.Record(result);
+            ScoreSnapshot currentSnapshot = GetSnapshot();
+            long sequenceId = ++gameplayFeedbackSequence;
+
+            if (TryGetEventFeedbackData(result, out RhythmAction action, out float intensity))
+            {
+                GameplayResultResolved?.Invoke(new PulseForgeGameplayResultEvent(
+                    sequenceId,
+                    result.EventId,
+                    action,
+                    result.Grade,
+                    intensity,
+                    previousSnapshot.CurrentCombo,
+                    currentSnapshot.CurrentCombo));
+            }
+
+            if (previousSnapshot.CurrentCombo != currentSnapshot.CurrentCombo)
+            {
+                GameplayComboChanged?.Invoke(new PulseForgeComboChangedEvent(
+                    sequenceId,
+                    previousSnapshot.CurrentCombo,
+                    currentSnapshot.CurrentCombo));
+            }
+        }
+
+        private bool TryGetEventFeedbackData(
+            HitResult result,
+            out RhythmAction action,
+            out float intensity)
+        {
+            action = RhythmAction.Guard;
+            intensity = 1f;
+            if (result == null || session == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < session.Events.Count; i++)
+            {
+                BeatEventRuntime beatEvent = session.Events[i];
+                if (!string.Equals(beatEvent.Data.EventId, result.EventId, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                action = beatEvent.Data.Action;
+                intensity = beatEvent.Data.Intensity;
+                return true;
+            }
+
+            return false;
+        }
+
+        private void PublishGameplayStateIfChanged()
+        {
+            PulseForgeUIState state = UIState;
+            if (hasPublishedGameplayState && lastPublishedGameplayState == state)
+            {
+                return;
+            }
+
+            hasPublishedGameplayState = true;
+            lastPublishedGameplayState = state;
+            if (state != PulseForgeUIState.Playing)
+            {
+                ResetCombatSceneView();
+            }
+
+            GameplayStateChanged?.Invoke(state);
         }
 
         private void SetLastInputTimingError(HitResult result)
