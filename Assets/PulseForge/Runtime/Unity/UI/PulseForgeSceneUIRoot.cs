@@ -11,6 +11,7 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private GameObject background;
         [SerializeField] private SetupPanelView setupPanel;
         [SerializeField] private SavedTracksPanelView savedTracksPanel;
+        [SerializeField] private SettingsPanelView settingsPanel;
         [SerializeField] private ProcessingPanelView processingPanel;
         [SerializeField] private ReadyPanelView readyPanel;
         [SerializeField] private GameplayHUDView gameplayHud;
@@ -27,6 +28,7 @@ namespace PulseForge.Runtime.Unity.UI
         public GameObject Background => background;
         public SetupPanelView SetupPanel => setupPanel;
         public SavedTracksPanelView SavedTracksPanel => savedTracksPanel;
+        public SettingsPanelView SettingsPanel => settingsPanel;
         public ProcessingPanelView ProcessingPanel => processingPanel;
         public ReadyPanelView ReadyPanel => readyPanel;
         public GameplayHUDView GameplayHud => gameplayHud;
@@ -83,6 +85,16 @@ namespace PulseForge.Runtime.Unity.UI
             savedTracksPanel = value;
         }
 
+        public void ConfigureSettingsPanel(SettingsPanelView value)
+        {
+            settingsPanel = value;
+        }
+
+        public void ApplySettingsVisibility(bool visible)
+        {
+            SetActive(settingsPanel, visible);
+        }
+
         public void ApplyAuxiliaryVisibility(PulseForgeUIState state, bool showSavedTracks)
         {
             bool showLibrary = state == PulseForgeUIState.Setup && showSavedTracks;
@@ -134,6 +146,7 @@ namespace PulseForge.Runtime.Unity.UI
 
             SetActive(setupPanel, state == PulseForgeUIState.Setup);
             SetActive(savedTracksPanel, false);
+            SetActive(settingsPanel, false);
             SetActive(processingPanel, state == PulseForgeUIState.Processing);
             SetActive(readyPanel, state == PulseForgeUIState.Ready);
             SetActive(gameplayHud, showGameplay);
@@ -147,6 +160,7 @@ namespace PulseForge.Runtime.Unity.UI
         {
             SetActive(setupPanel, true);
             SetActive(savedTracksPanel, true);
+            SetActive(settingsPanel, true);
             SetActive(processingPanel, true);
             SetActive(readyPanel, true);
             SetActive(gameplayHud, true);
@@ -167,6 +181,7 @@ namespace PulseForge.Runtime.Unity.UI
             AddMissing(errors, background, "Background reference is missing.");
             AddMissing(errors, setupPanel, "Setup panel reference is missing.");
             AddMissing(errors, savedTracksPanel, "M8C Saved Tracks panel reference is missing.");
+            AddMissing(errors, settingsPanel, "M8D Settings panel reference is missing.");
             AddMissing(errors, processingPanel, "Processing panel reference is missing.");
             AddMissing(errors, readyPanel, "Ready panel reference is missing.");
             AddMissing(errors, gameplayHud, "Gameplay HUD reference is missing.");
@@ -180,6 +195,7 @@ namespace PulseForge.Runtime.Unity.UI
 
             setupPanel?.CollectValidationErrors(errors);
             savedTracksPanel?.CollectValidationErrors(errors);
+            settingsPanel?.CollectValidationErrors(errors);
             processingPanel?.CollectValidationErrors(errors);
             readyPanel?.CollectValidationErrors(errors);
             gameplayHud?.CollectValidationErrors(errors);

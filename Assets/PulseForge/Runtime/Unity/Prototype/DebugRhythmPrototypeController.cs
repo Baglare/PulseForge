@@ -6,6 +6,7 @@ using System.IO;
 using PulseForge.Domain.Rhythm;
 using PulseForge.Runtime.Unity.Audio;
 using PulseForge.Runtime.Unity.BeatMaps;
+using PulseForge.Runtime.Unity.Input;
 using PulseForge.Runtime.Unity.Persistence;
 using PulseForge.Runtime.Unity.Timing;
 using PulseForge.Runtime.Unity.UI;
@@ -98,6 +99,13 @@ namespace PulseForge.Runtime.Unity.Prototype
         private string activeSavedTrackId = string.Empty;
         private string activeSavedPresetId = string.Empty;
         private string savedTrackLibraryMessage = string.Empty;
+        private PulseForgeInputService inputService;
+        private PulseForgeSettingsData settingsDraft;
+        private PulseForgeSettingsData settingsPreviewBaseline;
+        private IReadOnlyList<PulseForgeResolutionOption> availableResolutions = Array.Empty<PulseForgeResolutionOption>();
+        private bool isSettingsOpen;
+        private string settingsMessage = string.Empty;
+        private int settingsDraftRevision;
 
         public event Action<PulseForgeGameplayResultEvent> GameplayResultResolved;
         public event Action<PulseForgeComboChangedEvent> GameplayComboChanged;
@@ -108,6 +116,12 @@ namespace PulseForge.Runtime.Unity.Prototype
         public bool IsSavedTracksOpen => isSavedTracksOpen;
         public int SavedTrackLibraryRevision => savedTrackLibraryRevision;
         public string SavedTrackLibraryMessage => savedTrackLibraryMessage;
+        public bool IsSettingsOpen => isSettingsOpen;
+        public bool IsInputRebinding => inputService != null && inputService.IsRebinding;
+        public string SettingsMessage => settingsMessage;
+        public int SettingsDraftRevision => settingsDraftRevision;
+        public PulseForgeSettingsData SettingsDraft => settingsDraft;
+        public IReadOnlyList<PulseForgeResolutionOption> AvailableResolutions => availableResolutions;
         public bool MotionEnabledSetting
         {
             get
@@ -295,6 +309,9 @@ namespace PulseForge.Runtime.Unity.Prototype
         {
             EnsureSaveService();
             ApplyLoadedSettings();
+            EnsureInputService();
+            PulseForgeRuntimeSettingsApplier.ApplyAudio(saveService.Settings, GetOrAddAudioSource());
+            PulseForgeRuntimeSettingsApplier.ApplyDisplay(saveService.Settings);
             runtimeFlow.ReturnToSetup(false);
             PrepareSession(false);
             PulseForgeUIController uiController = PulseForgeUIBootstrap.EnsureFor(this);
@@ -306,6 +323,8 @@ namespace PulseForge.Runtime.Unity.Prototype
         private void OnDestroy()
         {
             SaveCurrentSettings();
+            inputService?.Dispose();
+            inputService = null;
             StopClock();
             if (runtimeAudioClip != null)
             {
@@ -1361,6 +1380,11 @@ namespace PulseForge.Runtime.Unity.Prototype
                 audioSource = gameObject.AddComponent<AudioSource>();
             }
 
+            if (saveService != null && saveService.Settings != null && saveService.Settings.audio != null)
+            {
+                audioSource.volume = saveService.Settings.audio.musicVolume;
+            }
+
             return audioSource;
         }
 
@@ -1620,17 +1644,18 @@ namespace PulseForge.Runtime.Unity.Prototype
         private void HandleRuntimeKeyboardInput()
         {
             Keyboard keyboard = Keyboard.current;
-            if (keyboard == null)
-            {
-                return;
-            }
-
-            if (keyboard.f1Key.wasPressedThisFrame)
+            if (keyboard != null && keyboard.f1Key.wasPressedThisFrame)
             {
                 legacyDebugOverlayVisible = !legacyDebugOverlayVisible;
             }
 
-            if (keyboard.escapeKey.wasPressedThisFrame)
+            EnsureInputService();
+            if (isSettingsOpen || inputService == null)
+            {
+                return;
+            }
+
+            if (inputService.PauseWasPressedThisFrame)
             {
                 if (UIState == PulseForgeUIState.Playing)
                 {
@@ -1647,12 +1672,12 @@ namespace PulseForge.Runtime.Unity.Prototype
                 return;
             }
 
-            if (keyboard.spaceKey.wasPressedThisFrame)
+            if (inputService.GuardWasPressedThisFrame)
             {
                 HandleInput(RhythmAction.Guard);
             }
 
-            if (keyboard.jKey.wasPressedThisFrame)
+            if (inputService.StrikeWasPressedThisFrame)
             {
                 HandleInput(RhythmAction.Strike);
             }
@@ -2054,6 +2079,22 @@ namespace PulseForge.Runtime.Unity.Prototype
             }
         }
 
+        private void EnsureInputService()
+        {
+            if (inputService != null)
+            {
+                return;
+            }
+
+            EnsureSaveService();
+            inputService = new PulseForgeInputService();
+            inputService.LoadBindingOverridesFromJson(
+                saveService.Settings.input == null
+                    ? string.Empty
+                    : saveService.Settings.input.inputBindingOverridesJson);
+            inputService.Enable();
+        }
+
         private void SaveCurrentSettings()
         {
             if (saveService == null)
@@ -2064,11 +2105,294 @@ namespace PulseForge.Runtime.Unity.Prototype
             bool enableMotion = sceneUIRoot == null
                 ? saveService.Settings.enableMotion
                 : sceneUIRoot.EnableMotion;
-            saveService.SaveSettings(
-                enableMotion,
-                SelectedPipelineSettings,
-                debugBeatMapOffsetSeconds,
-                inputTimingOffsetSeconds);
+            PulseForgeSettingsData data = SaveDefaults.CloneSettings(saveService.Settings);
+            data.enableMotion = enableMotion;
+            data.defaultDetection = runtimeDetectionMode.ToString();
+            data.defaultDifficulty = runtimeDifficulty.ToString();
+            data.defaultCombatStyle = runtimeCombatStyle.ToString();
+            data.beatmapOffsetSeconds = debugBeatMapOffsetSeconds;
+            data.inputTimingOffsetSeconds = inputTimingOffsetSeconds;
+            if (inputService != null && data.input != null)
+            {
+                data.input.inputBindingOverridesJson = inputService.SaveBindingOverridesAsJson();
+            }
+
+            saveService.SaveSettings(data);
+        }
+
+        public void OpenSettings()
+        {
+            if (isSettingsOpen
+                || (UIState != PulseForgeUIState.Setup && UIState != PulseForgeUIState.Paused))
+            {
+                return;
+            }
+
+            EnsureSaveService();
+            EnsureInputService();
+            settingsPreviewBaseline = SaveDefaults.CloneSettings(saveService.Settings);
+            settingsDraft = SaveDefaults.CloneSettings(settingsPreviewBaseline);
+            inputService.LoadBindingOverridesFromJson(settingsDraft.input.inputBindingOverridesJson);
+            availableResolutions = PulseForgeRuntimeSettingsApplier.GetAvailableResolutions();
+            settingsMessage = string.Empty;
+            isSettingsOpen = true;
+            settingsDraftRevision++;
+        }
+
+        public void ApplySettingsDraft()
+        {
+            if (!isSettingsOpen || settingsDraft == null)
+            {
+                return;
+            }
+
+            inputService?.CancelInteractiveRebind();
+            settingsDraft.input.inputBindingOverridesJson = inputService == null
+                ? settingsDraft.input.inputBindingOverridesJson
+                : inputService.SaveBindingOverridesAsJson();
+            PulseForgeSettingsData applied = SaveDataNormalizer.NormalizeSettings(
+                SaveDefaults.CloneSettings(settingsDraft));
+            saveService.SaveSettings(applied);
+            ApplySettingsData(applied, true);
+            settingsPreviewBaseline = null;
+            settingsDraft = null;
+            settingsMessage = string.Empty;
+            isSettingsOpen = false;
+            settingsDraftRevision++;
+        }
+
+        public void CancelSettings()
+        {
+            if (!isSettingsOpen)
+            {
+                return;
+            }
+
+            inputService?.CancelInteractiveRebind();
+            if (settingsPreviewBaseline != null)
+            {
+                inputService?.LoadBindingOverridesFromJson(
+                    settingsPreviewBaseline.input.inputBindingOverridesJson);
+                PulseForgeRuntimeSettingsApplier.ApplyAudio(settingsPreviewBaseline, GetOrAddAudioSource());
+                sceneUIRoot?.SetEnableMotion(settingsPreviewBaseline.enableMotion);
+            }
+
+            settingsPreviewBaseline = null;
+            settingsDraft = null;
+            settingsMessage = string.Empty;
+            isSettingsOpen = false;
+            settingsDraftRevision++;
+        }
+
+        public void ResetSettingsDraftToDefaults()
+        {
+            if (!isSettingsOpen)
+            {
+                return;
+            }
+
+            inputService?.CancelInteractiveRebind();
+            settingsDraft = SaveDefaults.CreateSettings();
+            inputService?.ResetBindings();
+            settingsDraft.input.inputBindingOverridesJson = string.Empty;
+            PreviewDraftAudioAndMotion();
+            settingsMessage = "Defaults loaded. Apply to save them.";
+            settingsDraftRevision++;
+        }
+
+        public void SetDraftMasterVolume(float value)
+        {
+            if (!TryGetSettingsDraft(out PulseForgeSettingsData draft)) return;
+            draft.audio.masterVolume = Mathf.Clamp01(value);
+            PreviewDraftAudioAndMotion();
+            settingsDraftRevision++;
+        }
+
+        public void SetDraftMusicVolume(float value)
+        {
+            if (!TryGetSettingsDraft(out PulseForgeSettingsData draft)) return;
+            draft.audio.musicVolume = Mathf.Clamp01(value);
+            PreviewDraftAudioAndMotion();
+            settingsDraftRevision++;
+        }
+
+        public void SetDraftMotion(bool value)
+        {
+            if (!TryGetSettingsDraft(out PulseForgeSettingsData draft)) return;
+            draft.enableMotion = value;
+            sceneUIRoot?.SetEnableMotion(value);
+            settingsDraftRevision++;
+        }
+
+        public void SetDraftVSync(bool value)
+        {
+            if (!TryGetSettingsDraft(out PulseForgeSettingsData draft)) return;
+            draft.display.vSync = value;
+            settingsDraftRevision++;
+        }
+
+        public void SetDraftBeatmapOffsetMilliseconds(string value)
+        {
+            SetDraftOffset(value, true);
+        }
+
+        public void SetDraftInputOffsetMilliseconds(string value)
+        {
+            SetDraftOffset(value, false);
+        }
+
+        public void CycleDraftDisplayMode(int direction)
+        {
+            if (!TryGetSettingsDraft(out PulseForgeSettingsData draft)) return;
+            PulseForgeDisplayMode current;
+            if (!Enum.TryParse(draft.display.displayMode, true, out current)) current = PulseForgeDisplayMode.Windowed;
+            PulseForgeDisplayMode[] values = (PulseForgeDisplayMode[])Enum.GetValues(typeof(PulseForgeDisplayMode));
+            draft.display.displayMode = values[WrapIndex((int)current + direction, values.Length)].ToString();
+            settingsDraftRevision++;
+        }
+
+        public void CycleDraftResolution(int direction)
+        {
+            if (!TryGetSettingsDraft(out PulseForgeSettingsData draft) || availableResolutions.Count == 0) return;
+            int current = 0;
+            for (int i = 0; i < availableResolutions.Count; i++)
+            {
+                PulseForgeResolutionOption option = availableResolutions[i];
+                if (option.Width == draft.display.resolutionWidth && option.Height == draft.display.resolutionHeight
+                    && option.RefreshRate == draft.display.refreshRate) { current = i; break; }
+            }
+
+            PulseForgeResolutionOption selected = availableResolutions[WrapIndex(current + direction, availableResolutions.Count)];
+            draft.display.resolutionWidth = selected.Width;
+            draft.display.resolutionHeight = selected.Height;
+            draft.display.refreshRate = selected.RefreshRate;
+            settingsDraftRevision++;
+        }
+
+        public void CycleDraftFrameRate(int direction)
+        {
+            if (!TryGetSettingsDraft(out PulseForgeSettingsData draft)) return;
+            int[] values = { 60, 120, 144, 165, 240, -1 };
+            int current = Array.IndexOf(values, draft.display.frameRateLimit);
+            draft.display.frameRateLimit = values[WrapIndex((current < 0 ? 0 : current) + direction, values.Length)];
+            settingsDraftRevision++;
+        }
+
+        public void CycleDraftDetection(int direction)
+        {
+            if (!TryGetSettingsDraft(out PulseForgeSettingsData draft)) return;
+            RuntimeDetectionMode current;
+            if (!Enum.TryParse(draft.defaultDetection, true, out current)) current = RuntimeDetectionMode.Onset;
+            RuntimeDetectionMode[] values = (RuntimeDetectionMode[])Enum.GetValues(typeof(RuntimeDetectionMode));
+            draft.defaultDetection = values[WrapIndex((int)current + direction, values.Length)].ToString();
+            settingsDraftRevision++;
+        }
+
+        public void CycleDraftDifficulty(int direction)
+        {
+            if (!TryGetSettingsDraft(out PulseForgeSettingsData draft)) return;
+            RuntimeDifficulty current;
+            if (!Enum.TryParse(draft.defaultDifficulty, true, out current)) current = RuntimeDifficulty.Normal;
+            RuntimeDifficulty[] values = (RuntimeDifficulty[])Enum.GetValues(typeof(RuntimeDifficulty));
+            draft.defaultDifficulty = values[WrapIndex((int)current + direction, values.Length)].ToString();
+            settingsDraftRevision++;
+        }
+
+        public void CycleDraftCombatStyle(int direction)
+        {
+            if (!TryGetSettingsDraft(out PulseForgeSettingsData draft)) return;
+            RuntimeCombatStyle current;
+            if (!Enum.TryParse(draft.defaultCombatStyle, true, out current)) current = RuntimeCombatStyle.Legacy;
+            RuntimeCombatStyle[] values = (RuntimeCombatStyle[])Enum.GetValues(typeof(RuntimeCombatStyle));
+            draft.defaultCombatStyle = values[WrapIndex((int)current + direction, values.Length)].ToString();
+            settingsDraftRevision++;
+        }
+
+        public string GetDraftBindingDisplay(PulseForgeInputAction action)
+        {
+            EnsureInputService();
+            return inputService.GetBindingDisplayString(action);
+        }
+
+        public void BeginDraftRebind(PulseForgeInputAction action)
+        {
+            if (!isSettingsOpen) return;
+            settingsMessage = "Press a key…";
+            settingsDraftRevision++;
+            inputService.BeginInteractiveRebind(action, (success, message) =>
+            {
+                if (!isSettingsOpen || settingsDraft == null) return;
+                if (success)
+                {
+                    settingsDraft.input.inputBindingOverridesJson = inputService.SaveBindingOverridesAsJson();
+                }
+
+                settingsMessage = message;
+                settingsDraftRevision++;
+            });
+        }
+
+        public void CancelDraftRebind()
+        {
+            inputService?.CancelInteractiveRebind();
+        }
+
+        public void ResetDraftBindings()
+        {
+            if (!isSettingsOpen || settingsDraft == null) return;
+            inputService.ResetBindings();
+            settingsDraft.input.inputBindingOverridesJson = string.Empty;
+            settingsMessage = "Bindings reset in the draft.";
+            settingsDraftRevision++;
+        }
+
+        private void ApplySettingsData(PulseForgeSettingsData settings, bool applyDisplay)
+        {
+            PulseForgeSettingsData normalized = SaveDataNormalizer.NormalizeSettings(settings);
+            SaveDataNormalizer.TryGetPipelineSettings(normalized.defaultDetection, normalized.defaultDifficulty,
+                normalized.defaultCombatStyle, out RuntimeAudioPipelineSettings pipeline);
+            runtimeDetectionMode = pipeline.DetectionMode;
+            runtimeDifficulty = pipeline.Difficulty;
+            runtimeCombatStyle = pipeline.CombatStyle;
+            debugBeatMapOffsetSeconds = normalized.beatmapOffsetSeconds;
+            inputTimingOffsetSeconds = normalized.inputTimingOffsetSeconds;
+            inputService?.LoadBindingOverridesFromJson(normalized.input.inputBindingOverridesJson);
+            sceneUIRoot?.SetEnableMotion(normalized.enableMotion);
+            PulseForgeRuntimeSettingsApplier.ApplyAudio(normalized, GetOrAddAudioSource());
+            if (applyDisplay) PulseForgeRuntimeSettingsApplier.ApplyDisplay(normalized);
+        }
+
+        private bool TryGetSettingsDraft(out PulseForgeSettingsData draft)
+        {
+            draft = settingsDraft;
+            return isSettingsOpen && draft != null;
+        }
+
+        private void PreviewDraftAudioAndMotion()
+        {
+            PulseForgeRuntimeSettingsApplier.ApplyAudio(settingsDraft, GetOrAddAudioSource());
+            sceneUIRoot?.SetEnableMotion(settingsDraft.enableMotion);
+        }
+
+        private void SetDraftOffset(string value, bool beatmap)
+        {
+            if (!TryGetSettingsDraft(out PulseForgeSettingsData draft)) return;
+            if (!float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float milliseconds))
+            {
+                settingsMessage = "Enter an offset between -500 and +500 ms.";
+                settingsDraftRevision++;
+                return;
+            }
+
+            float seconds = Mathf.Clamp(milliseconds, -500f, 500f) / 1000f;
+            if (beatmap) draft.beatmapOffsetSeconds = seconds; else draft.inputTimingOffsetSeconds = seconds;
+            settingsMessage = string.Empty;
+            settingsDraftRevision++;
+        }
+
+        private static int WrapIndex(int value, int count)
+        {
+            return count <= 0 ? 0 : (value % count + count) % count;
         }
 
         private void ResetLibrarySelectionForNewSong()

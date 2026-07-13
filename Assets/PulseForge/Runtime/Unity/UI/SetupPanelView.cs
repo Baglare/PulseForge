@@ -16,6 +16,7 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private Text statusText;
         [SerializeField] private Toggle saveToLibraryToggle;
         [SerializeField] private Button savedTracksButton;
+        [SerializeField] private Button settingsButton;
         [SerializeField] private Button[] detectionButtons;
         [SerializeField] private Button[] difficultyButtons;
         [SerializeField] private Button[] combatStyleButtons;
@@ -31,6 +32,7 @@ namespace PulseForge.Runtime.Unity.UI
         public Text SelectedFileText => selectedFileText;
         public Toggle SaveToLibraryToggle => saveToLibraryToggle;
         public Button SavedTracksButton => savedTracksButton;
+        public Button SettingsButton => settingsButton;
 
         public static SetupPanelView Create(Transform parent)
         {
@@ -153,7 +155,25 @@ namespace PulseForge.Runtime.Unity.UI
                 TextAnchor.MiddleCenter);
             PulseForgeUIFactory.SetLayoutHeight(view.statusText, 32f);
             view.EnsurePersistenceControls();
+            view.EnsureSettingsButton();
             return view;
+        }
+
+        public void EnsureSettingsButton(Action<GameObject> registerCreated = null)
+        {
+            Transform card = PanelRoot == null ? null : PanelRoot.transform.Find("Setup Card");
+            Transform row = card == null ? null : card.Find("Library Actions");
+            if (row == null) return;
+            Transform existing = row.Find("Settings");
+            settingsButton = existing == null ? null : existing.GetComponent<Button>();
+            if (settingsButton == null)
+            {
+                settingsButton = PulseForgeUIFactory.CreateButton(
+                    "Settings", row, "Settings", PulseForgeUITheme.SecondaryText,
+                    PulseForgeUITheme.SmallFontSize);
+                PulseForgeUIFactory.SetLayoutHeight(settingsButton, 48f, 1f);
+                registerCreated?.Invoke(settingsButton.gameObject);
+            }
         }
 
         public void EnsurePersistenceControls(Action<GameObject> registerCreated = null)
@@ -246,6 +266,7 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgeUIFactory.BindButton(chooseAudioButton, controller.SelectAudioFile);
             PulseForgeUIFactory.BindButton(analyzeButton, controller.AnalyzeSelectedAudio);
             PulseForgeUIFactory.BindButton(savedTracksButton, controller.OpenSavedTracks);
+            PulseForgeUIFactory.BindButton(settingsButton, controller.OpenSettings);
             if (saveToLibraryToggle != null)
             {
                 saveToLibraryToggle.onValueChanged.RemoveAllListeners();
@@ -281,6 +302,7 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgeUIFactory.UnbindButton(chooseAudioButton);
             PulseForgeUIFactory.UnbindButton(analyzeButton);
             PulseForgeUIFactory.UnbindButton(savedTracksButton);
+            PulseForgeUIFactory.UnbindButton(settingsButton);
             saveToLibraryToggle?.onValueChanged.RemoveAllListeners();
             detectionSelector?.Unbind();
             difficultySelector?.Unbind();
@@ -325,6 +347,7 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgeUIValidation.AddMissing(errors, statusText, "Setup: status text is missing.");
             PulseForgeUIValidation.AddMissing(errors, saveToLibraryToggle, "Setup: Save to Library toggle is missing.");
             PulseForgeUIValidation.AddMissing(errors, savedTracksButton, "Setup: Saved Tracks button is missing.");
+            PulseForgeUIValidation.AddMissing(errors, settingsButton, "Setup: Settings button is missing.");
             PulseForgeUIValidation.AddArray(errors, detectionButtons, 2, "Setup: detection buttons are incomplete.");
             PulseForgeUIValidation.AddArray(errors, difficultyButtons, 3, "Setup: difficulty buttons are incomplete.");
             PulseForgeUIValidation.AddArray(errors, combatStyleButtons, 5, "Setup: combat style buttons are incomplete.");

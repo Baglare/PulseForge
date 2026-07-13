@@ -9,7 +9,7 @@ namespace PulseForge.Runtime.Unity.Persistence
 {
     public static class SaveDefaults
     {
-        public const int SettingsSchemaVersion = 1;
+        public const int SettingsSchemaVersion = 2;
         public const int ProfileSchemaVersion = 1;
         public const int LibrarySchemaVersion = 2;
         public const int LibraryCacheVersion = 1;
@@ -17,6 +17,10 @@ namespace PulseForge.Runtime.Unity.Persistence
         public static PulseForgeSettingsData CreateSettings()
         {
             RuntimeAudioPipelineSettings pipeline = RuntimeAudioPipelineSettings.Default;
+            Resolution currentResolution = Screen.currentResolution;
+            int width = currentResolution.width > 0 ? currentResolution.width : 1920;
+            int height = currentResolution.height > 0 ? currentResolution.height : 1080;
+            int refreshRate = ResolveRefreshRate(currentResolution, 60);
             return new PulseForgeSettingsData
             {
                 schemaVersion = SettingsSchemaVersion,
@@ -26,10 +30,37 @@ namespace PulseForge.Runtime.Unity.Persistence
                 defaultCombatStyle = pipeline.CombatStyle.ToString(),
                 beatmapOffsetSeconds = 0f,
                 inputTimingOffsetSeconds = 0f,
-                audio = new PulseForgeAudioSettingsData { masterVolume = 1f },
-                display = new PulseForgeDisplaySettingsData(),
-                input = new PulseForgeInputSettingsData { reservedBindingProfile = string.Empty }
+                audio = new PulseForgeAudioSettingsData
+                {
+                    masterVolume = 1f,
+                    musicVolume = 1f
+                },
+                display = new PulseForgeDisplaySettingsData
+                {
+                    displayMode = PulseForgeDisplayMode.Windowed.ToString(),
+                    resolutionWidth = width,
+                    resolutionHeight = height,
+                    refreshRate = refreshRate,
+                    vSync = true,
+                    frameRateLimit = 120
+                },
+                input = new PulseForgeInputSettingsData
+                {
+                    reservedBindingProfile = string.Empty,
+                    inputBindingOverridesJson = string.Empty
+                }
             };
+        }
+
+        public static PulseForgeSettingsData CloneSettings(PulseForgeSettingsData source)
+        {
+            PulseForgeSettingsData clone = CreateSettings();
+            if (source != null)
+            {
+                JsonUtility.FromJsonOverwrite(JsonUtility.ToJson(source), clone);
+            }
+
+            return SaveDataNormalizer.NormalizeSettings(clone);
         }
 
         public static PulseForgeProfileData CreateProfile()
@@ -54,12 +85,19 @@ namespace PulseForge.Runtime.Unity.Persistence
         {
             return DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture);
         }
+
+        private static int ResolveRefreshRate(Resolution resolution, int fallback)
+        {
+            double value = resolution.refreshRateRatio.value;
+            return value > 0d ? Math.Max(1, (int)Math.Round(value)) : fallback;
+        }
     }
 
     public static class SaveDataNormalizer
     {
-        private const float MaximumBeatmapOffsetSeconds = 10f;
-        private const float MaximumInputOffsetSeconds = 1f;
+        private const float MaximumBeatmapOffsetSeconds = 0.5f;
+        private const float MaximumInputOffsetSeconds = 0.5f;
+        private const int MaximumBindingOverridesJsonLength = 64 * 1024;
 
         public static PulseForgeSettingsData NormalizeSettings(PulseForgeSettingsData data)
         {
@@ -69,6 +107,7 @@ namespace PulseForge.Runtime.Unity.Persistence
                 return defaults;
             }
 
+            int sourceSchemaVersion = data.schemaVersion;
             data.schemaVersion = SaveDefaults.SettingsSchemaVersion;
             data.defaultDetection = NormalizeEnum(
                 data.defaultDetection,
@@ -88,13 +127,99 @@ namespace PulseForge.Runtime.Unity.Persistence
                 defaults.inputTimingOffsetSeconds,
                 MaximumInputOffsetSeconds);
             data.audio = data.audio ?? defaults.audio;
+            if (sourceSchemaVersion < 2)
+            {
+                data.audio.musicVolume = defaults.audio.musicVolume;
+            }
             data.audio.masterVolume = Mathf.Clamp01(IsFinite(data.audio.masterVolume)
                 ? data.audio.masterVolume
                 : defaults.audio.masterVolume);
+            data.audio.musicVolume = Mathf.Clamp01(IsFinite(data.audio.musicVolume)
+                ? data.audio.musicVolume
+                : defaults.audio.musicVolume);
             data.display = data.display ?? defaults.display;
+            if (sourceSchemaVersion < 2)
+            {
+                data.display.displayMode = defaults.display.displayMode;
+                data.display.resolutionWidth = defaults.display.resolutionWidth;
+                data.display.resolutionHeight = defaults.display.resolutionHeight;
+                data.display.refreshRate = defaults.display.refreshRate;
+                data.display.vSync = defaults.display.vSync;
+                data.display.frameRateLimit = defaults.display.frameRateLimit;
+            }
+            data.display.displayMode = NormalizeEnum(
+                data.display.displayMode,
+                PulseForgeDisplayMode.Windowed).ToString();
+            NormalizeResolution(data.display, defaults.display);
+            data.display.frameRateLimit = IsSupportedFrameRate(data.display.frameRateLimit)
+                ? data.display.frameRateLimit
+                : defaults.display.frameRateLimit;
             data.input = data.input ?? defaults.input;
+            if (sourceSchemaVersion < 2)
+            {
+                data.input.inputBindingOverridesJson = defaults.input.inputBindingOverridesJson;
+            }
             data.input.reservedBindingProfile = data.input.reservedBindingProfile ?? string.Empty;
+            data.input.inputBindingOverridesJson = data.input.inputBindingOverridesJson ?? string.Empty;
+            if (data.input.inputBindingOverridesJson.Length > MaximumBindingOverridesJsonLength)
+            {
+                data.input.inputBindingOverridesJson = string.Empty;
+            }
+
             return data;
+        }
+
+        private static void NormalizeResolution(
+            PulseForgeDisplaySettingsData display,
+            PulseForgeDisplaySettingsData defaults)
+        {
+            if (display.resolutionWidth < 640
+                || display.resolutionHeight < 360
+                || display.refreshRate <= 0
+                || !ResolutionExists(
+                    display.resolutionWidth,
+                    display.resolutionHeight,
+                    display.refreshRate))
+            {
+                display.resolutionWidth = defaults.resolutionWidth;
+                display.resolutionHeight = defaults.resolutionHeight;
+                display.refreshRate = defaults.refreshRate;
+            }
+        }
+
+        private static bool ResolutionExists(int width, int height, int refreshRate)
+        {
+            Resolution[] resolutions = Screen.resolutions;
+            if (resolutions == null || resolutions.Length == 0)
+            {
+                return width >= 640 && height >= 360 && refreshRate > 0;
+            }
+
+            for (int i = 0; i < resolutions.Length; i++)
+            {
+                Resolution resolution = resolutions[i];
+                int availableRefreshRate = Math.Max(
+                    1,
+                    (int)Math.Round(resolution.refreshRateRatio.value));
+                if (resolution.width == width
+                    && resolution.height == height
+                    && availableRefreshRate == refreshRate)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsSupportedFrameRate(int value)
+        {
+            return value == -1
+                || value == 60
+                || value == 120
+                || value == 144
+                || value == 165
+                || value == 240;
         }
 
         public static PulseForgeProfileData NormalizeProfile(PulseForgeProfileData data)

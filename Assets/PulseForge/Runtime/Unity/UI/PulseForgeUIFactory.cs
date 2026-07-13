@@ -66,6 +66,7 @@ namespace PulseForge.Runtime.Unity.UI
                 error);
             root.ConfigureSavedTracksPanel(savedTracks);
             PulseForgePersistenceUISetup.Apply(root);
+            PulseForgeSettingsUISetup.Apply(root);
             PulseForgeUIVisualStyle.Apply(root);
             PulseForgeUIMotionSetup.Apply(root);
             PulseForgeGameplayFeedbackSetup.Apply(root);

@@ -10,6 +10,7 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private Button resumeButton;
         [SerializeField] private Button restartButton;
         [SerializeField] private Button changeSongButton;
+        [SerializeField] private Button settingsButton;
 
         private DebugRhythmPrototypeController boundController;
 
@@ -38,8 +39,23 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgeUIFactory.SetLayoutHeight(title, 96f);
             view.resumeButton = FlowPanelBuilder.AddButton(card, "Resume", PulseForgeUITheme.Primary, 72f, 28);
             view.restartButton = FlowPanelBuilder.AddButton(card, "Restart Track", PulseForgeUITheme.SecondaryText);
+            view.settingsButton = FlowPanelBuilder.AddButton(card, "Settings", PulseForgeUITheme.SecondaryText);
             view.changeSongButton = FlowPanelBuilder.AddButton(card, "Change Song", PulseForgeUITheme.SecondaryText);
             return view;
+        }
+
+        public void EnsureSettingsButton(System.Action<GameObject> registerCreated = null)
+        {
+            Transform card = PanelRoot == null ? null : PanelRoot.transform.Find("Pause Card");
+            if (card == null) return;
+            Transform existing = card.Find("Settings");
+            settingsButton = existing == null ? null : existing.GetComponent<Button>();
+            if (settingsButton == null)
+            {
+                settingsButton = FlowPanelBuilder.AddButton((RectTransform)card, "Settings", PulseForgeUITheme.SecondaryText);
+                if (changeSongButton != null) settingsButton.transform.SetSiblingIndex(changeSongButton.transform.GetSiblingIndex());
+                registerCreated?.Invoke(settingsButton.gameObject);
+            }
         }
 
         public void Bind(DebugRhythmPrototypeController controller)
@@ -58,6 +74,7 @@ namespace PulseForge.Runtime.Unity.UI
 
             PulseForgeUIFactory.BindButton(resumeButton, controller.ResumeSession);
             PulseForgeUIFactory.BindButton(restartButton, controller.RestartSession);
+            PulseForgeUIFactory.BindButton(settingsButton, controller.OpenSettings);
             PulseForgeUIFactory.BindButton(changeSongButton, controller.ChooseAnotherSong);
         }
 
@@ -65,6 +82,7 @@ namespace PulseForge.Runtime.Unity.UI
         {
             PulseForgeUIFactory.UnbindButton(resumeButton);
             PulseForgeUIFactory.UnbindButton(restartButton);
+            PulseForgeUIFactory.UnbindButton(settingsButton);
             PulseForgeUIFactory.UnbindButton(changeSongButton);
             boundController = null;
         }
@@ -74,6 +92,7 @@ namespace PulseForge.Runtime.Unity.UI
             base.CollectValidationErrors(errors);
             PulseForgeUIValidation.AddMissing(errors, resumeButton, "Pause: Resume button is missing.");
             PulseForgeUIValidation.AddMissing(errors, restartButton, "Pause: Restart Track button is missing.");
+            PulseForgeUIValidation.AddMissing(errors, settingsButton, "Pause: Settings button is missing.");
             PulseForgeUIValidation.AddMissing(errors, changeSongButton, "Pause: Change Song button is missing.");
         }
     }

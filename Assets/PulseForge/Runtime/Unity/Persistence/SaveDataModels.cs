@@ -22,18 +22,33 @@ namespace PulseForge.Runtime.Unity.Persistence
     public sealed class PulseForgeAudioSettingsData
     {
         public float masterVolume;
+        public float musicVolume;
     }
 
     [Serializable]
     public sealed class PulseForgeDisplaySettingsData
     {
         public bool reservedFullscreen;
+        public string displayMode;
+        public int resolutionWidth;
+        public int resolutionHeight;
+        public int refreshRate;
+        public bool vSync;
+        public int frameRateLimit;
     }
 
     [Serializable]
     public sealed class PulseForgeInputSettingsData
     {
         public string reservedBindingProfile;
+        public string inputBindingOverridesJson;
+    }
+
+    public enum PulseForgeDisplayMode
+    {
+        Windowed,
+        Borderless,
+        ExclusiveFullscreen
     }
 
     [Serializable]

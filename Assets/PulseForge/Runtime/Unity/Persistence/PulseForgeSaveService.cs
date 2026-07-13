@@ -53,13 +53,20 @@ namespace PulseForge.Runtime.Unity.Persistence
             float inputTimingOffsetSeconds)
         {
             EnsureInitialized();
-            Settings.enableMotion = enableMotion;
-            Settings.defaultDetection = pipelineSettings.DetectionMode.ToString();
-            Settings.defaultDifficulty = pipelineSettings.Difficulty.ToString();
-            Settings.defaultCombatStyle = pipelineSettings.CombatStyle.ToString();
-            Settings.beatmapOffsetSeconds = beatmapOffsetSeconds;
-            Settings.inputTimingOffsetSeconds = inputTimingOffsetSeconds;
-            bool saved = settingsRepository.Save(Settings);
+            PulseForgeSettingsData settings = SaveDefaults.CloneSettings(Settings);
+            settings.enableMotion = enableMotion;
+            settings.defaultDetection = pipelineSettings.DetectionMode.ToString();
+            settings.defaultDifficulty = pipelineSettings.Difficulty.ToString();
+            settings.defaultCombatStyle = pipelineSettings.CombatStyle.ToString();
+            settings.beatmapOffsetSeconds = beatmapOffsetSeconds;
+            settings.inputTimingOffsetSeconds = inputTimingOffsetSeconds;
+            return SaveSettings(settings);
+        }
+
+        public bool SaveSettings(PulseForgeSettingsData settings)
+        {
+            EnsureInitialized();
+            bool saved = settingsRepository.Save(SaveDefaults.CloneSettings(settings));
             Settings = settingsRepository.Current;
             return saved;
         }

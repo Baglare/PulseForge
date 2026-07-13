@@ -52,6 +52,7 @@ namespace PulseForge.Runtime.Unity.UI
             }
 
             PulseForgePersistenceUISetup.Apply(root);
+            PulseForgeSettingsUISetup.Apply(root);
             PulseForgeUIMotionSetup.Apply(root);
             PulseForgeGameplayFeedbackSetup.Apply(root);
             root.SetEnableMotion(controller.MotionEnabledSetting);
