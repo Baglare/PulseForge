@@ -290,13 +290,11 @@ namespace PulseForge.Runtime.Unity.UI
     {
         private readonly Button[] buttons;
         private readonly T[] values;
-        private readonly Color accent;
 
         public ChoiceSelector(Button[] buttons, T[] values, Color accent, Action<T> selectionChanged)
         {
             this.buttons = buttons ?? Array.Empty<Button>();
             this.values = values ?? Array.Empty<T>();
-            this.accent = accent;
 
             int count = Math.Min(this.buttons.Length, this.values.Length);
             for (int i = 0; i < count; i++)
@@ -321,13 +319,9 @@ namespace PulseForge.Runtime.Unity.UI
             for (int i = 0; i < count; i++)
             {
                 bool isSelected = comparer.Equals(values[i], selectedValue);
-                ColorBlock colors = PulseForgeUITheme.CreateButtonColors(accent, isSelected);
-                buttons[i].colors = colors;
-                Image image = buttons[i].targetGraphic as Image;
-                if (image != null)
-                {
-                    image.color = colors.normalColor;
-                }
+                PulseForgeUIVisualStyle.ApplyButtonStyle(
+                    buttons[i],
+                    isSelected ? PulseForgeButtonStyle.SelectedSegment : PulseForgeButtonStyle.Segment);
             }
         }
     }

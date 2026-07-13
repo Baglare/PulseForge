@@ -57,7 +57,30 @@ namespace PulseForge.Runtime.Unity.UI
 
         public void Refresh(DebugRhythmPrototypeController controller)
         {
-            errorText.text = controller.ErrorMessage;
+            errorText.text = CreateUserFacingMessage(controller.ErrorMessage);
+        }
+
+        private static string CreateUserFacingMessage(string rawMessage)
+        {
+            if (string.IsNullOrWhiteSpace(rawMessage))
+            {
+                return "The track could not be prepared. Please try again or return to Setup.";
+            }
+
+            string message = rawMessage.Trim();
+            int lineBreak = message.IndexOf('\n');
+            if (lineBreak >= 0)
+            {
+                message = message.Substring(0, lineBreak).Trim();
+            }
+
+            const int maxLength = 220;
+            if (message.Length > maxLength)
+            {
+                message = message.Substring(0, maxLength).TrimEnd() + "…";
+            }
+
+            return message;
         }
 
         public override void CollectValidationErrors(List<string> errors)

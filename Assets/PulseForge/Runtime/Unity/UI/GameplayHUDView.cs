@@ -112,8 +112,11 @@ namespace PulseForge.Runtime.Unity.UI
         public void Refresh(DebugRhythmPrototypeController controller)
         {
             ScoreSnapshot snapshot = controller.Score;
-            scoreText.text = "SCORE\n" + snapshot.TotalScore;
-            comboText.text = "COMBO\n" + snapshot.CurrentCombo;
+            scoreText.text = "<size=13><color=#8FA3B8>SCORE</color></size>\n" + snapshot.TotalScore;
+            comboText.text = "<size=13><color=#8FA3B8>COMBO</color></size>\n"
+                + (snapshot.CurrentCombo == 0
+                    ? "<color=#8FA3B8>0</color>"
+                    : snapshot.CurrentCombo.ToString());
             songText.text = controller.SongName;
 
             float progress = controller.SessionDurationSeconds <= 0d

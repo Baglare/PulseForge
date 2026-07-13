@@ -10,6 +10,9 @@ namespace PulseForge.Runtime.Unity.UI
     public static class PulseForgeUIFactory
     {
         private static Font defaultFont;
+        private static Sprite roundedSprite;
+
+        internal static Sprite RoundedSprite => GetRoundedSprite();
 
         public static PulseForgeSceneUIRoot CreateStaticHierarchy(
             Transform parent = null,
@@ -60,6 +63,7 @@ namespace PulseForge.Runtime.Unity.UI
                 pause,
                 results,
                 error);
+            PulseForgeUIVisualStyle.Apply(root);
             root.ApplyVisibility(PulseForgeUIState.Setup);
             return root;
         }
@@ -118,6 +122,8 @@ namespace PulseForge.Runtime.Unity.UI
             rectTransform.anchoredPosition = Vector2.zero;
             Image image = rectTransform.gameObject.AddComponent<Image>();
             image.color = color;
+            image.sprite = RoundedSprite;
+            image.type = RoundedSprite != null ? Image.Type.Sliced : Image.Type.Simple;
             return rectTransform;
         }
 
@@ -172,6 +178,7 @@ namespace PulseForge.Runtime.Unity.UI
                 TextAnchor.MiddleCenter,
                 FontStyle.Bold);
             Stretch(buttonText.rectTransform, 12f, 8f, 12f, 8f);
+            PulseForgeUIVisualStyle.ApplyButtonStyle(button, PulseForgeUITheme.ResolveButtonStyle(accent));
             return button;
         }
 
@@ -279,6 +286,19 @@ namespace PulseForge.Runtime.Unity.UI
             }
 
             return defaultFont;
+        }
+
+        private static Sprite GetRoundedSprite()
+        {
+            if (roundedSprite != null)
+            {
+                return roundedSprite;
+            }
+
+            // Unity 6 no longer exposes the legacy UGUI skin sprite at the old built-in path.
+            // Keep the style asset-free and fall back to Image + Outline/Shadow instead.
+            roundedSprite = null;
+            return roundedSprite;
         }
 
         private static void ClearEventSystemSelection()

@@ -28,7 +28,7 @@ namespace PulseForge.Runtime.Unity.UI
             ReadyPanelView view = root.AddComponent<ReadyPanelView>();
             view.ConfigurePanelRoot(root);
 
-            FlowPanelBuilder.AddHeading(card, "Ready to play");
+            FlowPanelBuilder.AddHeading(card, "Track Ready");
             view.songText = FlowPanelBuilder.AddValue(card, "Song");
             view.eventCountText = FlowPanelBuilder.AddValue(card, "Events");
             view.detectionText = FlowPanelBuilder.AddValue(card, "Detection");
@@ -69,11 +69,11 @@ namespace PulseForge.Runtime.Unity.UI
 
         public void Refresh(DebugRhythmPrototypeController controller)
         {
-            songText.text = "Song   " + controller.SongName;
-            eventCountText.text = "Events   " + controller.SessionEventCount;
-            detectionText.text = "Detection   " + controller.AppliedDetectionLabel;
-            difficultyText.text = "Difficulty   " + controller.AppliedDifficultyLabel;
-            combatStyleText.text = "Combat Style   " + controller.AppliedCombatStyleLabel;
+            songText.text = controller.SongName;
+            eventCountText.text = "EVENTS     " + controller.SessionEventCount;
+            detectionText.text = "DETECTION     " + controller.AppliedDetectionLabel;
+            difficultyText.text = "DIFFICULTY     " + controller.AppliedDifficultyLabel;
+            combatStyleText.text = "COMBAT STYLE     " + controller.AppliedCombatStyleLabel;
             startButton.interactable = controller.CanStart;
         }
 

@@ -19,12 +19,12 @@ namespace PulseForge.Runtime.Unity.UI
 
         private static readonly string[] StageLabels =
         {
-            "Audio selected",
+            "Track selected",
             "Converting to WAV",
-            "Loading converted audio",
+            "Loading track",
             "Detecting rhythm",
             "Building combat sequence",
-            "Ready"
+            "Ready to play"
         };
 
         [SerializeField] private Text songText;
@@ -41,7 +41,7 @@ namespace PulseForge.Runtime.Unity.UI
             ProcessingPanelView view = root.AddComponent<ProcessingPanelView>();
             view.ConfigurePanelRoot(root);
 
-            Text title = FlowPanelBuilder.AddHeading(card, "Preparing your session");
+            Text title = FlowPanelBuilder.AddHeading(card, "Preparing Your Track");
             PulseForgeUIFactory.SetLayoutHeight(title, 82f);
             view.songText = FlowPanelBuilder.AddCenteredText(card, string.Empty, 24, PulseForgeUITheme.PrimaryText, 52f);
             view.statusText = FlowPanelBuilder.AddCenteredText(card, string.Empty, 20, PulseForgeUITheme.SecondaryText, 62f);
@@ -62,25 +62,44 @@ namespace PulseForge.Runtime.Unity.UI
         public void Refresh(DebugRhythmPrototypeController controller)
         {
             songText.text = controller.SelectedAudioFileName;
-            statusText.text = controller.RuntimeAudioImportStatus;
             PulseForgeProcessingStage currentStage = controller.ProcessingStage;
+            statusText.text = GetFriendlyStatus(currentStage);
             for (int i = 0; i < Stages.Length; i++)
             {
                 if ((int)Stages[i] < (int)currentStage)
                 {
-                    stageTexts[i].text = "Completed   " + StageLabels[i];
+                    stageTexts[i].text = "✓   " + StageLabels[i];
                     stageTexts[i].color = PulseForgeUITheme.Good;
                 }
                 else if (Stages[i] == currentStage)
                 {
-                    stageTexts[i].text = "In progress   " + StageLabels[i];
-                    stageTexts[i].color = PulseForgeUITheme.PrimaryText;
+                    stageTexts[i].text = "●   " + StageLabels[i];
+                    stageTexts[i].color = PulseForgeUITheme.Primary;
                 }
                 else
                 {
-                    stageTexts[i].text = "Waiting   " + StageLabels[i];
+                    stageTexts[i].text = "○   " + StageLabels[i];
                     stageTexts[i].color = PulseForgeUITheme.SecondaryText;
                 }
+            }
+        }
+
+        private static string GetFriendlyStatus(PulseForgeProcessingStage stage)
+        {
+            switch (stage)
+            {
+                case PulseForgeProcessingStage.AudioSelected:
+                    return "Track received. Preparing the audio pipeline.";
+                case PulseForgeProcessingStage.ConvertingToWav:
+                    return "Converting your track to a playable format.";
+                case PulseForgeProcessingStage.LoadingConvertedAudio:
+                    return "Loading the prepared track.";
+                case PulseForgeProcessingStage.DetectingRhythm:
+                    return "Finding playable rhythm events.";
+                case PulseForgeProcessingStage.BuildingCombatSequence:
+                    return "Building the rhythm-combat sequence.";
+                default:
+                    return "Your track is ready.";
             }
         }
 

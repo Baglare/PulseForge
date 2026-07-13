@@ -15,6 +15,7 @@ namespace PulseForge.Editor.UI
     internal static class PulseForgeSceneUIMaterializer
     {
         private const string MaterializeMenu = "Tools/PulseForge/UI/Materialize Runtime UI Into Scene";
+        private const string ApplyM8AStyleMenu = "Tools/PulseForge/UI/Apply M8A Visual Style";
         private const string ValidateMenu = "Tools/PulseForge/UI/Validate Scene UI";
 
         [MenuItem(MaterializeMenu)]
@@ -176,6 +177,66 @@ namespace PulseForge.Editor.UI
             }
 
             Debug.LogError("PulseForge Scene UI validation failed:\n- " + string.Join("\n- ", errors));
+        }
+
+        [MenuItem(ApplyM8AStyleMenu)]
+        private static void ApplyM8AVisualStyle()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                EditorUtility.DisplayDialog(
+                    "PulseForge UI",
+                    "M8A visual style can only be applied in Edit Mode.",
+                    "OK");
+                return;
+            }
+
+            Scene activeScene = SceneManager.GetActiveScene();
+            PulseForgeSceneUIRoot[] roots = FindInActiveScene<PulseForgeSceneUIRoot>(activeScene);
+            if (roots.Length != 1)
+            {
+                Debug.LogError(
+                    roots.Length == 0
+                        ? "Apply M8A Visual Style requires one PulseForgeSceneUIRoot in the active scene. None was found."
+                        : "Apply M8A Visual Style requires exactly one PulseForgeSceneUIRoot in the active scene. "
+                            + roots.Length + " were found.");
+                return;
+            }
+
+            PulseForgeSceneUIRoot root = roots[0];
+            Transform existingBackgroundLayers = root.Background == null
+                ? null
+                : root.Background.transform.Find(PulseForgeUIVisualStyle.BackgroundLayersName);
+            int undoGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName("Apply PulseForge M8A Visual Style");
+            Undo.RegisterFullObjectHierarchyUndo(root.gameObject, "Apply PulseForge M8A Visual Style");
+
+            PulseForgeUIVisualStyle.Apply(root);
+            if (existingBackgroundLayers == null && root.Background != null)
+            {
+                Transform createdLayers = root.Background.transform.Find(PulseForgeUIVisualStyle.BackgroundLayersName);
+                if (createdLayers != null)
+                {
+                    Undo.RegisterCreatedObjectUndo(createdLayers.gameObject, "Create PulseForge M8A Background Layers");
+                }
+            }
+
+            Component[] components = root.GetComponentsInChildren<Component>(true);
+            for (int i = 0; i < components.Length; i++)
+            {
+                if (components[i] != null)
+                {
+                    EditorUtility.SetDirty(components[i]);
+                }
+            }
+
+            EditorSceneManager.MarkSceneDirty(activeScene);
+            Selection.activeGameObject = root.gameObject;
+            EditorGUIUtility.PingObject(root);
+            Undo.CollapseUndoOperations(undoGroup);
+            Debug.Log(
+                "PulseForge M8A visual style was applied. The scene is dirty and has not been saved automatically.",
+                root);
         }
 
         private static EventSystem EnsureSingleInputSystemEventSystem(Scene scene)

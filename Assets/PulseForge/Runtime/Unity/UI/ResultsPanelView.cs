@@ -28,7 +28,7 @@ namespace PulseForge.Runtime.Unity.UI
                 out GameObject root);
             ResultsPanelView view = root.AddComponent<ResultsPanelView>();
             view.ConfigurePanelRoot(root);
-            FlowPanelBuilder.AddHeading(card, "Session complete");
+            FlowPanelBuilder.AddHeading(card, "Track Complete");
             view.scoreText = FlowPanelBuilder.AddValue(card, "Total Score");
             view.maxComboText = FlowPanelBuilder.AddValue(card, "Max Combo");
             view.perfectText = FlowPanelBuilder.AddValue(card, "Perfect");
@@ -68,16 +68,16 @@ namespace PulseForge.Runtime.Unity.UI
         public void Refresh(DebugRhythmPrototypeController controller)
         {
             ScoreSnapshot snapshot = controller.Score;
-            scoreText.text = "Total Score   " + snapshot.TotalScore;
-            maxComboText.text = "Max Combo   " + snapshot.MaxCombo;
-            perfectText.text = "Perfect   " + snapshot.PerfectCount;
+            scoreText.text = "TOTAL SCORE\n" + snapshot.TotalScore;
+            maxComboText.text = "MAX COMBO     " + snapshot.MaxCombo;
+            perfectText.text = "PERFECT     " + snapshot.PerfectCount;
             perfectText.color = PulseForgeUITheme.Perfect;
-            goodText.text = "Good   " + snapshot.GoodCount;
+            goodText.text = "GOOD     " + snapshot.GoodCount;
             goodText.color = PulseForgeUITheme.Good;
-            missText.text = "Miss   " + snapshot.MissCount;
+            missText.text = "MISS     " + snapshot.MissCount;
             missText.color = PulseForgeUITheme.Miss;
-            settingsText.text = controller.AppliedDifficultyLabel + " difficulty   |   "
-                + controller.AppliedCombatStyleLabel + " combat style";
+            settingsText.text = controller.AppliedDifficultyLabel + " Difficulty   •   "
+                + controller.AppliedCombatStyleLabel + " Combat Style";
         }
 
         public override void CollectValidationErrors(List<string> errors)

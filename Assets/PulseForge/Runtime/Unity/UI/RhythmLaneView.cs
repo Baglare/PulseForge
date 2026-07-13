@@ -41,15 +41,15 @@ namespace PulseForge.Runtime.Unity.UI
             LaneReferences guard = CreateStaticLane(
                 parent,
                 "Guard Lane",
-                "G",
-                "GUARD   |   SPACE",
+                "GUARD",
+                "SPACE",
                 PulseForgeUITheme.Guard,
                 138f);
             LaneReferences strike = CreateStaticLane(
                 parent,
                 "Strike Lane",
-                "S",
-                "STRIKE   |   J",
+                "STRIKE",
+                "J",
                 PulseForgeUITheme.Strike,
                 30f);
             view.Configure(guard, strike);
@@ -68,8 +68,8 @@ namespace PulseForge.Runtime.Unity.UI
                 return;
             }
 
-            guardLane = new Lane(guardNoteContainer, PulseForgeUITheme.Guard, "G");
-            strikeLane = new Lane(strikeNoteContainer, PulseForgeUITheme.Strike, "S");
+            guardLane = new Lane(guardNoteContainer, PulseForgeUITheme.Guard, true);
+            strikeLane = new Lane(strikeNoteContainer, PulseForgeUITheme.Strike, false);
         }
 
         public void Refresh(IReadOnlyList<BeatEventRuntime> events, double currentTimeSeconds)
@@ -240,14 +240,14 @@ namespace PulseForge.Runtime.Unity.UI
             private readonly NoteView[] notes;
             private int visibleNoteCount;
 
-            public Lane(RectTransform noteContainer, Color accent, string actionLabel)
+            public Lane(RectTransform noteContainer, Color accent, bool isGuard)
             {
                 this.noteContainer = noteContainer;
                 this.accent = accent;
                 notes = new NoteView[NotesPerLane];
                 for (int i = 0; i < notes.Length; i++)
                 {
-                    notes[i] = NoteView.GetOrCreate(noteContainer, accent, actionLabel, i);
+                    notes[i] = NoteView.GetOrCreate(noteContainer, accent, isGuard, i);
                 }
             }
 
@@ -281,18 +281,16 @@ namespace PulseForge.Runtime.Unity.UI
             private readonly RectTransform rectTransform;
             private readonly Image image;
             private readonly Text label;
-            private readonly string pendingLabel;
 
-            private NoteView(RectTransform rectTransform, Image image, Text label, string actionLabel)
+            private NoteView(RectTransform rectTransform, Image image, Text label)
             {
                 this.rectTransform = rectTransform;
                 this.image = image;
                 this.label = label;
-                pendingLabel = actionLabel;
                 SetActive(false);
             }
 
-            public static NoteView GetOrCreate(Transform parent, Color accent, string actionLabel, int index)
+            public static NoteView GetOrCreate(Transform parent, Color accent, bool isGuard, int index)
             {
                 string objectName = "Pooled Note " + index;
                 Transform existing = parent.Find(objectName);
@@ -305,16 +303,20 @@ namespace PulseForge.Runtime.Unity.UI
                     rectTransform.anchorMin = new Vector2(0f, 0.5f);
                     rectTransform.anchorMax = new Vector2(0f, 0.5f);
                     rectTransform.pivot = new Vector2(0.5f, 0.5f);
-                    rectTransform.sizeDelta = new Vector2(48f, 48f);
+                    rectTransform.sizeDelta = isGuard ? new Vector2(54f, 28f) : new Vector2(34f, 34f);
+                    rectTransform.localRotation = Quaternion.Euler(0f, 0f, isGuard ? 0f : 45f);
                     image = rectTransform.gameObject.AddComponent<Image>();
                     image.color = accent;
+                    image.sprite = PulseForgeUIFactory.RoundedSprite;
+                    image.type = image.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
                     Outline outline = rectTransform.gameObject.AddComponent<Outline>();
-                    outline.effectColor = PulseForgeUITheme.WithAlpha(Color.white, 0.42f);
-                    outline.effectDistance = new Vector2(2f, -2f);
+                    outline.effectColor = PulseForgeUITheme.WithAlpha(Color.white, 0.24f);
+                    outline.effectDistance = new Vector2(1f, -1f);
                     label = PulseForgeUIFactory.CreateText(
-                        "Label", rectTransform, actionLabel, 24, Color.white,
+                        "Label", rectTransform, string.Empty, 15, Color.white,
                         TextAnchor.MiddleCenter, FontStyle.Bold);
                     PulseForgeUIFactory.Stretch(label.rectTransform);
+                    label.rectTransform.localRotation = Quaternion.Euler(0f, 0f, isGuard ? 0f : -45f);
                 }
                 else
                 {
@@ -323,7 +325,7 @@ namespace PulseForge.Runtime.Unity.UI
                     label = existing.GetComponentInChildren<Text>(true);
                 }
 
-                return new NoteView(rectTransform, image, label, actionLabel);
+                return new NoteView(rectTransform, image, label);
             }
 
             public void SetActive(bool isActive)
@@ -353,7 +355,7 @@ namespace PulseForge.Runtime.Unity.UI
                         break;
                     default:
                         image.color = accent;
-                        label.text = pendingLabel;
+                        label.text = string.Empty;
                         label.color = Color.white;
                         break;
                 }
