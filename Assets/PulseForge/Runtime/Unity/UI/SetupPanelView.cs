@@ -14,6 +14,8 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private Button analyzeButton;
         [SerializeField] private Text selectedFileText;
         [SerializeField] private Text statusText;
+        [SerializeField] private Toggle saveToLibraryToggle;
+        [SerializeField] private Button savedTracksButton;
         [SerializeField] private Button[] detectionButtons;
         [SerializeField] private Button[] difficultyButtons;
         [SerializeField] private Button[] combatStyleButtons;
@@ -27,6 +29,8 @@ namespace PulseForge.Runtime.Unity.UI
         public Button ChooseAudioButton => chooseAudioButton;
         public Button AnalyzeButton => analyzeButton;
         public Text SelectedFileText => selectedFileText;
+        public Toggle SaveToLibraryToggle => saveToLibraryToggle;
+        public Button SavedTracksButton => savedTracksButton;
 
         public static SetupPanelView Create(Transform parent)
         {
@@ -148,7 +152,80 @@ namespace PulseForge.Runtime.Unity.UI
                 PulseForgeUITheme.SecondaryText,
                 TextAnchor.MiddleCenter);
             PulseForgeUIFactory.SetLayoutHeight(view.statusText, 32f);
+            view.EnsurePersistenceControls();
             return view;
+        }
+
+        public void EnsurePersistenceControls(Action<GameObject> registerCreated = null)
+        {
+            Transform card = PanelRoot == null ? null : PanelRoot.transform.Find("Setup Card");
+            if (card == null)
+            {
+                return;
+            }
+
+            Transform existingRow = card.Find("Library Actions");
+            RectTransform row;
+            if (existingRow == null)
+            {
+                row = PulseForgeUIFactory.CreateRect("Library Actions", card);
+                PulseForgeUIFactory.SetLayoutHeight(row, 48f);
+                HorizontalLayoutGroup layout = row.gameObject.AddComponent<HorizontalLayoutGroup>();
+                layout.spacing = 10f;
+                layout.childControlWidth = true;
+                layout.childControlHeight = true;
+                layout.childForceExpandWidth = true;
+                layout.childForceExpandHeight = true;
+
+                saveToLibraryToggle = CreateSaveToggle(row);
+                savedTracksButton = PulseForgeUIFactory.CreateButton(
+                    "Saved Tracks",
+                    row,
+                    "Saved Tracks",
+                    PulseForgeUITheme.SecondaryText,
+                    PulseForgeUITheme.SmallFontSize);
+                PulseForgeUIFactory.SetLayoutHeight(saveToLibraryToggle, 48f, 2f);
+                PulseForgeUIFactory.SetLayoutHeight(savedTracksButton, 48f, 1f);
+                if (analyzeButton != null)
+                {
+                    row.SetSiblingIndex(analyzeButton.transform.GetSiblingIndex());
+                }
+
+                registerCreated?.Invoke(row.gameObject);
+            }
+            else
+            {
+                row = existingRow as RectTransform;
+                saveToLibraryToggle = existingRow.GetComponentInChildren<Toggle>(true);
+                Transform savedButtonTransform = existingRow.Find("Saved Tracks");
+                savedTracksButton = savedButtonTransform == null
+                    ? null
+                    : savedButtonTransform.GetComponent<Button>();
+                if (saveToLibraryToggle == null)
+                {
+                    saveToLibraryToggle = CreateSaveToggle(existingRow);
+                    PulseForgeUIFactory.SetLayoutHeight(saveToLibraryToggle, 48f, 2f);
+                    registerCreated?.Invoke(saveToLibraryToggle.gameObject);
+                }
+
+                if (savedTracksButton == null)
+                {
+                    savedTracksButton = PulseForgeUIFactory.CreateButton(
+                        "Saved Tracks",
+                        existingRow,
+                        "Saved Tracks",
+                        PulseForgeUITheme.SecondaryText,
+                        PulseForgeUITheme.SmallFontSize);
+                    PulseForgeUIFactory.SetLayoutHeight(savedTracksButton, 48f, 1f);
+                    registerCreated?.Invoke(savedTracksButton.gameObject);
+                }
+            }
+
+            RectTransform cardRect = card as RectTransform;
+            if (cardRect != null && cardRect.sizeDelta.y < 860f)
+            {
+                cardRect.sizeDelta = new Vector2(cardRect.sizeDelta.x, 860f);
+            }
         }
 
         public void Bind(DebugRhythmPrototypeController controller)
@@ -168,6 +245,12 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgeUIFactory.BindButton(builtInDemoButton, controller.PlayBuiltInDemo);
             PulseForgeUIFactory.BindButton(chooseAudioButton, controller.SelectAudioFile);
             PulseForgeUIFactory.BindButton(analyzeButton, controller.AnalyzeSelectedAudio);
+            PulseForgeUIFactory.BindButton(savedTracksButton, controller.OpenSavedTracks);
+            if (saveToLibraryToggle != null)
+            {
+                saveToLibraryToggle.onValueChanged.RemoveAllListeners();
+                saveToLibraryToggle.onValueChanged.AddListener(controller.SetSaveSetupToLibrary);
+            }
             detectionSelector = new ChoiceSelector<RuntimeDetectionMode>(
                 detectionButtons,
                 new[] { RuntimeDetectionMode.Onset, RuntimeDetectionMode.Amplitude },
@@ -197,6 +280,8 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgeUIFactory.UnbindButton(builtInDemoButton);
             PulseForgeUIFactory.UnbindButton(chooseAudioButton);
             PulseForgeUIFactory.UnbindButton(analyzeButton);
+            PulseForgeUIFactory.UnbindButton(savedTracksButton);
+            saveToLibraryToggle?.onValueChanged.RemoveAllListeners();
             detectionSelector?.Unbind();
             difficultySelector?.Unbind();
             combatStyleSelector?.Unbind();
@@ -216,7 +301,13 @@ namespace PulseForge.Runtime.Unity.UI
                 ? PulseForgeUITheme.PrimaryText
                 : PulseForgeUITheme.SecondaryText;
             analyzeButton.interactable = controller.CanAnalyzeSelectedAudio;
+            if (saveToLibraryToggle != null)
+            {
+                saveToLibraryToggle.interactable = controller.HasSelectedAudio;
+            }
+
             statusText.text = controller.SetupStatusMessage;
+            saveToLibraryToggle?.SetIsOnWithoutNotify(controller.SaveSetupToLibrary);
 
             RuntimeAudioPipelineSettings settings = controller.SelectedPipelineSettings;
             detectionSelector?.SetSelected(settings.DetectionMode);
@@ -232,6 +323,8 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgeUIValidation.AddMissing(errors, analyzeButton, "Setup: Analyze Song button is missing.");
             PulseForgeUIValidation.AddMissing(errors, selectedFileText, "Setup: selected audio text is missing.");
             PulseForgeUIValidation.AddMissing(errors, statusText, "Setup: status text is missing.");
+            PulseForgeUIValidation.AddMissing(errors, saveToLibraryToggle, "Setup: Save to Library toggle is missing.");
+            PulseForgeUIValidation.AddMissing(errors, savedTracksButton, "Setup: Saved Tracks button is missing.");
             PulseForgeUIValidation.AddArray(errors, detectionButtons, 2, "Setup: detection buttons are incomplete.");
             PulseForgeUIValidation.AddArray(errors, difficultyButtons, 3, "Setup: difficulty buttons are incomplete.");
             PulseForgeUIValidation.AddArray(errors, combatStyleButtons, 5, "Setup: combat style buttons are incomplete.");
@@ -283,6 +376,48 @@ namespace PulseForge.Runtime.Unity.UI
             }
 
             return buttons;
+        }
+
+        private static Toggle CreateSaveToggle(Transform parent)
+        {
+            RectTransform root = PulseForgeUIFactory.CreateRect("Save to Library Toggle", parent);
+            Toggle toggle = root.gameObject.AddComponent<Toggle>();
+            toggle.isOn = false;
+            toggle.transition = Selectable.Transition.ColorTint;
+            toggle.colors = PulseForgeUITheme.CreateButtonColors(PulseForgeButtonStyle.Secondary);
+            Navigation navigation = toggle.navigation;
+            navigation.mode = Navigation.Mode.None;
+            toggle.navigation = navigation;
+
+            RectTransform box = PulseForgeUIFactory.CreateRect("Checkbox", root);
+            box.anchorMin = new Vector2(0f, 0.5f);
+            box.anchorMax = new Vector2(0f, 0.5f);
+            box.pivot = new Vector2(0f, 0.5f);
+            box.anchoredPosition = new Vector2(4f, 0f);
+            box.sizeDelta = new Vector2(30f, 30f);
+            Image boxImage = box.gameObject.AddComponent<Image>();
+            boxImage.color = PulseForgeUITheme.SurfaceRaised;
+            boxImage.sprite = PulseForgeUIFactory.RoundedSprite;
+            boxImage.type = boxImage.sprite == null ? Image.Type.Simple : Image.Type.Sliced;
+
+            RectTransform check = PulseForgeUIFactory.CreateRect("Checkmark", box);
+            PulseForgeUIFactory.Stretch(check, 6f, 6f, 6f, 6f);
+            Image checkImage = check.gameObject.AddComponent<Image>();
+            checkImage.color = PulseForgeUITheme.Primary;
+            checkImage.sprite = PulseForgeUIFactory.RoundedSprite;
+            checkImage.type = checkImage.sprite == null ? Image.Type.Simple : Image.Type.Sliced;
+            toggle.targetGraphic = boxImage;
+            toggle.graphic = checkImage;
+
+            Text label = PulseForgeUIFactory.CreateText(
+                "Label",
+                root,
+                "Save this setup to Library",
+                PulseForgeUITheme.SmallFontSize,
+                PulseForgeUITheme.PrimaryText,
+                TextAnchor.MiddleLeft);
+            PulseForgeUIFactory.Stretch(label.rectTransform, 46f, 2f, 6f, 2f);
+            return toggle;
         }
     }
 

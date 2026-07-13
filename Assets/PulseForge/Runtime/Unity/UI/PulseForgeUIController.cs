@@ -29,6 +29,7 @@ namespace PulseForge.Runtime.Unity.UI
             }
 
             sceneRoot.SetupPanel?.Bind(runtimeController);
+            sceneRoot.SavedTracksPanel?.Bind(runtimeController);
             sceneRoot.ReadyPanel?.Bind(runtimeController);
             sceneRoot.GameplayHud?.Bind(runtimeController);
             sceneRoot.PauseOverlay?.Bind(runtimeController);
@@ -46,6 +47,7 @@ namespace PulseForge.Runtime.Unity.UI
                 sceneRoot.CompleteMotionTransitions();
                 sceneRoot.GameplayFeedbackController?.Unbind();
                 sceneRoot.SetupPanel?.Unbind();
+                sceneRoot.SavedTracksPanel?.Unbind();
                 sceneRoot.ReadyPanel?.Unbind();
                 sceneRoot.GameplayHud?.Unbind();
                 sceneRoot.PauseOverlay?.Unbind();
@@ -67,10 +69,20 @@ namespace PulseForge.Runtime.Unity.UI
 
             PulseForgeUIState state = runtimeController.UIState;
             sceneRoot.ApplyVisibility(state);
+            bool showSavedTracks = state == PulseForgeUIState.Setup
+                && runtimeController.IsSavedTracksOpen;
+            sceneRoot.ApplyAuxiliaryVisibility(state, showSavedTracks);
             switch (state)
             {
                 case PulseForgeUIState.Setup:
-                    sceneRoot.SetupPanel?.Refresh(runtimeController);
+                    if (showSavedTracks)
+                    {
+                        sceneRoot.SavedTracksPanel?.Refresh(runtimeController);
+                    }
+                    else
+                    {
+                        sceneRoot.SetupPanel?.Refresh(runtimeController);
+                    }
                     break;
                 case PulseForgeUIState.Processing:
                     sceneRoot.ProcessingPanel?.Refresh(runtimeController);

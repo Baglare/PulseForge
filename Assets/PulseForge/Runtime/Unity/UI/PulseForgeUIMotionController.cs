@@ -442,6 +442,7 @@ namespace PulseForge.Runtime.Unity.UI
         private void ApplyImmediate(PulseForgeUIState state)
         {
             SetPanel(sceneRoot.SetupPanel, state == PulseForgeUIState.Setup);
+            SetPanel(sceneRoot.SavedTracksPanel, false);
             SetPanel(sceneRoot.ProcessingPanel, state == PulseForgeUIState.Processing);
             SetPanel(sceneRoot.ReadyPanel, state == PulseForgeUIState.Ready);
             SetPanel(sceneRoot.GameplayHud, IsGameplayState(state));
@@ -455,6 +456,7 @@ namespace PulseForge.Runtime.Unity.UI
         private void SetPanelsForPauseExit()
         {
             SetPanel(sceneRoot.SetupPanel, false);
+            SetPanel(sceneRoot.SavedTracksPanel, false);
             SetPanel(sceneRoot.ProcessingPanel, false);
             SetPanel(sceneRoot.ReadyPanel, false);
             SetPanel(sceneRoot.GameplayHud, true);

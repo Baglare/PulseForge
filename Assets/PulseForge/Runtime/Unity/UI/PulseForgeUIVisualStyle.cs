@@ -130,7 +130,7 @@ namespace PulseForge.Runtime.Unity.UI
 
             StyleScreenRoot(view, false);
             RectTransform card = FindRect(view.transform, "Setup Card");
-            StyleCard(card, new Vector2(980f, 820f), new RectOffset(52, 52, 34, 34), 9f);
+            StyleCard(card, new Vector2(980f, 860f), new RectOffset(52, 52, 30, 30), 8f);
             StyleText(FindText(card, "Title"), PulseForgeUITypography.AppTitle, PulseForgeUITheme.PrimaryText, TextAnchor.MiddleCenter, FontStyle.Bold, 64f);
             StyleText(FindText(card, "Description"), PulseForgeUITypography.Body, PulseForgeUITheme.SecondaryText, TextAnchor.MiddleCenter, FontStyle.Normal, 38f);
             StyleText(FindText(card, "Audio Source Label"), PulseForgeUITypography.SectionHeading, PulseForgeUITheme.PrimaryText, TextAnchor.MiddleLeft, FontStyle.Bold, 24f);
@@ -146,6 +146,25 @@ namespace PulseForge.Runtime.Unity.UI
             StyleSelector(card, "Detection Selector", 78f);
             StyleSelector(card, "Difficulty Selector", 78f);
             StyleSelector(card, "Combat Style Selector", 78f);
+            RectTransform libraryActions = FindRect(card, "Library Actions");
+            SetHeight(libraryActions, 48f);
+            ApplyButtonStyle(FindButton(libraryActions, "Saved Tracks"), PulseForgeButtonStyle.Secondary);
+            Toggle saveToggle = libraryActions == null
+                ? null
+                : libraryActions.GetComponentInChildren<Toggle>(true);
+            if (saveToggle != null)
+            {
+                saveToggle.colors = PulseForgeUITheme.CreateButtonColors(PulseForgeButtonStyle.Secondary);
+                Text toggleLabel = saveToggle.GetComponentInChildren<Text>(true);
+                StyleText(
+                    toggleLabel,
+                    PulseForgeUITypography.Secondary,
+                    PulseForgeUITheme.PrimaryText,
+                    TextAnchor.MiddleLeft,
+                    FontStyle.Normal,
+                    48f);
+            }
+
             Button analyze = FindButton(card, "Analyze Song");
             ApplyButtonStyle(analyze, PulseForgeButtonStyle.Primary);
             SetHeight(analyze == null ? null : analyze.GetComponent<RectTransform>(), PulseForgeUILayout.LargeButtonHeight);

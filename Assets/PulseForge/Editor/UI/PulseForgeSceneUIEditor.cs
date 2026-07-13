@@ -18,6 +18,7 @@ namespace PulseForge.Editor.UI
         private const string ApplyM8AStyleMenu = "Tools/PulseForge/UI/Apply M8A Visual Style";
         private const string ApplyM8B1MotionMenu = "Tools/PulseForge/UI/Apply M8B.1 Motion Setup";
         private const string ApplyM8B2FeedbackMenu = "Tools/PulseForge/UI/Apply M8B.2 Gameplay Feedback Setup";
+        private const string ApplyM8CPersistenceMenu = "Tools/PulseForge/UI/Apply M8C Persistence UI Setup";
         private const string ValidateMenu = "Tools/PulseForge/UI/Validate Scene UI";
 
         [MenuItem(MaterializeMenu)]
@@ -345,6 +346,61 @@ namespace PulseForge.Editor.UI
                 root);
         }
 
+        [MenuItem(ApplyM8CPersistenceMenu)]
+        private static void ApplyM8CPersistenceUISetup()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                EditorUtility.DisplayDialog(
+                    "PulseForge UI",
+                    "M8C persistence UI setup can only be applied in Edit Mode.",
+                    "OK");
+                return;
+            }
+
+            Scene activeScene = SceneManager.GetActiveScene();
+            PulseForgeSceneUIRoot[] roots = FindInActiveScene<PulseForgeSceneUIRoot>(activeScene);
+            if (roots.Length != 1)
+            {
+                Debug.LogError(
+                    roots.Length == 0
+                        ? "Apply M8C Persistence UI Setup requires one PulseForgeSceneUIRoot in the active scene. None was found."
+                        : "Apply M8C Persistence UI Setup requires exactly one PulseForgeSceneUIRoot in the active scene. "
+                            + roots.Length + " were found.");
+                return;
+            }
+
+            PulseForgeSceneUIRoot root = roots[0];
+            int undoGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName("Apply PulseForge M8C Persistence UI Setup");
+            Undo.RegisterFullObjectHierarchyUndo(root.gameObject, "Apply PulseForge M8C Persistence UI Setup");
+            Undo.RecordObject(root, "Configure PulseForge M8C Persistence UI");
+
+            PulseForgePersistenceUISetup.Apply(
+                root,
+                gameObject => Undo.RegisterCreatedObjectUndo(gameObject, "Create PulseForge M8C UI"));
+            PulseForgeUIMotionSetup.Apply(
+                root,
+                (gameObject, componentType) => Undo.AddComponent(gameObject, componentType));
+
+            Component[] components = root.GetComponentsInChildren<Component>(true);
+            for (int i = 0; i < components.Length; i++)
+            {
+                if (components[i] != null)
+                {
+                    EditorUtility.SetDirty(components[i]);
+                }
+            }
+
+            EditorSceneManager.MarkSceneDirty(activeScene);
+            Selection.activeGameObject = root.gameObject;
+            EditorGUIUtility.PingObject(root);
+            Undo.CollapseUndoOperations(undoGroup);
+            Debug.Log(
+                "PulseForge M8C persistence UI setup was applied. The scene is dirty and has not been saved automatically.",
+                root);
+        }
+
         private static EventSystem EnsureSingleInputSystemEventSystem(Scene scene)
         {
             EventSystem[] eventSystems = FindInActiveScene<EventSystem>(scene);
@@ -469,6 +525,7 @@ namespace PulseForge.Editor.UI
         {
             List<Object> undoTargets = new List<Object> { root };
             AddPanel(undoTargets, root.SetupPanel);
+            AddPanel(undoTargets, root.SavedTracksPanel);
             AddPanel(undoTargets, root.ProcessingPanel);
             AddPanel(undoTargets, root.ReadyPanel);
             AddPanel(undoTargets, root.GameplayHud);

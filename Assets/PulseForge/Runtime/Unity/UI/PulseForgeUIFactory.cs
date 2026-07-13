@@ -43,6 +43,7 @@ namespace PulseForge.Runtime.Unity.UI
             backgroundImage.raycastTarget = false;
 
             SetupPanelView setup = SetupPanelView.Create(canvasRect);
+            SavedTracksPanelView savedTracks = SavedTracksPanelView.Create(canvasRect);
             ProcessingPanelView processing = ProcessingPanelView.Create(canvasRect);
             ReadyPanelView ready = ReadyPanelView.Create(canvasRect);
             GameplayHUDView gameplay = GameplayHUDView.Create(canvasRect);
@@ -63,6 +64,8 @@ namespace PulseForge.Runtime.Unity.UI
                 pause,
                 results,
                 error);
+            root.ConfigureSavedTracksPanel(savedTracks);
+            PulseForgePersistenceUISetup.Apply(root);
             PulseForgeUIVisualStyle.Apply(root);
             PulseForgeUIMotionSetup.Apply(root);
             PulseForgeGameplayFeedbackSetup.Apply(root);

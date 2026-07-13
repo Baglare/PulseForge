@@ -6,6 +6,7 @@ using System.IO;
 using PulseForge.Domain.Rhythm;
 using PulseForge.Runtime.Unity.Audio;
 using PulseForge.Runtime.Unity.BeatMaps;
+using PulseForge.Runtime.Unity.Persistence;
 using PulseForge.Runtime.Unity.Timing;
 using PulseForge.Runtime.Unity.UI;
 using UnityEngine;
@@ -88,11 +89,40 @@ namespace PulseForge.Runtime.Unity.Prototype
         private long gameplayFeedbackSequence;
         private bool hasPublishedGameplayState;
         private PulseForgeUIState lastPublishedGameplayState;
+        private PulseForgeSaveService saveService;
+        private PulseForgeSceneUIRoot sceneUIRoot;
+        private bool saveSetupToLibrary;
+        private bool isSavedTracksOpen;
+        private bool completedSessionRecorded;
+        private int savedTrackLibraryRevision;
+        private string activeSavedTrackId = string.Empty;
+        private string activeSavedPresetId = string.Empty;
 
         public event Action<PulseForgeGameplayResultEvent> GameplayResultResolved;
         public event Action<PulseForgeComboChangedEvent> GameplayComboChanged;
         public event Action GameplaySessionRestarted;
         public event Action<PulseForgeUIState> GameplayStateChanged;
+
+        public bool SaveSetupToLibrary => saveSetupToLibrary;
+        public bool IsSavedTracksOpen => isSavedTracksOpen;
+        public int SavedTrackLibraryRevision => savedTrackLibraryRevision;
+        public bool MotionEnabledSetting
+        {
+            get
+            {
+                EnsureSaveService();
+                return saveService.Settings.enableMotion;
+            }
+        }
+
+        public SavedTrackLibraryData SavedTrackLibrary
+        {
+            get
+            {
+                EnsureSaveService();
+                return saveService.Library;
+            }
+        }
 
         public PulseForgeUIState UIState
         {
@@ -261,14 +291,19 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private void Start()
         {
+            EnsureSaveService();
+            ApplyLoadedSettings();
             runtimeFlow.ReturnToSetup(false);
             PrepareSession(false);
-            PulseForgeUIBootstrap.EnsureFor(this);
+            PulseForgeUIController uiController = PulseForgeUIBootstrap.EnsureFor(this);
+            sceneUIRoot = uiController == null ? null : uiController.SceneRoot;
+            ApplyLoadedMotionSetting();
             PublishGameplayStateIfChanged();
         }
 
         private void OnDestroy()
         {
+            SaveCurrentSettings();
             StopClock();
             if (runtimeAudioClip != null)
             {
@@ -487,19 +522,19 @@ namespace PulseForge.Runtime.Unity.Prototype
 
                 if (GUILayout.Button("Detection: " + runtimeDetectionMode))
                 {
-                    runtimeDetectionMode = runtimeDetectionMode == RuntimeDetectionMode.Onset
+                    SetDetectionMode(runtimeDetectionMode == RuntimeDetectionMode.Onset
                         ? RuntimeDetectionMode.Amplitude
-                        : RuntimeDetectionMode.Onset;
+                        : RuntimeDetectionMode.Onset);
                 }
 
                 if (GUILayout.Button("Difficulty: " + runtimeDifficulty))
                 {
-                    runtimeDifficulty = GetNextDifficulty(runtimeDifficulty);
+                    SetDifficulty(GetNextDifficulty(runtimeDifficulty));
                 }
 
                 if (GUILayout.Button("Combat Style: " + runtimeCombatStyle))
                 {
-                    runtimeCombatStyle = GetNextCombatStyle(runtimeCombatStyle);
+                    SetCombatStyle(GetNextCombatStyle(runtimeCombatStyle));
                 }
 
                 if (GUILayout.Button(isRuntimeAudioImportBusy ? "Running Pipeline..." : "Choose Audio & Run Pipeline"))
@@ -548,7 +583,13 @@ namespace PulseForge.Runtime.Unity.Prototype
         {
             if (UIState == PulseForgeUIState.Setup && !isRuntimeAudioImportBusy)
             {
+                if (runtimeDetectionMode != detectionMode)
+                {
+                    ClearActiveSavedPreset();
+                }
+
                 runtimeDetectionMode = detectionMode;
+                SaveCurrentSettings();
             }
         }
 
@@ -556,7 +597,13 @@ namespace PulseForge.Runtime.Unity.Prototype
         {
             if (UIState == PulseForgeUIState.Setup && !isRuntimeAudioImportBusy)
             {
+                if (runtimeDifficulty != difficulty)
+                {
+                    ClearActiveSavedPreset();
+                }
+
                 runtimeDifficulty = difficulty;
+                SaveCurrentSettings();
             }
         }
 
@@ -564,8 +611,40 @@ namespace PulseForge.Runtime.Unity.Prototype
         {
             if (UIState == PulseForgeUIState.Setup && !isRuntimeAudioImportBusy)
             {
+                if (runtimeCombatStyle != combatStyle)
+                {
+                    ClearActiveSavedPreset();
+                }
+
                 runtimeCombatStyle = combatStyle;
+                SaveCurrentSettings();
             }
+        }
+
+        public void SetSaveSetupToLibrary(bool value)
+        {
+            if (UIState == PulseForgeUIState.Setup && !isRuntimeAudioImportBusy)
+            {
+                saveSetupToLibrary = value && HasSelectedAudio;
+            }
+        }
+
+        public void OpenSavedTracks()
+        {
+            if (UIState != PulseForgeUIState.Setup || isRuntimeAudioImportBusy)
+            {
+                return;
+            }
+
+            EnsureSaveService();
+            saveService.RefreshLibraryFileStates();
+            savedTrackLibraryRevision++;
+            isSavedTracksOpen = true;
+        }
+
+        public void CloseSavedTracks()
+        {
+            isSavedTracksOpen = false;
         }
 
         public void SelectAudioFile()
@@ -590,6 +669,7 @@ namespace PulseForge.Runtime.Unity.Prototype
 
             if (runtimeFlow.SelectAudioPath(selectedPath))
             {
+                ResetLibrarySelectionForNewSong();
                 runtimeAudioImportStatus = "Audio selected: " + Path.GetFileName(selectedPath);
                 setupStatusMessage = "Song selected. Choose settings, then analyze.";
             }
@@ -632,6 +712,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             StopClock();
             isCountdownActive = false;
             ClearPendingInput();
+            ResetLibrarySelectionForNewSong();
             useRuntimeSessionSource = false;
             if (PrepareSession(false))
             {
@@ -704,12 +785,142 @@ namespace PulseForge.Runtime.Unity.Prototype
             ReturnToSetup(true);
         }
 
+        public void LoadSavedTrackPreset(string trackId, string presetId)
+        {
+            EnsureSaveService();
+            if (!saveService.TryGetPreset(
+                trackId,
+                presetId,
+                out SavedTrackData track,
+                out SavedTrackPresetData preset,
+                out RuntimeAudioPipelineSettings settings))
+            {
+                return;
+            }
+
+            if (track.fileMissing || string.IsNullOrWhiteSpace(track.originalFilePath)
+                || !File.Exists(track.originalFilePath))
+            {
+                saveService.RefreshLibraryFileStates();
+                savedTrackLibraryRevision++;
+                return;
+            }
+
+            if (!runtimeFlow.SelectAudioPath(track.originalFilePath))
+            {
+                return;
+            }
+
+            runtimeDetectionMode = settings.DetectionMode;
+            runtimeDifficulty = settings.Difficulty;
+            runtimeCombatStyle = settings.CombatStyle;
+            activeSavedTrackId = track.trackId;
+            activeSavedPresetId = preset.presetId;
+            saveService.MarkTrackUsed(track.trackId);
+            savedTrackLibraryRevision++;
+            saveSetupToLibrary = false;
+            isSavedTracksOpen = false;
+            runtimeAudioImportStatus = "Audio selected: " + Path.GetFileName(track.originalFilePath);
+            setupStatusMessage = "Saved setup loaded. Analyze Song when you are ready.";
+            SaveCurrentSettings();
+        }
+
+        public void RelinkSavedTrack(string trackId)
+        {
+            if (!WindowsAudioFilePicker.TryPickAudioFile(out string selectedPath, out string pickerError))
+            {
+                if (!string.IsNullOrEmpty(pickerError))
+                {
+                    Debug.LogWarning("PulseForge relink picker: " + pickerError);
+                }
+
+                return;
+            }
+
+            EnsureSaveService();
+            if (!saveService.TryRelinkTrack(trackId, selectedPath, out string errorMessage))
+            {
+                if (!string.IsNullOrWhiteSpace(errorMessage))
+                {
+                    Debug.LogWarning("PulseForge library relink: " + errorMessage);
+                }
+
+                return;
+            }
+
+            savedTrackLibraryRevision++;
+        }
+
+        public void RemoveSavedTrack(string trackId)
+        {
+            EnsureSaveService();
+            if (saveService.RemoveTrack(trackId))
+            {
+                if (string.Equals(activeSavedTrackId, trackId, StringComparison.OrdinalIgnoreCase))
+                {
+                    ClearActiveSavedPreset();
+                }
+
+                savedTrackLibraryRevision++;
+            }
+        }
+
+        public void RemoveSavedPreset(string trackId, string presetId)
+        {
+            EnsureSaveService();
+            if (saveService.RemovePreset(trackId, presetId))
+            {
+                if (string.Equals(activeSavedTrackId, trackId, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(activeSavedPresetId, presetId, StringComparison.Ordinal))
+                {
+                    ClearActiveSavedPreset();
+                }
+
+                savedTrackLibraryRevision++;
+            }
+        }
+
+        public void SetMotionEnabled(bool value)
+        {
+            sceneUIRoot?.SetEnableMotion(value);
+            EnsureSaveService();
+            saveService.Settings.enableMotion = value;
+            SaveCurrentSettings();
+        }
+
+        public void ResetSettings()
+        {
+            EnsureSaveService();
+            saveService.ResetSettings();
+            ApplyLoadedSettings();
+            ApplyLoadedMotionSetting();
+        }
+
+        public void ResetProfile()
+        {
+            EnsureSaveService();
+            saveService.ResetProfile();
+        }
+
+        public void ClearSavedTrackLibrary()
+        {
+            EnsureSaveService();
+            saveService.ClearSavedTrackLibrary();
+            ClearActiveSavedPreset();
+            savedTrackLibraryRevision++;
+        }
+
         private void ReturnToSetup(bool clearSelectedAudio)
         {
             StopClock();
             isCountdownActive = false;
             ClearPendingInput();
+            isSavedTracksOpen = false;
             runtimeFlow.ReturnToSetup(clearSelectedAudio);
+            if (clearSelectedAudio)
+            {
+                ResetLibrarySelectionForNewSong();
+            }
             setupStatusMessage = clearSelectedAudio
                 ? "Choose a song, select your settings, then analyze."
                 : HasSelectedAudio
@@ -928,6 +1139,7 @@ namespace PulseForge.Runtime.Unity.Prototype
                     new RhythmInputResolver(new BeatEventMatcher(), new HitJudge()),
                     new BeatEventTimeoutProcessor(new HitJudge()));
                 scoreTracker = new ScoreTracker();
+                completedSessionRecorded = false;
                 combatFeedbackRenderer.Clear();
                 ClearPendingInput();
                 ClearLastInputTimingError();
@@ -1162,6 +1374,7 @@ namespace PulseForge.Runtime.Unity.Prototype
 
             if (runtimeFlow.SelectAudioPath(selectedPath))
             {
+                ResetLibrarySelectionForNewSong();
                 AnalyzeSelectedAudio();
             }
         }
@@ -1233,6 +1446,10 @@ namespace PulseForge.Runtime.Unity.Prototype
             yield return null;
             runtimeFlow.MarkReady();
             setupStatusMessage = "Song analyzed and ready to play.";
+            if (saveSetupToLibrary)
+            {
+                SaveAnalyzedTrackToLibrary(importResult.SourcePath, pipelineSettings);
+            }
         }
 
         private void SetRuntimeAudioImportStatus(string status)
@@ -1614,6 +1831,115 @@ namespace PulseForge.Runtime.Unity.Prototype
             songClock.Stop();
             runtimeFlow.Complete();
             lastFeedback = "Session complete";
+            RecordCompletedSessionPersistence();
+        }
+
+        private void SaveAnalyzedTrackToLibrary(
+            string sourcePath,
+            RuntimeAudioPipelineSettings pipelineSettings)
+        {
+            EnsureSaveService();
+            double duration = runtimeAudioClip == null ? GetSessionDurationSeconds() : runtimeAudioClip.length;
+            int eventCount = session == null ? 0 : session.TotalEventCount;
+            if (saveService.TrySaveTrackSetup(
+                sourcePath,
+                runtimeAudioDisplayName,
+                duration,
+                pipelineSettings,
+                eventCount,
+                out SavedTrackPresetReference reference))
+            {
+                activeSavedTrackId = reference.TrackId;
+                activeSavedPresetId = reference.PresetId;
+                savedTrackLibraryRevision++;
+            }
+            else
+            {
+                ClearActiveSavedPreset();
+            }
+        }
+
+        private void RecordCompletedSessionPersistence()
+        {
+            if (completedSessionRecorded || UIState != PulseForgeUIState.Completed)
+            {
+                return;
+            }
+
+            completedSessionRecorded = true;
+            EnsureSaveService();
+            saveService.RecordCompletedSession(
+                GetSnapshot(),
+                useRuntimeSessionSource ? activeSavedTrackId : string.Empty,
+                useRuntimeSessionSource ? activeSavedPresetId : string.Empty);
+            savedTrackLibraryRevision++;
+        }
+
+        private void EnsureSaveService()
+        {
+            if (saveService == null)
+            {
+                saveService = new PulseForgeSaveService();
+            }
+
+            saveService.Initialize();
+        }
+
+        private void ApplyLoadedSettings()
+        {
+            EnsureSaveService();
+            PulseForgeSettingsData settings = SaveDataNormalizer.NormalizeSettings(saveService.Settings);
+            if (SaveDataNormalizer.TryGetPipelineSettings(
+                settings.defaultDetection,
+                settings.defaultDifficulty,
+                settings.defaultCombatStyle,
+                out RuntimeAudioPipelineSettings pipeline))
+            {
+                runtimeDetectionMode = pipeline.DetectionMode;
+                runtimeDifficulty = pipeline.Difficulty;
+                runtimeCombatStyle = pipeline.CombatStyle;
+            }
+
+            debugBeatMapOffsetSeconds = settings.beatmapOffsetSeconds;
+            inputTimingOffsetSeconds = settings.inputTimingOffsetSeconds;
+        }
+
+        private void ApplyLoadedMotionSetting()
+        {
+            if (saveService != null && saveService.Settings != null)
+            {
+                sceneUIRoot?.SetEnableMotion(saveService.Settings.enableMotion);
+            }
+        }
+
+        private void SaveCurrentSettings()
+        {
+            if (saveService == null)
+            {
+                return;
+            }
+
+            bool enableMotion = sceneUIRoot == null
+                ? saveService.Settings.enableMotion
+                : sceneUIRoot.EnableMotion;
+            saveService.SaveSettings(
+                enableMotion,
+                SelectedPipelineSettings,
+                debugBeatMapOffsetSeconds,
+                inputTimingOffsetSeconds);
+        }
+
+        private void ResetLibrarySelectionForNewSong()
+        {
+            saveSetupToLibrary = false;
+            isSavedTracksOpen = false;
+            ClearActiveSavedPreset();
+        }
+
+        private void ClearActiveSavedPreset()
+        {
+            activeSavedTrackId = string.Empty;
+            activeSavedPresetId = string.Empty;
         }
 
         private void DrawEventList()
@@ -1666,6 +1992,7 @@ namespace PulseForge.Runtime.Unity.Prototype
                 if (GUILayout.Button("Beatmap reset"))
                 {
                     debugBeatMapOffsetSeconds = 0f;
+                    SaveCurrentSettings();
                 }
 
                 GUILayout.EndHorizontal();
@@ -1684,6 +2011,7 @@ namespace PulseForge.Runtime.Unity.Prototype
                 if (GUILayout.Button("Input reset"))
                 {
                     inputTimingOffsetSeconds = 0f;
+                    SaveCurrentSettings();
                 }
 
                 GUILayout.EndHorizontal();
@@ -1693,11 +2021,13 @@ namespace PulseForge.Runtime.Unity.Prototype
         private void AdjustBeatMapOffset(float milliseconds)
         {
             debugBeatMapOffsetSeconds += milliseconds / 1000f;
+            SaveCurrentSettings();
         }
 
         private void AdjustInputTimingOffset(float milliseconds)
         {
             inputTimingOffsetSeconds += milliseconds / 1000f;
+            SaveCurrentSettings();
         }
 
         private string GetLastInputTimingErrorText()

@@ -51,8 +51,10 @@ namespace PulseForge.Runtime.Unity.UI
                     controller);
             }
 
+            PulseForgePersistenceUISetup.Apply(root);
             PulseForgeUIMotionSetup.Apply(root);
             PulseForgeGameplayFeedbackSetup.Apply(root);
+            root.SetEnableMotion(controller.MotionEnabledSetting);
             EventSystem eventSystem = EnsureEventSystem(root, UsedRuntimeFallback);
             root.AssignEventSystem(eventSystem);
 

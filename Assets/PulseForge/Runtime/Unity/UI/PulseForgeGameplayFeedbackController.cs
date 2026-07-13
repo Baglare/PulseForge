@@ -91,6 +91,9 @@ namespace PulseForge.Runtime.Unity.UI
 
         public void CollectValidationErrors(List<string> errors)
         {
+            // Runtime target references are intentionally not serialized. Rebuild the cache so
+            // Edit Mode validation remains accurate after a script/domain reload.
+            CacheTargets();
             PulseForgeUIValidation.AddMissing(errors, sceneRoot, "M8B.2 feedback: scene UI root is missing.");
             PulseForgeUIValidation.AddMissing(errors, runner, "M8B.2 feedback: motion runner is missing.");
             PulseForgeUIValidation.AddMissing(errors, feedbackText, "M8B.2 feedback: center feedback text is missing.");
