@@ -140,6 +140,62 @@ namespace PulseForge.Runtime.Unity.Audio
             }
         }
 
+        public static IEnumerator LoadCachedWav(
+            string wavPath,
+            string displayName,
+            Action<AudioClip> completed,
+            Action<string> failed)
+        {
+            if (string.IsNullOrWhiteSpace(wavPath) || !File.Exists(wavPath))
+            {
+                failed("Saved track cache is missing or damaged.");
+                yield break;
+            }
+
+            FileInfo fileInfo = new FileInfo(wavPath);
+            if (fileInfo.Length <= 44L)
+            {
+                failed("Saved track cache is missing or damaged.");
+                yield break;
+            }
+
+            string audioUri = new Uri(wavPath).AbsoluteUri;
+            using (UnityWebRequest request = UnityWebRequestMultimedia.GetAudioClip(audioUri, AudioType.WAV))
+            {
+                DownloadHandlerAudioClip downloadHandler = request.downloadHandler as DownloadHandlerAudioClip;
+                if (downloadHandler != null)
+                {
+                    downloadHandler.streamAudio = false;
+                }
+
+                yield return request.SendWebRequest();
+                if (request.result != UnityWebRequest.Result.Success)
+                {
+                    failed("Saved track cache is missing or damaged: " + request.error);
+                    yield break;
+                }
+
+                AudioClip audioClip = DownloadHandlerAudioClip.GetContent(request);
+                if (audioClip == null
+                    || audioClip.length <= 0f
+                    || audioClip.length > MaximumAudioDurationSeconds)
+                {
+                    if (audioClip != null)
+                    {
+                        UnityEngine.Object.Destroy(audioClip);
+                    }
+
+                    failed("Saved track cache is missing or damaged.");
+                    yield break;
+                }
+
+                audioClip.name = string.IsNullOrWhiteSpace(displayName)
+                    ? "Saved Track"
+                    : displayName;
+                completed(audioClip);
+            }
+        }
+
         private static string ValidateSourcePath(string sourcePath)
         {
             if (string.IsNullOrWhiteSpace(sourcePath))

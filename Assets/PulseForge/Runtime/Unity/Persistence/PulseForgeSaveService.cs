@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
@@ -14,6 +15,7 @@ namespace PulseForge.Runtime.Unity.Persistence
         private readonly SettingsRepository settingsRepository;
         private readonly ProfileRepository profileRepository;
         private readonly TrackLibraryRepository libraryRepository;
+        private readonly LibraryCacheStore cacheStore;
         private bool initialized;
 
         public PulseForgeSaveService()
@@ -23,6 +25,7 @@ namespace PulseForge.Runtime.Unity.Persistence
             settingsRepository = new SettingsRepository(store);
             profileRepository = new ProfileRepository(store);
             libraryRepository = new TrackLibraryRepository(store);
+            cacheStore = new LibraryCacheStore(root);
         }
 
         public string RootDirectory => store.RootDirectory;
@@ -78,7 +81,12 @@ namespace PulseForge.Runtime.Unity.Persistence
         public SavedTrackLibraryData ClearSavedTrackLibrary()
         {
             EnsureInitialized();
-            Library = libraryRepository.Clear();
+            Library = libraryRepository.Clear(out bool saved);
+            if (saved)
+            {
+                cacheStore.ClearCache();
+            }
+
             return Library;
         }
 
@@ -87,7 +95,8 @@ namespace PulseForge.Runtime.Unity.Persistence
             string displayName,
             double durationSeconds,
             RuntimeAudioPipelineSettings pipelineSettings,
-            int eventCount,
+            string convertedWavPath,
+            IReadOnlyList<BeatEventData> beatEvents,
             out SavedTrackPresetReference reference)
         {
             EnsureInitialized();
@@ -102,11 +111,36 @@ namespace PulseForge.Runtime.Unity.Persistence
             {
                 FileInfo info = new FileInfo(sourcePath);
                 string hash = ComputeSha256(sourcePath);
+                SavedTrackData existingTrack = libraryRepository.FindTrack(hash);
+                SavedTrackPresetData existingPreset = libraryRepository.FindPresetBySettings(
+                    existingTrack,
+                    pipelineSettings);
+                string presetId = existingPreset == null
+                    ? Guid.NewGuid().ToString("N")
+                    : existingPreset.presetId;
+                string presetCreatedAtUtc = existingPreset == null
+                    ? SaveDefaults.UtcNow()
+                    : existingPreset.createdAtUtc;
+                if (!cacheStore.TryWritePresetCache(
+                    hash,
+                    presetId,
+                    convertedWavPath,
+                    beatEvents,
+                    presetCreatedAtUtc,
+                    out string cachedAudioRelativePath,
+                    out string cachedBeatmapRelativePath,
+                    out string cacheError))
+                {
+                    Debug.LogError("PulseForge library metadata was not updated: " + cacheError);
+                    return false;
+                }
+
                 SavedTrackMetadata metadata = new SavedTrackMetadata(
                     hash,
                     string.IsNullOrWhiteSpace(displayName)
                         ? Path.GetFileNameWithoutExtension(sourcePath)
                         : displayName.Trim(),
+                    Path.GetFileName(sourcePath),
                     sourcePath,
                     info.Extension.TrimStart('.').ToUpperInvariant(),
                     info.Length,
@@ -115,8 +149,28 @@ namespace PulseForge.Runtime.Unity.Persistence
                 bool saved = libraryRepository.AddOrUpdateTrackPreset(
                     metadata,
                     pipelineSettings,
-                    eventCount,
+                    beatEvents == null ? 0 : beatEvents.Count,
+                    presetId,
+                    cachedAudioRelativePath,
+                    cachedBeatmapRelativePath,
+                    SaveDefaults.LibraryCacheVersion,
                     out reference);
+                if (!saved)
+                {
+                    if (existingTrack == null)
+                    {
+                        cacheStore.DeleteTrackCache(hash);
+                    }
+                    else if (existingPreset == null)
+                    {
+                        cacheStore.DeletePresetCache(hash, presetId);
+                    }
+
+                    reference = default;
+                    Library = libraryRepository.Load();
+                    return false;
+                }
+
                 Library = libraryRepository.Current;
                 return saved;
             }
@@ -148,6 +202,53 @@ namespace PulseForge.Runtime.Unity.Persistence
                 preset.difficulty,
                 preset.combatStyle,
                 out settings);
+        }
+
+        public bool TryGetCachedPreset(
+            string trackId,
+            string presetId,
+            out SavedTrackCacheLoadData loadData,
+            out string errorMessage)
+        {
+            EnsureInitialized();
+            loadData = null;
+            errorMessage = string.Empty;
+            if (!TryGetPreset(
+                trackId,
+                presetId,
+                out SavedTrackData track,
+                out SavedTrackPresetData preset,
+                out RuntimeAudioPipelineSettings settings))
+            {
+                errorMessage = "Saved track preset was not found.";
+                return false;
+            }
+
+            SavedTrackCacheStatus status = cacheStore.GetCacheStatus(track, preset);
+            preset.cacheStatus = status.ToString();
+            if (status != SavedTrackCacheStatus.Ready
+                || !cacheStore.TryLoadPresetCache(
+                    track,
+                    preset,
+                    out string cachedAudioPath,
+                    out IReadOnlyList<BeatEventData> beatEvents,
+                    out errorMessage))
+            {
+                if (string.IsNullOrWhiteSpace(errorMessage))
+                {
+                    errorMessage = "Saved track cache is missing or damaged.";
+                }
+
+                return false;
+            }
+
+            loadData = new SavedTrackCacheLoadData(
+                track,
+                preset,
+                settings,
+                cachedAudioPath,
+                beatEvents);
+            return true;
         }
 
         public bool TryRelinkTrack(string trackId, string selectedPath, out string errorMessage)
@@ -194,6 +295,11 @@ namespace PulseForge.Runtime.Unity.Persistence
             EnsureInitialized();
             bool saved = libraryRepository.RemoveTrack(trackId);
             Library = libraryRepository.Current;
+            if (saved)
+            {
+                cacheStore.DeleteTrackCache(trackId);
+            }
+
             return saved;
         }
 
@@ -207,8 +313,20 @@ namespace PulseForge.Runtime.Unity.Persistence
         public bool RemovePreset(string trackId, string presetId)
         {
             EnsureInitialized();
-            bool saved = libraryRepository.RemovePreset(trackId, presetId);
+            bool saved = libraryRepository.RemovePreset(trackId, presetId, out bool removedTrack);
             Library = libraryRepository.Current;
+            if (saved)
+            {
+                if (removedTrack)
+                {
+                    cacheStore.DeleteTrackCache(trackId);
+                }
+                else
+                {
+                    cacheStore.DeletePresetCache(trackId, presetId);
+                }
+            }
+
             return saved;
         }
 
@@ -216,6 +334,22 @@ namespace PulseForge.Runtime.Unity.Persistence
         {
             EnsureInitialized();
             libraryRepository.RefreshMissingFileStates();
+            RefreshCacheStatuses();
+            Library = libraryRepository.Current;
+        }
+
+        public void MarkPresetCacheDamaged(string trackId, string presetId)
+        {
+            EnsureInitialized();
+            SavedTrackData track = libraryRepository.FindTrack(trackId);
+            SavedTrackPresetData preset = libraryRepository.FindPreset(track, presetId);
+            if (preset == null)
+            {
+                return;
+            }
+
+            preset.cacheStatus = SavedTrackCacheStatus.Damaged.ToString();
+            libraryRepository.SaveCacheStatuses();
             Library = libraryRepository.Current;
         }
 
@@ -250,6 +384,35 @@ namespace PulseForge.Runtime.Unity.Persistence
             }
         }
 
+        private void RefreshCacheStatuses()
+        {
+            SavedTrackLibraryData library = libraryRepository.Current;
+            if (library == null || library.tracks == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < library.tracks.Count; i++)
+            {
+                SavedTrackData track = library.tracks[i];
+                if (track == null || track.presets == null)
+                {
+                    continue;
+                }
+
+                for (int presetIndex = 0; presetIndex < track.presets.Count; presetIndex++)
+                {
+                    SavedTrackPresetData preset = track.presets[presetIndex];
+                    if (preset != null)
+                    {
+                        preset.cacheStatus = cacheStore.GetCacheStatus(track, preset).ToString();
+                    }
+                }
+            }
+
+            libraryRepository.SaveCacheStatuses();
+        }
+
         private void EnsureInitialized()
         {
             if (!initialized)
@@ -257,5 +420,28 @@ namespace PulseForge.Runtime.Unity.Persistence
                 Initialize();
             }
         }
+    }
+
+    public sealed class SavedTrackCacheLoadData
+    {
+        public SavedTrackCacheLoadData(
+            SavedTrackData track,
+            SavedTrackPresetData preset,
+            RuntimeAudioPipelineSettings settings,
+            string cachedAudioPath,
+            IReadOnlyList<BeatEventData> beatEvents)
+        {
+            Track = track;
+            Preset = preset;
+            Settings = settings;
+            CachedAudioPath = cachedAudioPath;
+            BeatEvents = beatEvents;
+        }
+
+        public SavedTrackData Track { get; }
+        public SavedTrackPresetData Preset { get; }
+        public RuntimeAudioPipelineSettings Settings { get; }
+        public string CachedAudioPath { get; }
+        public IReadOnlyList<BeatEventData> BeatEvents { get; }
     }
 }

@@ -97,6 +97,7 @@ namespace PulseForge.Runtime.Unity.Prototype
         private int savedTrackLibraryRevision;
         private string activeSavedTrackId = string.Empty;
         private string activeSavedPresetId = string.Empty;
+        private string savedTrackLibraryMessage = string.Empty;
 
         public event Action<PulseForgeGameplayResultEvent> GameplayResultResolved;
         public event Action<PulseForgeComboChangedEvent> GameplayComboChanged;
@@ -106,6 +107,7 @@ namespace PulseForge.Runtime.Unity.Prototype
         public bool SaveSetupToLibrary => saveSetupToLibrary;
         public bool IsSavedTracksOpen => isSavedTracksOpen;
         public int SavedTrackLibraryRevision => savedTrackLibraryRevision;
+        public string SavedTrackLibraryMessage => savedTrackLibraryMessage;
         public bool MotionEnabledSetting
         {
             get
@@ -638,6 +640,7 @@ namespace PulseForge.Runtime.Unity.Prototype
 
             EnsureSaveService();
             saveService.RefreshLibraryFileStates();
+            savedTrackLibraryMessage = string.Empty;
             savedTrackLibraryRevision++;
             isSavedTracksOpen = true;
         }
@@ -787,6 +790,35 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         public void LoadSavedTrackPreset(string trackId, string presetId)
         {
+            if (isRuntimeAudioImportBusy || UIState != PulseForgeUIState.Setup)
+            {
+                return;
+            }
+
+            EnsureSaveService();
+            if (!saveService.TryGetCachedPreset(
+                trackId,
+                presetId,
+                out SavedTrackCacheLoadData loadData,
+                out string cacheError))
+            {
+                saveService.MarkPresetCacheDamaged(trackId, presetId);
+                savedTrackLibraryMessage = "Saved track cache is missing or damaged."
+                    + (string.IsNullOrWhiteSpace(cacheError) ? string.Empty : " " + cacheError);
+                savedTrackLibraryRevision++;
+                return;
+            }
+
+            StartCoroutine(LoadSavedTrackFromCache(loadData));
+        }
+
+        public void RebuildSavedTrackPreset(string trackId, string presetId)
+        {
+            if (isRuntimeAudioImportBusy || UIState != PulseForgeUIState.Setup)
+            {
+                return;
+            }
+
             EnsureSaveService();
             if (!saveService.TryGetPreset(
                 trackId,
@@ -801,7 +833,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             if (track.fileMissing || string.IsNullOrWhiteSpace(track.originalFilePath)
                 || !File.Exists(track.originalFilePath))
             {
-                saveService.RefreshLibraryFileStates();
+                savedTrackLibraryMessage = "Saved track cache is missing or damaged. Relink the source file before rebuilding.";
                 savedTrackLibraryRevision++;
                 return;
             }
@@ -816,17 +848,21 @@ namespace PulseForge.Runtime.Unity.Prototype
             runtimeCombatStyle = settings.CombatStyle;
             activeSavedTrackId = track.trackId;
             activeSavedPresetId = preset.presetId;
-            saveService.MarkTrackUsed(track.trackId);
-            savedTrackLibraryRevision++;
-            saveSetupToLibrary = false;
+            saveSetupToLibrary = true;
             isSavedTracksOpen = false;
             runtimeAudioImportStatus = "Audio selected: " + Path.GetFileName(track.originalFilePath);
-            setupStatusMessage = "Saved setup loaded. Analyze Song when you are ready.";
+            setupStatusMessage = "Saved track cache is missing or damaged. Analyze Song to rebuild it.";
+            savedTrackLibraryMessage = string.Empty;
             SaveCurrentSettings();
         }
 
         public void RelinkSavedTrack(string trackId)
         {
+            if (isRuntimeAudioImportBusy || UIState != PulseForgeUIState.Setup)
+            {
+                return;
+            }
+
             if (!WindowsAudioFilePicker.TryPickAudioFile(out string selectedPath, out string pickerError))
             {
                 if (!string.IsNullOrEmpty(pickerError))
@@ -853,6 +889,11 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         public void RemoveSavedTrack(string trackId)
         {
+            if (isRuntimeAudioImportBusy || UIState != PulseForgeUIState.Setup)
+            {
+                return;
+            }
+
             EnsureSaveService();
             if (saveService.RemoveTrack(trackId))
             {
@@ -867,6 +908,11 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         public void RemoveSavedPreset(string trackId, string presetId)
         {
+            if (isRuntimeAudioImportBusy || UIState != PulseForgeUIState.Setup)
+            {
+                return;
+            }
+
             EnsureSaveService();
             if (saveService.RemovePreset(trackId, presetId))
             {
@@ -1448,8 +1494,102 @@ namespace PulseForge.Runtime.Unity.Prototype
             setupStatusMessage = "Song analyzed and ready to play.";
             if (saveSetupToLibrary)
             {
-                SaveAnalyzedTrackToLibrary(importResult.SourcePath, pipelineSettings);
+                SaveAnalyzedTrackToLibrary(
+                    importResult.SourcePath,
+                    importResult.ConvertedWavPath,
+                    pipelineSettings);
             }
+        }
+
+        private IEnumerator LoadSavedTrackFromCache(SavedTrackCacheLoadData loadData)
+        {
+            if (loadData == null)
+            {
+                yield break;
+            }
+
+            isRuntimeAudioImportBusy = true;
+            savedTrackLibraryMessage = "Loading Saved Track";
+            savedTrackLibraryRevision++;
+            AudioClip loadedClip = null;
+            string loadError = string.Empty;
+            yield return RuntimeAudioImportService.LoadCachedWav(
+                loadData.CachedAudioPath,
+                loadData.Track.displayName,
+                clip => loadedClip = clip,
+                error => loadError = error);
+
+            if (loadedClip == null || !string.IsNullOrWhiteSpace(loadError))
+            {
+                isRuntimeAudioImportBusy = false;
+                saveService.MarkPresetCacheDamaged(
+                    loadData.Track.trackId,
+                    loadData.Preset.presetId);
+                savedTrackLibraryMessage = "Saved track cache is missing or damaged."
+                    + (string.IsNullOrWhiteSpace(loadError) ? string.Empty : " " + loadError);
+                savedTrackLibraryRevision++;
+                yield break;
+            }
+
+            StopClock();
+            AudioClip previousRuntimeAudioClip = runtimeAudioClip;
+            IReadOnlyList<BeatEventData> previousRuntimeBeatEvents = runtimeBeatEvents;
+            string previousRuntimeAudioDisplayName = runtimeAudioDisplayName;
+            RuntimeAudioPipelineSettings previousAppliedSettings = appliedRuntimePipelineSettings;
+            bool previousUseRuntimeSessionSource = useRuntimeSessionSource;
+            runtimeAudioClip = loadedClip;
+            runtimeBeatEvents = loadData.BeatEvents;
+            runtimeAudioDisplayName = loadData.Track.displayName;
+            appliedRuntimePipelineSettings = loadData.Settings;
+            useRuntimeSessionSource = true;
+
+            if (!PrepareSession(false))
+            {
+                string preparationError = lastFeedback;
+                runtimeAudioClip = previousRuntimeAudioClip;
+                runtimeBeatEvents = previousRuntimeBeatEvents;
+                runtimeAudioDisplayName = previousRuntimeAudioDisplayName;
+                appliedRuntimePipelineSettings = previousAppliedSettings;
+                useRuntimeSessionSource = previousUseRuntimeSessionSource;
+                Destroy(loadedClip);
+                PrepareSession(false);
+                runtimeFlow.ReturnToSetup(false);
+                isSavedTracksOpen = true;
+                isRuntimeAudioImportBusy = false;
+                saveService.MarkPresetCacheDamaged(
+                    loadData.Track.trackId,
+                    loadData.Preset.presetId);
+                savedTrackLibraryMessage = "Saved track cache is missing or damaged. "
+                    + preparationError;
+                savedTrackLibraryRevision++;
+                yield break;
+            }
+
+            if (previousRuntimeAudioClip != null && previousRuntimeAudioClip != runtimeAudioClip)
+            {
+                Destroy(previousRuntimeAudioClip);
+            }
+
+            if (!string.IsNullOrWhiteSpace(loadData.Track.originalFilePath))
+            {
+                runtimeFlow.SelectAudioPath(loadData.Track.originalFilePath);
+            }
+
+            runtimeDetectionMode = loadData.Settings.DetectionMode;
+            runtimeDifficulty = loadData.Settings.Difficulty;
+            runtimeCombatStyle = loadData.Settings.CombatStyle;
+            activeSavedTrackId = loadData.Track.trackId;
+            activeSavedPresetId = loadData.Preset.presetId;
+            saveSetupToLibrary = false;
+            isSavedTracksOpen = false;
+            isRuntimeAudioImportBusy = false;
+            savedTrackLibraryMessage = string.Empty;
+            runtimeAudioImportStatus = "Ready";
+            setupStatusMessage = "Saved track loaded from cache.";
+            saveService.MarkTrackUsed(loadData.Track.trackId);
+            savedTrackLibraryRevision++;
+            SaveCurrentSettings();
+            runtimeFlow.MarkReady();
         }
 
         private void SetRuntimeAudioImportStatus(string status)
@@ -1836,17 +1976,18 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private void SaveAnalyzedTrackToLibrary(
             string sourcePath,
+            string convertedWavPath,
             RuntimeAudioPipelineSettings pipelineSettings)
         {
             EnsureSaveService();
             double duration = runtimeAudioClip == null ? GetSessionDurationSeconds() : runtimeAudioClip.length;
-            int eventCount = session == null ? 0 : session.TotalEventCount;
             if (saveService.TrySaveTrackSetup(
                 sourcePath,
                 runtimeAudioDisplayName,
                 duration,
                 pipelineSettings,
-                eventCount,
+                convertedWavPath,
+                runtimeBeatEvents,
                 out SavedTrackPresetReference reference))
             {
                 activeSavedTrackId = reference.TrackId;
@@ -1856,6 +1997,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             else
             {
                 ClearActiveSavedPreset();
+                setupStatusMessage = "Song is ready, but its playable library cache could not be saved.";
             }
         }
 

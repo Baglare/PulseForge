@@ -11,7 +11,8 @@ namespace PulseForge.Runtime.Unity.Persistence
     {
         public const int SettingsSchemaVersion = 1;
         public const int ProfileSchemaVersion = 1;
-        public const int LibrarySchemaVersion = 1;
+        public const int LibrarySchemaVersion = 2;
+        public const int LibraryCacheVersion = 1;
 
         public static PulseForgeSettingsData CreateSettings()
         {
@@ -178,6 +179,9 @@ namespace PulseForge.Runtime.Unity.Persistence
                 ? track.trackId
                 : track.contentHash.Trim().ToLowerInvariant();
             track.originalFilePath = track.originalFilePath ?? string.Empty;
+            track.originalFileName = string.IsNullOrWhiteSpace(track.originalFileName)
+                ? Path.GetFileName(track.originalFilePath)
+                : track.originalFileName.Trim();
             track.displayName = string.IsNullOrWhiteSpace(track.displayName)
                 ? SafeFileName(track.originalFilePath)
                 : track.displayName.Trim();
@@ -190,8 +194,11 @@ namespace PulseForge.Runtime.Unity.Persistence
                 : 0d;
             track.fileMissing = string.IsNullOrWhiteSpace(track.originalFilePath)
                 || !File.Exists(track.originalFilePath);
+            track.cachedAudioRelativePath = NormalizeRelativeCachePath(track.cachedAudioRelativePath);
+            track.cacheVersion = Math.Max(0, track.cacheVersion);
             string now = SaveDefaults.UtcNow();
             track.createdAtUtc = NormalizeRequiredUtc(track.createdAtUtc, now);
+            track.updatedAtUtc = NormalizeRequiredUtc(track.updatedAtUtc, track.createdAtUtc);
             track.lastUsedAtUtc = NormalizeRequiredUtc(track.lastUsedAtUtc, track.createdAtUtc);
             track.presets = track.presets ?? new List<SavedTrackPresetData>();
 
@@ -244,6 +251,22 @@ namespace PulseForge.Runtime.Unity.Persistence
             preset.bestPerfectCount = Math.Max(0, preset.bestPerfectCount);
             preset.bestGoodCount = Math.Max(0, preset.bestGoodCount);
             preset.lowestMissCount = Math.Max(0, preset.lowestMissCount);
+            preset.cachedBeatmapRelativePath = NormalizeRelativeCachePath(
+                preset.cachedBeatmapRelativePath);
+            preset.cacheVersion = Math.Max(0, preset.cacheVersion);
+            preset.cacheStatus = NormalizeCacheStatus(preset);
+        }
+
+        public static SavedTrackCacheStatus GetCacheStatus(SavedTrackPresetData preset)
+        {
+            if (preset != null
+                && Enum.TryParse(preset.cacheStatus, true, out SavedTrackCacheStatus status)
+                && Enum.IsDefined(typeof(SavedTrackCacheStatus), status))
+            {
+                return status;
+            }
+
+            return SavedTrackCacheStatus.NeedsRebuild;
         }
 
         private static void MergePreset(SavedTrackPresetData target, SavedTrackPresetData source)
@@ -268,6 +291,16 @@ namespace PulseForge.Runtime.Unity.Persistence
             if (string.CompareOrdinal(source.updatedAtUtc, target.updatedAtUtc) > 0)
             {
                 target.updatedAtUtc = source.updatedAtUtc;
+            }
+
+            if (source.cacheVersion > 0
+                && !string.IsNullOrWhiteSpace(source.cachedBeatmapRelativePath)
+                && (target.cacheVersion <= 0
+                    || string.CompareOrdinal(source.updatedAtUtc, target.updatedAtUtc) >= 0))
+            {
+                target.cachedBeatmapRelativePath = source.cachedBeatmapRelativePath;
+                target.cacheVersion = source.cacheVersion;
+                target.cacheStatus = source.cacheStatus;
             }
 
             if (string.CompareOrdinal(source.lastPlayedAtUtc, target.lastPlayedAtUtc) > 0)
@@ -327,6 +360,27 @@ namespace PulseForge.Runtime.Unity.Persistence
 
             string fileName = Path.GetFileNameWithoutExtension(path);
             return string.IsNullOrWhiteSpace(fileName) ? "Saved Track" : fileName;
+        }
+
+        private static string NormalizeCacheStatus(SavedTrackPresetData preset)
+        {
+            if (preset.cacheVersion <= 0
+                || string.IsNullOrWhiteSpace(preset.cachedBeatmapRelativePath))
+            {
+                return SavedTrackCacheStatus.NeedsRebuild.ToString();
+            }
+
+            return Enum.TryParse(preset.cacheStatus, true, out SavedTrackCacheStatus status)
+                && Enum.IsDefined(typeof(SavedTrackCacheStatus), status)
+                    ? status.ToString()
+                    : SavedTrackCacheStatus.Damaged.ToString();
+        }
+
+        private static string NormalizeRelativeCachePath(string value)
+        {
+            return string.IsNullOrWhiteSpace(value)
+                ? string.Empty
+                : value.Trim().Replace('\\', '/').TrimStart('/');
         }
     }
 }

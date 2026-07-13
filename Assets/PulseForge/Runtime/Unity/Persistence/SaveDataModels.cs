@@ -61,13 +61,17 @@ namespace PulseForge.Runtime.Unity.Persistence
     {
         public string trackId;
         public string displayName;
+        public string originalFileName;
         public string originalFilePath;
         public string sourceExtension;
         public long fileSizeBytes;
         public double durationSeconds;
         public string contentHash;
         public bool fileMissing;
+        public string cachedAudioRelativePath;
+        public int cacheVersion;
         public string createdAtUtc;
+        public string updatedAtUtc;
         public string lastUsedAtUtc;
         public List<SavedTrackPresetData> presets;
     }
@@ -89,6 +93,36 @@ namespace PulseForge.Runtime.Unity.Persistence
         public int bestPerfectCount;
         public int bestGoodCount;
         public int lowestMissCount;
+        public string cachedBeatmapRelativePath;
+        public int cacheVersion;
+        public string cacheStatus;
+    }
+
+    public enum SavedTrackCacheStatus
+    {
+        Ready,
+        NeedsRebuild,
+        Damaged
+    }
+
+    [Serializable]
+    public sealed class SavedBeatMapCacheData
+    {
+        public int cacheVersion;
+        public string trackId;
+        public string presetId;
+        public string createdAtUtc;
+        public string updatedAtUtc;
+        public List<SavedBeatEventCacheData> events;
+    }
+
+    [Serializable]
+    public sealed class SavedBeatEventCacheData
+    {
+        public string eventId;
+        public double targetTimeSeconds;
+        public string action;
+        public float intensity;
     }
 
     public readonly struct SavedTrackPresetReference
@@ -109,6 +143,7 @@ namespace PulseForge.Runtime.Unity.Persistence
         public SavedTrackMetadata(
             string trackId,
             string displayName,
+            string originalFileName,
             string originalFilePath,
             string sourceExtension,
             long fileSizeBytes,
@@ -117,6 +152,7 @@ namespace PulseForge.Runtime.Unity.Persistence
         {
             TrackId = trackId;
             DisplayName = displayName;
+            OriginalFileName = originalFileName;
             OriginalFilePath = originalFilePath;
             SourceExtension = sourceExtension;
             FileSizeBytes = fileSizeBytes;
@@ -126,6 +162,7 @@ namespace PulseForge.Runtime.Unity.Persistence
 
         public string TrackId { get; }
         public string DisplayName { get; }
+        public string OriginalFileName { get; }
         public string OriginalFilePath { get; }
         public string SourceExtension { get; }
         public long FileSizeBytes { get; }

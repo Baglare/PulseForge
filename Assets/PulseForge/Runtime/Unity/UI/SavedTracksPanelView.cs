@@ -12,6 +12,7 @@ namespace PulseForge.Runtime.Unity.UI
     {
         [SerializeField] private RectTransform contentRoot;
         [SerializeField] private Text emptyText;
+        [SerializeField] private Text statusText;
         [SerializeField] private Button backButton;
         [SerializeField] private GameObject confirmationRoot;
         [SerializeField] private Text confirmationText;
@@ -66,9 +67,18 @@ namespace PulseForge.Runtime.Unity.UI
                 PulseForgeUITheme.SecondaryText,
                 TextAnchor.MiddleCenter);
             PulseForgeUIFactory.SetLayoutHeight(helper, 30f);
+            view.statusText = PulseForgeUIFactory.CreateText(
+                "Library Status",
+                card,
+                string.Empty,
+                PulseForgeUITheme.SmallFontSize,
+                PulseForgeUITheme.Miss,
+                TextAnchor.MiddleCenter,
+                FontStyle.Bold);
+            PulseForgeUIFactory.SetLayoutHeight(view.statusText, 28f);
 
             RectTransform scrollRoot = PulseForgeUIFactory.CreateRect("Track Scroll", card);
-            PulseForgeUIFactory.SetLayoutHeight(scrollRoot, 620f);
+            PulseForgeUIFactory.SetLayoutHeight(scrollRoot, 590f);
             Image scrollBackground = scrollRoot.gameObject.AddComponent<Image>();
             scrollBackground.color = PulseForgeUITheme.BackgroundSecondary;
             scrollBackground.sprite = PulseForgeUIFactory.RoundedSprite;
@@ -124,6 +134,52 @@ namespace PulseForge.Runtime.Unity.UI
             return view;
         }
 
+        public void EnsureCacheStatusUI(Action<GameObject> registerCreated = null)
+        {
+            if (statusText != null)
+            {
+                return;
+            }
+
+            Transform card = PanelRoot == null
+                ? null
+                : PanelRoot.transform.Find("Saved Tracks Panel Card");
+            if (card == null)
+            {
+                return;
+            }
+
+            Transform existing = card.Find("Library Status");
+            if (existing != null)
+            {
+                statusText = existing.GetComponent<Text>();
+                return;
+            }
+
+            statusText = PulseForgeUIFactory.CreateText(
+                "Library Status",
+                card,
+                string.Empty,
+                PulseForgeUITheme.SmallFontSize,
+                PulseForgeUITheme.Miss,
+                TextAnchor.MiddleCenter,
+                FontStyle.Bold);
+            PulseForgeUIFactory.SetLayoutHeight(statusText, 28f);
+            Transform helper = card.Find("Helper");
+            if (helper != null)
+            {
+                statusText.transform.SetSiblingIndex(helper.GetSiblingIndex() + 1);
+            }
+
+            Transform scroll = card.Find("Track Scroll");
+            if (scroll != null)
+            {
+                PulseForgeUIFactory.SetLayoutHeight(scroll, 590f);
+            }
+
+            registerCreated?.Invoke(statusText.gameObject);
+        }
+
         public void Bind(DebugRhythmPrototypeController controller)
         {
             if (boundController == controller)
@@ -163,6 +219,12 @@ namespace PulseForge.Runtime.Unity.UI
             }
 
             renderedRevision = controller.SavedTrackLibraryRevision;
+            if (statusText != null)
+            {
+                statusText.text = controller.SavedTrackLibraryMessage;
+                statusText.gameObject.SetActive(!string.IsNullOrWhiteSpace(statusText.text));
+            }
+
             Rebuild(controller.SavedTrackLibrary);
         }
 
@@ -171,6 +233,7 @@ namespace PulseForge.Runtime.Unity.UI
             base.CollectValidationErrors(errors);
             PulseForgeUIValidation.AddMissing(errors, contentRoot, "Saved Tracks: content root is missing.");
             PulseForgeUIValidation.AddMissing(errors, emptyText, "Saved Tracks: empty state text is missing.");
+            PulseForgeUIValidation.AddMissing(errors, statusText, "Saved Tracks: library status text is missing.");
             PulseForgeUIValidation.AddMissing(errors, backButton, "Saved Tracks: Back button is missing.");
             PulseForgeUIValidation.AddMissing(errors, confirmationRoot, "Saved Tracks: confirmation overlay is missing.");
             PulseForgeUIValidation.AddMissing(errors, confirmationText, "Saved Tracks: confirmation text is missing.");
@@ -205,7 +268,7 @@ namespace PulseForge.Runtime.Unity.UI
         private RectTransform CreateTrackCard(SavedTrackData track)
         {
             int presetCount = track.presets == null ? 0 : track.presets.Count;
-            float height = 110f + presetCount * 92f + (track.fileMissing ? 50f : 0f);
+            float height = 110f + presetCount * 108f + (track.fileMissing ? 50f : 0f);
             RectTransform card = PulseForgeUIFactory.CreateRect("Track " + track.trackId, contentRoot);
             PulseForgeUIFactory.SetLayoutHeight(card, height);
             Image background = card.gameObject.AddComponent<Image>();
@@ -264,12 +327,15 @@ namespace PulseForge.Runtime.Unity.UI
                 card,
                 metadata,
                 PulseForgeUITheme.SmallFontSize,
-                track.fileMissing ? PulseForgeUITheme.Miss : PulseForgeUITheme.SecondaryText,
+                track.fileMissing && TrackRequiresSource(track)
+                    ? PulseForgeUITheme.Miss
+                    : PulseForgeUITheme.SecondaryText,
                 TextAnchor.MiddleLeft);
             PulseForgeUIFactory.SetLayoutHeight(metadataText, 26f);
 
             if (track.fileMissing)
             {
+                bool requiresSource = TrackRequiresSource(track);
                 RectTransform missingRow = PulseForgeUIFactory.CreateRect("Missing File", card);
                 PulseForgeUIFactory.SetLayoutHeight(missingRow, 42f);
                 HorizontalLayoutGroup missingLayout = missingRow.gameObject.AddComponent<HorizontalLayoutGroup>();
@@ -281,20 +347,23 @@ namespace PulseForge.Runtime.Unity.UI
                 Text missing = PulseForgeUIFactory.CreateText(
                     "Status",
                     missingRow,
-                    "Missing File",
+                    requiresSource ? "Missing Source File" : "Source Missing • Cached playback available",
                     PulseForgeUITheme.SmallFontSize,
-                    PulseForgeUITheme.Miss,
+                    requiresSource ? PulseForgeUITheme.Miss : PulseForgeUITheme.SecondaryText,
                     TextAnchor.MiddleLeft,
                     FontStyle.Bold);
                 SetWidth(missing, 1f, -1f);
-                Button relink = PulseForgeUIFactory.CreateButton(
-                    "Relink File",
-                    missingRow,
-                    "Relink File",
-                    PulseForgeUITheme.SecondaryText,
-                    PulseForgeUITheme.SmallFontSize);
-                SetWidth(relink, 0f, 136f);
-                BindDynamicButton(relink, () => boundController?.RelinkSavedTrack(trackId));
+                if (requiresSource)
+                {
+                    Button relink = PulseForgeUIFactory.CreateButton(
+                        "Relink File",
+                        missingRow,
+                        "Relink File",
+                        PulseForgeUITheme.SecondaryText,
+                        PulseForgeUITheme.SmallFontSize);
+                    SetWidth(relink, 0f, 136f);
+                    BindDynamicButton(relink, () => boundController?.RelinkSavedTrack(trackId));
+                }
             }
 
             for (int i = 0; i < presetCount; i++)
@@ -315,7 +384,7 @@ namespace PulseForge.Runtime.Unity.UI
             SavedTrackPresetData preset)
         {
             RectTransform row = PulseForgeUIFactory.CreateRect("Preset " + preset.presetId, parent);
-            PulseForgeUIFactory.SetLayoutHeight(row, 84f);
+            PulseForgeUIFactory.SetLayoutHeight(row, 100f);
             Image background = row.gameObject.AddComponent<Image>();
             background.color = PulseForgeUITheme.SurfaceSoft;
             background.sprite = PulseForgeUIFactory.RoundedSprite;
@@ -328,10 +397,13 @@ namespace PulseForge.Runtime.Unity.UI
             layout.childForceExpandWidth = false;
             layout.childForceExpandHeight = true;
 
+            SavedTrackCacheStatus cacheStatus = SaveDataNormalizer.GetCacheStatus(preset);
+            string cacheLabel = FormatCacheStatus(cacheStatus);
             string details = "[" + preset.difficulty + "]  [" + preset.combatStyle + "]  ["
                 + preset.detectionMode + "]\n"
                 + preset.eventCount + " events  •  Best " + preset.bestScore.ToString("N0", CultureInfo.InvariantCulture)
-                + "  •  Combo " + preset.maxCombo + "  •  Played " + preset.playCount;
+                + "  •  Combo " + preset.maxCombo + "  •  Played " + preset.playCount
+                + "\nCache: " + cacheLabel;
             Text text = PulseForgeUIFactory.CreateText(
                 "Details",
                 row,
@@ -341,17 +413,32 @@ namespace PulseForge.Runtime.Unity.UI
                 TextAnchor.MiddleLeft);
             SetWidth(text, 1f, -1f);
 
+            string actionLabel = cacheStatus == SavedTrackCacheStatus.Ready
+                ? "Load"
+                : track.fileMissing ? "Relink File" : "Rebuild from Source";
             Button load = PulseForgeUIFactory.CreateButton(
-                "Load",
+                actionLabel,
                 row,
-                "Load",
-                PulseForgeUITheme.Primary,
+                actionLabel,
+                cacheStatus == SavedTrackCacheStatus.Damaged
+                    ? PulseForgeUITheme.Miss
+                    : PulseForgeUITheme.Primary,
                 PulseForgeUITheme.SmallFontSize);
-            SetWidth(load, 0f, 92f);
-            load.interactable = !track.fileMissing;
+            SetWidth(load, 0f, cacheStatus == SavedTrackCacheStatus.Ready ? 92f : 158f);
             string trackId = track.trackId;
             string presetId = preset.presetId;
-            BindDynamicButton(load, () => boundController?.LoadSavedTrackPreset(trackId, presetId));
+            if (cacheStatus == SavedTrackCacheStatus.Ready)
+            {
+                BindDynamicButton(load, () => boundController?.LoadSavedTrackPreset(trackId, presetId));
+            }
+            else if (track.fileMissing)
+            {
+                BindDynamicButton(load, () => boundController?.RelinkSavedTrack(trackId));
+            }
+            else
+            {
+                BindDynamicButton(load, () => boundController?.RebuildSavedTrackPreset(trackId, presetId));
+            }
 
             Button remove = PulseForgeUIFactory.CreateButton(
                 "Remove",
@@ -490,6 +577,32 @@ namespace PulseForge.Runtime.Unity.UI
                 out DateTime parsed)
                     ? parsed.ToLocalTime().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
                     : "never";
+        }
+
+        private static string FormatCacheStatus(SavedTrackCacheStatus status)
+        {
+            return status == SavedTrackCacheStatus.NeedsRebuild
+                ? "Needs Rebuild"
+                : status.ToString();
+        }
+
+        private static bool TrackRequiresSource(SavedTrackData track)
+        {
+            if (track == null || track.presets == null)
+            {
+                return true;
+            }
+
+            for (int i = 0; i < track.presets.Count; i++)
+            {
+                if (SaveDataNormalizer.GetCacheStatus(track.presets[i])
+                    != SavedTrackCacheStatus.Ready)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

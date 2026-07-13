@@ -23,6 +23,7 @@ namespace PulseForge.Runtime.Unity.UI
                 registerCreated?.Invoke(savedTracks.PanelRoot);
             }
 
+            savedTracks?.EnsureCacheStatusUI(registerCreated);
             savedTracks?.SetActive(false);
         }
     }
