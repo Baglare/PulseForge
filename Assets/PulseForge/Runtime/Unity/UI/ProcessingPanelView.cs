@@ -13,8 +13,10 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgeProcessingStage.AudioSelected,
             PulseForgeProcessingStage.ConvertingToWav,
             PulseForgeProcessingStage.LoadingConvertedAudio,
-            PulseForgeProcessingStage.DetectingRhythm,
-            PulseForgeProcessingStage.BuildingCombatSequence,
+            PulseForgeProcessingStage.AnalyzingAudioFeatures,
+            PulseForgeProcessingStage.PlanningRadialEncounters,
+            PulseForgeProcessingStage.ValidatingBeatMap,
+            PulseForgeProcessingStage.PreparingSession,
             PulseForgeProcessingStage.Ready
         };
 
@@ -23,8 +25,10 @@ namespace PulseForge.Runtime.Unity.UI
             "Track selected",
             "Converting to WAV",
             "Loading track",
-            "Detecting rhythm",
-            "Building combat sequence",
+            "Analyzing audio features",
+            "Planning radial encounters",
+            "Validating beatmap",
+            "Preparing session",
             "Ready to play"
         };
 
@@ -114,10 +118,14 @@ namespace PulseForge.Runtime.Unity.UI
                     return "Converting your track to a playable format.";
                 case PulseForgeProcessingStage.LoadingConvertedAudio:
                     return "Loading the prepared track.";
-                case PulseForgeProcessingStage.DetectingRhythm:
-                    return "Finding playable rhythm events.";
-                case PulseForgeProcessingStage.BuildingCombatSequence:
-                    return "Building the rhythm-combat sequence.";
+                case PulseForgeProcessingStage.AnalyzingAudioFeatures:
+                    return "Extracting adaptive rhythm and section features.";
+                case PulseForgeProcessingStage.PlanningRadialEncounters:
+                    return "Planning the radial encounter sequence.";
+                case PulseForgeProcessingStage.ValidatingBeatMap:
+                    return "Checking density and playability.";
+                case PulseForgeProcessingStage.PreparingSession:
+                    return "Preparing the radial rhythm session.";
                 default:
                     return "Your track is ready.";
             }

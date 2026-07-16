@@ -23,6 +23,8 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private bool enableMotion = true;
         [SerializeField] private PulseForgeUIMotionController motionController;
         [SerializeField] private PulseForgeGameplayFeedbackController gameplayFeedbackController;
+        [SerializeField] private RadialCombatStageView radialCombatStage;
+        [SerializeField] private RadialCombatPresentationController radialPresentationController;
 
         public Canvas Canvas => canvas;
         public GameObject Background => background;
@@ -40,6 +42,8 @@ namespace PulseForge.Runtime.Unity.UI
         public bool EnableMotion => enableMotion;
         public PulseForgeUIMotionController MotionController => motionController;
         public PulseForgeGameplayFeedbackController GameplayFeedbackController => gameplayFeedbackController;
+        public RadialCombatStageView RadialCombatStage => radialCombatStage;
+        public RadialCombatPresentationController RadialPresentationController => radialPresentationController;
 
         public void Configure(
             Canvas sceneCanvas,
@@ -80,6 +84,14 @@ namespace PulseForge.Runtime.Unity.UI
             gameplayFeedbackController = value;
         }
 
+        public void ConfigureRadialCombatStage(
+            RadialCombatStageView stage,
+            RadialCombatPresentationController presentationController)
+        {
+            radialCombatStage = stage;
+            radialPresentationController = presentationController;
+        }
+
         public void ConfigureSavedTracksPanel(SavedTracksPanelView value)
         {
             savedTracksPanel = value;
@@ -116,6 +128,7 @@ namespace PulseForge.Runtime.Unity.UI
 
         public void ApplyVisibility(PulseForgeUIState state)
         {
+            radialCombatStage?.SetUIStateVisibility(state);
             if (Application.isPlaying && motionController != null)
             {
                 motionController.ShowState(state, enableMotion);
@@ -152,8 +165,11 @@ namespace PulseForge.Runtime.Unity.UI
             SetActive(gameplayHud, showGameplay);
             SetActive(countdownOverlay, state == PulseForgeUIState.Countdown);
             SetActive(pauseOverlay, state == PulseForgeUIState.Paused);
-            SetActive(resultsPanel, state == PulseForgeUIState.Completed);
+            SetActive(
+                resultsPanel,
+                state == PulseForgeUIState.Completed || state == PulseForgeUIState.Failed);
             SetActive(errorPanel, state == PulseForgeUIState.Error);
+            radialCombatStage?.SetUIStateVisibility(state);
         }
 
         public void ShowAllPanels()
@@ -192,6 +208,8 @@ namespace PulseForge.Runtime.Unity.UI
             AddMissing(errors, eventSystem, "EventSystem reference is missing.");
             AddMissing(errors, motionController, "M8B.1 motion controller is missing.");
             AddMissing(errors, gameplayFeedbackController, "M8B.2 gameplay feedback controller is missing.");
+            AddMissing(errors, radialCombatStage, "M9D.1 Radial Combat Stage is missing.");
+            AddMissing(errors, radialPresentationController, "M9D.1 radial presentation controller is missing.");
 
             setupPanel?.CollectValidationErrors(errors);
             savedTracksPanel?.CollectValidationErrors(errors);
@@ -205,6 +223,7 @@ namespace PulseForge.Runtime.Unity.UI
             errorPanel?.CollectValidationErrors(errors);
             motionController?.CollectValidationErrors(errors);
             gameplayFeedbackController?.CollectValidationErrors(errors);
+            radialCombatStage?.CollectValidationErrors(errors);
             return errors.Count == 0;
         }
 

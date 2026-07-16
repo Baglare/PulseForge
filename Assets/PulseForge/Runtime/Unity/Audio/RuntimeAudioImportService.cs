@@ -5,6 +5,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using PulseForge.AudioAnalysis;
+using PulseForge.BeatMapGeneration;
 using PulseForge.Domain.Rhythm;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -55,7 +57,7 @@ namespace PulseForge.Runtime.Unity.Audio
 
             string outputDirectory = Path.Combine(Application.persistentDataPath, "ImportedAudio");
             string outputPath = Path.Combine(outputDirectory, "pulseforge-imported.wav");
-            statusChanged("Converting to WAV...");
+            statusChanged("Converting to WAV");
 
             Task<ConversionResult> conversionTask = Task.Run(
                 () => ConvertToWav(ffmpegPath, sourcePath, outputDirectory, outputPath));
@@ -81,7 +83,7 @@ namespace PulseForge.Runtime.Unity.Audio
                 yield break;
             }
 
-            statusChanged("Loading converted audio...");
+            statusChanged("Loading converted audio");
             string audioUri = new Uri(outputPath).AbsoluteUri;
             using (UnityWebRequest request = UnityWebRequestMultimedia.GetAudioClip(audioUri, AudioType.WAV))
             {
@@ -112,32 +114,124 @@ namespace PulseForge.Runtime.Unity.Audio
                     yield break;
                 }
 
-                audioClip.name = Path.GetFileNameWithoutExtension(sourcePath);
-                statusChanged("Detecting rhythm...");
-                yield return null;
+                string displayName = Path.GetFileNameWithoutExtension(sourcePath);
+                audioClip.name = displayName;
+                yield return AnalyzeLoadedAudio(
+                    audioClip,
+                    sourcePath,
+                    outputPath,
+                    displayName,
+                    pipelineSettings,
+                    statusChanged,
+                    completed,
+                    failed,
+                    sourcePath,
+                    true);
+            }
+        }
 
-                IReadOnlyList<BeatEventData> beatEvents;
+        public static IEnumerator AnalyzeLoadedAudio(
+            AudioClip audioClip,
+            string sourcePath,
+            string convertedWavPath,
+            string displayName,
+            RuntimeAudioPipelineSettings pipelineSettings,
+            Action<string> statusChanged,
+            Action<RuntimeAudioImportResult> completed,
+            Action<string> failed,
+            string deterministicSeed,
+            bool destroyClipOnFailure)
+        {
+            if (audioClip == null)
+            {
+                failed("Loaded WAV did not produce an AudioClip.");
+                yield break;
+            }
+
+            statusChanged("Analyzing audio features");
+            RadialAudioAnalyzerV2.AnalysisJob analysisJob;
+            try
+            {
+                analysisJob = RuntimeBeatMapAnalyzer.BeginAnalyzeV2(
+                    audioClip,
+                    pipelineSettings.DetectionMode);
+            }
+            catch (Exception exception)
+            {
+                FailAnalysis(audioClip, destroyClipOnFailure);
+                failed("Audio analysis failed: " + exception.Message);
+                yield break;
+            }
+
+            while (!analysisJob.FeatureExtractionComplete)
+            {
                 try
                 {
-                    beatEvents = RuntimeBeatMapAnalyzer.BuildBeatEvents(audioClip, pipelineSettings);
+                    analysisJob.StepFeatureExtraction(1);
                 }
                 catch (Exception exception)
                 {
-                    UnityEngine.Object.Destroy(audioClip);
-                    failed("Beat detection failed: " + exception.Message);
+                    FailAnalysis(audioClip, destroyClipOnFailure);
+                    failed("Audio analysis failed: " + exception.Message);
                     yield break;
                 }
 
-                statusChanged("Building combat sequence...");
                 yield return null;
-
-                completed(new RuntimeAudioImportResult(
-                    audioClip,
-                    beatEvents,
-                    sourcePath,
-                    outputPath,
-                    Path.GetFileNameWithoutExtension(sourcePath)));
             }
+
+            Task<RadialAudioAnalysisResult> analysisTask = Task.Run(analysisJob.CompleteAnalysis);
+            while (!analysisTask.IsCompleted)
+            {
+                yield return null;
+            }
+            if (analysisTask.IsFaulted)
+            {
+                FailAnalysis(audioClip, destroyClipOnFailure);
+                failed("Audio analysis failed: " + GetTaskError(analysisTask.Exception));
+                yield break;
+            }
+
+            RadialAudioAnalysisResult analysis = analysisTask.Result;
+            statusChanged("Planning radial encounters");
+            BeatMapDifficulty difficulty = ToPlannerDifficulty(pipelineSettings.Difficulty);
+            CombatStyle combatStyle = ToPlannerCombatStyle(pipelineSettings.CombatStyle);
+            Task<RadialEncounterPlanResult> plannerTask = Task.Run(
+                () => new RadialEncounterPlanner().Plan(
+                    analysis,
+                    difficulty,
+                    combatStyle,
+                    deterministicSeed ?? string.Empty));
+            while (!plannerTask.IsCompleted)
+            {
+                yield return null;
+            }
+            if (plannerTask.IsFaulted)
+            {
+                FailAnalysis(audioClip, destroyClipOnFailure);
+                failed("Radial encounter planning failed: " + GetTaskError(plannerTask.Exception));
+                yield break;
+            }
+
+            statusChanged("Validating beatmap");
+            yield return null;
+            RadialEncounterPlanResult plan = plannerTask.Result;
+            if (plan == null || !HasPlayableRequirement(plan.beatMap))
+            {
+                FailAnalysis(audioClip, destroyClipOnFailure);
+                failed("No playable radial requirements could be generated for this track.");
+                yield break;
+            }
+
+            statusChanged("Preparing session");
+            yield return null;
+            completed(new RuntimeAudioImportResult(
+                audioClip,
+                plan.beatMap,
+                analysis.qualityReport,
+                plan.qualityReport,
+                sourcePath,
+                convertedWavPath,
+                displayName));
         }
 
         public static IEnumerator LoadCachedWav(
@@ -227,6 +321,70 @@ namespace PulseForge.Runtime.Unity.Audio
             }
 
             return string.Empty;
+        }
+
+        private static BeatMapDifficulty ToPlannerDifficulty(RuntimeDifficulty difficulty)
+        {
+            switch (difficulty)
+            {
+                case RuntimeDifficulty.Easy:
+                    return BeatMapDifficulty.Easy;
+                case RuntimeDifficulty.Hard:
+                    return BeatMapDifficulty.Hard;
+                default:
+                    return BeatMapDifficulty.Normal;
+            }
+        }
+
+        private static CombatStyle ToPlannerCombatStyle(RuntimeCombatStyle combatStyle)
+        {
+            switch (combatStyle)
+            {
+                case RuntimeCombatStyle.Balanced:
+                    return CombatStyle.Balanced;
+                case RuntimeCombatStyle.Defensive:
+                    return CombatStyle.Defensive;
+                case RuntimeCombatStyle.Aggressive:
+                    return CombatStyle.Aggressive;
+                case RuntimeCombatStyle.Bursty:
+                    return CombatStyle.Bursty;
+                default:
+                    return CombatStyle.Legacy;
+            }
+        }
+
+        private static bool HasPlayableRequirement(RadialBeatMapData beatMap)
+        {
+            if (beatMap == null || beatMap.encounters == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < beatMap.encounters.Count; i++)
+            {
+                RadialEncounterEventData encounter = beatMap.encounters[i];
+                if (encounter != null && encounter.requirements != null
+                    && encounter.requirements.Count > 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static void FailAnalysis(AudioClip audioClip, bool destroyClipOnFailure)
+        {
+            if (destroyClipOnFailure && audioClip != null)
+            {
+                UnityEngine.Object.Destroy(audioClip);
+            }
+        }
+
+        private static string GetTaskError(AggregateException exception)
+        {
+            Exception baseException = exception == null ? null : exception.GetBaseException();
+            return baseException == null ? "Unknown error." : baseException.Message;
         }
 
         private static string ResolveFfmpegExecutable()
@@ -477,26 +635,49 @@ namespace PulseForge.Runtime.Unity.Audio
     {
         public RuntimeAudioImportResult(
             AudioClip audioClip,
-            IReadOnlyList<BeatEventData> beatEvents,
+            RadialBeatMapData radialBeatMap,
+            AnalyzerQualityReport analyzerQuality,
+            PlannerQualityReport plannerQuality,
             string sourcePath,
             string convertedWavPath,
             string displayName)
         {
             AudioClip = audioClip;
-            BeatEvents = beatEvents;
+            RadialBeatMap = radialBeatMap;
+            AnalyzerQuality = analyzerQuality;
+            PlannerQuality = plannerQuality;
             SourcePath = sourcePath;
             ConvertedWavPath = convertedWavPath;
             DisplayName = displayName;
+            OriginalFileName = string.IsNullOrWhiteSpace(sourcePath)
+                ? string.Empty
+                : Path.GetFileName(sourcePath);
+            SourceExtension = string.IsNullOrWhiteSpace(sourcePath)
+                ? string.Empty
+                : Path.GetExtension(sourcePath).TrimStart('.').ToUpperInvariant();
+            SourceFileSizeBytes = !string.IsNullOrWhiteSpace(sourcePath) && File.Exists(sourcePath)
+                ? new FileInfo(sourcePath).Length
+                : 0L;
         }
 
         public AudioClip AudioClip { get; }
 
-        public IReadOnlyList<BeatEventData> BeatEvents { get; }
+        public RadialBeatMapData RadialBeatMap { get; }
+
+        public AnalyzerQualityReport AnalyzerQuality { get; }
+
+        public PlannerQualityReport PlannerQuality { get; }
 
         public string SourcePath { get; }
 
         public string ConvertedWavPath { get; }
 
         public string DisplayName { get; }
+
+        public string OriginalFileName { get; }
+
+        public string SourceExtension { get; }
+
+        public long SourceFileSizeBytes { get; }
     }
 }

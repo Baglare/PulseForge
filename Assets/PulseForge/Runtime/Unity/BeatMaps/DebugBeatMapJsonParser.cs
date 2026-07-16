@@ -114,9 +114,10 @@ namespace PulseForge.Runtime.Unity.BeatMaps
                 return RhythmAction.Guard;
             }
 
-            if (string.Equals(action, nameof(RhythmAction.Strike), StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(action, nameof(RhythmAction.Strike), StringComparison.OrdinalIgnoreCase)
+                || string.Equals(action, nameof(RhythmAction.LightAttack), StringComparison.OrdinalIgnoreCase))
             {
-                return RhythmAction.Strike;
+                return RhythmAction.LightAttack;
             }
 
             string actionText = string.IsNullOrWhiteSpace(action) ? "<empty>" : action;
@@ -125,7 +126,7 @@ namespace PulseForge.Runtime.Unity.BeatMaps
                 + actionText
                 + "' at index "
                 + index.ToString(CultureInfo.InvariantCulture)
-                + ". Supported actions are Guard and Strike.");
+                + ". Supported actions are Guard, LightAttack, and legacy Strike.");
         }
 
         private static string CreateEventId(string eventId, int index)

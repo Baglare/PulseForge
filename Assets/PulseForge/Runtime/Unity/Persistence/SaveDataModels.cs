@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using PulseForge.AudioAnalysis;
+using PulseForge.BeatMapGeneration;
+using PulseForge.Domain.Rhythm;
 
 namespace PulseForge.Runtime.Unity.Persistence
 {
@@ -11,6 +14,7 @@ namespace PulseForge.Runtime.Unity.Persistence
         public string defaultDetection;
         public string defaultDifficulty;
         public string defaultCombatStyle;
+        public string defaultGameMode;
         public float beatmapOffsetSeconds;
         public float inputTimingOffsetSeconds;
         public PulseForgeAudioSettingsData audio;
@@ -85,6 +89,7 @@ namespace PulseForge.Runtime.Unity.Persistence
         public bool fileMissing;
         public string cachedAudioRelativePath;
         public int cacheVersion;
+        public int audioCacheVersion;
         public string createdAtUtc;
         public string updatedAtUtc;
         public string lastUsedAtUtc;
@@ -110,7 +115,13 @@ namespace PulseForge.Runtime.Unity.Persistence
         public int lowestMissCount;
         public string cachedBeatmapRelativePath;
         public int cacheVersion;
+        public int beatMapCacheVersion;
+        public int analyzerVersion;
+        public string beatMapFingerprint;
+        public int inputCost;
+        public string plannerResult;
         public string cacheStatus;
+        public List<SavedTrackPerformanceData> performances;
     }
 
     public enum SavedTrackCacheStatus
@@ -138,6 +149,39 @@ namespace PulseForge.Runtime.Unity.Persistence
         public double targetTimeSeconds;
         public string action;
         public float intensity;
+    }
+
+    [Serializable]
+    public sealed class RadialBeatMapCacheData
+    {
+        public int beatMapCacheVersion;
+        public int analyzerVersion;
+        public string trackId;
+        public string presetId;
+        public string beatMapFingerprint;
+        public string createdAtUtc;
+        public string updatedAtUtc;
+        public RadialBeatMapData radialBeatMap;
+        public AnalyzerQualityReport analyzerQuality;
+        public PlannerQualityReport plannerQuality;
+    }
+
+    [Serializable]
+    public sealed class SavedTrackPerformanceData
+    {
+        public string gameMode;
+        public string scoreSchema;
+        public string beatMapFingerprint;
+        public int playCount;
+        public int attemptCount;
+        public int clearCount;
+        public int bestScore;
+        public int maxCombo;
+        public int bestPerfectCount;
+        public int bestGoodCount;
+        public int lowestMissCount;
+        public string lastOutcome;
+        public string lastPlayedAtUtc;
     }
 
     public readonly struct SavedTrackPresetReference

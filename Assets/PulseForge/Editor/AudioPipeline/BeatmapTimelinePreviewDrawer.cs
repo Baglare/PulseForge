@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using PulseForge.Domain.Rhythm;
 using PulseForge.Runtime.Unity.BeatMaps;
+using PulseForge.Runtime.Unity.Persistence;
 using UnityEditor;
 using UnityEngine;
 
@@ -30,6 +31,202 @@ namespace PulseForge.Editor.AudioPipeline
 
             DrawLane(rawTimeline, minTime, maxTime, timelineColumns);
             DrawLane(playableTimeline, minTime, maxTime, timelineColumns);
+        }
+
+        public void DrawRadial(TextAsset radialBeatMapJson, float height)
+        {
+            if (radialBeatMapJson == null)
+            {
+                EditorGUILayout.HelpBox("Radial V2 beatmap not found.", MessageType.Info);
+                return;
+            }
+            if (!RadialBeatMapArtifactSerializer.TryDeserialize(
+                radialBeatMapJson.text,
+                out RadialBeatMapCacheData artifact,
+                out string errorMessage))
+            {
+                EditorGUILayout.HelpBox(errorMessage, MessageType.Warning);
+                return;
+            }
+
+            List<RadialMarker> markers = BuildRadialMarkers(artifact.radialBeatMap);
+            if (markers.Count == 0)
+            {
+                EditorGUILayout.LabelField("Radial V2: no markers", EditorStyles.miniLabel);
+                return;
+            }
+
+            double firstTime = markers[0].TimeSeconds;
+            double lastTime = markers[markers.Count - 1].TimeSeconds;
+            EditorGUILayout.LabelField(
+                "Radial V2 | " + markers.Count.ToString(CultureInfo.InvariantCulture)
+                + " markers | " + FormatSeconds(firstTime) + " - " + FormatSeconds(lastTime),
+                EditorStyles.miniLabel);
+            EditorGUILayout.SelectableLabel(
+                BuildRadialTimelineText(markers, firstTime, lastTime, GetTimelineColumnCount()),
+                EditorStyles.miniLabel,
+                GUILayout.Height(18f));
+
+            int shownCount = Math.Min(16, markers.Count);
+            for (int i = 0; i < shownCount; i++)
+            {
+                RadialMarker marker = markers[i];
+                EditorGUILayout.LabelField(
+                    FormatSeconds(marker.TimeSeconds),
+                    marker.ActionLabel + " / " + marker.Direction + marker.Detail,
+                    EditorStyles.miniLabel);
+            }
+            if (markers.Count > shownCount)
+            {
+                EditorGUILayout.LabelField(
+                    "...and " + (markers.Count - shownCount).ToString(CultureInfo.InvariantCulture)
+                    + " more markers",
+                    EditorStyles.miniLabel);
+            }
+        }
+
+        private static List<RadialMarker> BuildRadialMarkers(RadialBeatMapData beatMap)
+        {
+            List<RadialMarker> markers = new List<RadialMarker>();
+            if (beatMap == null || beatMap.encounters == null)
+            {
+                return markers;
+            }
+
+            for (int encounterIndex = 0;
+                encounterIndex < beatMap.encounters.Count;
+                encounterIndex++)
+            {
+                RadialEncounterEventData encounter = beatMap.encounters[encounterIndex];
+                if (encounter == null || encounter.requirements == null)
+                {
+                    continue;
+                }
+
+                if (encounter.targets == null || encounter.targets.Count == 0)
+                {
+                    for (int requirementIndex = 0;
+                        requirementIndex < encounter.requirements.Count;
+                        requirementIndex++)
+                    {
+                        AddRadialMarker(
+                            markers,
+                            encounter.requirements[requirementIndex],
+                            RadialDirection.North,
+                            null,
+                            encounter.failureEffect);
+                    }
+                    continue;
+                }
+
+                for (int targetIndex = 0; targetIndex < encounter.targets.Count; targetIndex++)
+                {
+                    EncounterTargetData target = encounter.targets[targetIndex];
+                    InputRequirementData requirement = FindRequirement(
+                        encounter,
+                        target == null ? string.Empty : target.requirementId);
+                    if (target != null && requirement != null)
+                    {
+                        AddRadialMarker(
+                            markers,
+                            requirement,
+                            target.direction,
+                            target.archetype,
+                            encounter.failureEffect);
+                    }
+                }
+            }
+
+            markers.Sort((left, right) => left.TimeSeconds.CompareTo(right.TimeSeconds));
+            return markers;
+        }
+
+        private static InputRequirementData FindRequirement(
+            RadialEncounterEventData encounter,
+            string requirementId)
+        {
+            for (int i = 0; i < encounter.requirements.Count; i++)
+            {
+                InputRequirementData requirement = encounter.requirements[i];
+                if (requirement != null
+                    && string.Equals(
+                        requirement.requirementId,
+                        requirementId,
+                        StringComparison.Ordinal))
+                {
+                    return requirement;
+                }
+            }
+            return encounter.requirements.Count == 1 ? encounter.requirements[0] : null;
+        }
+
+        private static void AddRadialMarker(
+            ICollection<RadialMarker> markers,
+            InputRequirementData requirement,
+            RadialDirection direction,
+            EnemyArchetype? archetype,
+            FailureEffectData failureEffect)
+        {
+            if (requirement == null)
+            {
+                return;
+            }
+            string actionLabel = RhythmActionMaskUtility.TryGetSingleAction(
+                requirement.acceptedActions,
+                out RhythmAction action)
+                ? action.ToString()
+                : requirement.acceptedActions.ToString();
+            markers.Add(new RadialMarker(
+                requirement.targetTimeSeconds,
+                actionLabel,
+                direction,
+                archetype,
+                failureEffect));
+        }
+
+        private static string BuildRadialTimelineText(
+            IReadOnlyList<RadialMarker> markers,
+            double minTime,
+            double maxTime,
+            int timelineColumns)
+        {
+            char[] timeline = new char[timelineColumns];
+            for (int i = 0; i < timeline.Length; i++)
+            {
+                timeline[i] = '-';
+            }
+            timeline[0] = '|';
+            timeline[timeline.Length - 1] = '|';
+            int plotColumns = Math.Max(1, timelineColumns - 2);
+            double timeRange = Math.Max(0.0001d, maxTime - minTime);
+            for (int i = 0; i < markers.Count; i++)
+            {
+                double normalizedTime = (markers[i].TimeSeconds - minTime) / timeRange;
+                int column = 1 + Mathf.Clamp(
+                    Mathf.RoundToInt((float)normalizedTime * (plotColumns - 1)),
+                    0,
+                    plotColumns - 1);
+                char marker = GetRadialMarkerLabel(markers[i].ActionLabel);
+                timeline[column] = timeline[column] == '-' ? marker : '*';
+            }
+            return new string(timeline);
+        }
+
+        private static char GetRadialMarkerLabel(string actionLabel)
+        {
+            if (actionLabel.IndexOf("Heavy", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return 'H';
+            }
+            if (actionLabel.IndexOf("Dodge", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return 'D';
+            }
+            if (actionLabel.IndexOf("Light", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return 'L';
+            }
+            return 'G';
         }
 
         private static TimelineData BuildTimelineData(string label, TextAsset beatMapJson, string missingMessage)
@@ -239,6 +436,32 @@ namespace PulseForge.Editor.AudioPipeline
                 errorMessage = message;
                 Events = Array.Empty<BeatEventData>();
             }
+        }
+
+        private readonly struct RadialMarker
+        {
+            public RadialMarker(
+                double timeSeconds,
+                string actionLabel,
+                RadialDirection direction,
+                EnemyArchetype? archetype,
+                FailureEffectData failureEffect)
+            {
+                TimeSeconds = timeSeconds;
+                ActionLabel = actionLabel;
+                Direction = direction;
+                Detail = archetype == EnemyArchetype.Saboteur
+                    ? " / Saboteur / Fog "
+                        + (failureEffect == null ? 0d : failureEffect.durationSeconds)
+                            .ToString("0.0", CultureInfo.InvariantCulture)
+                        + "s"
+                    : string.Empty;
+            }
+
+            public double TimeSeconds { get; }
+            public string ActionLabel { get; }
+            public RadialDirection Direction { get; }
+            public string Detail { get; }
         }
     }
 }

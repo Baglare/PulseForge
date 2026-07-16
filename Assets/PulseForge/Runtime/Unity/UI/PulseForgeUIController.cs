@@ -37,6 +37,7 @@ namespace PulseForge.Runtime.Unity.UI
             sceneRoot.ResultsPanel?.Bind(runtimeController);
             sceneRoot.ErrorPanel?.Bind(runtimeController);
             sceneRoot.GameplayFeedbackController?.Bind(runtimeController);
+            sceneRoot.RadialPresentationController?.Bind(runtimeController);
             isBound = true;
             Refresh();
         }
@@ -47,6 +48,7 @@ namespace PulseForge.Runtime.Unity.UI
             {
                 sceneRoot.CompleteMotionTransitions();
                 sceneRoot.GameplayFeedbackController?.Unbind();
+                sceneRoot.RadialPresentationController?.Unbind();
                 sceneRoot.SetupPanel?.Unbind();
                 sceneRoot.SavedTracksPanel?.Unbind();
                 sceneRoot.SettingsPanel?.Unbind();
@@ -55,6 +57,7 @@ namespace PulseForge.Runtime.Unity.UI
                 sceneRoot.PauseOverlay?.Unbind();
                 sceneRoot.ResultsPanel?.Unbind();
                 sceneRoot.ErrorPanel?.Unbind();
+                sceneRoot.GameplayHud?.SetRhythmLaneVisible(true);
             }
 
             runtimeController = null;
@@ -75,6 +78,9 @@ namespace PulseForge.Runtime.Unity.UI
                 && runtimeController.IsSavedTracksOpen;
             sceneRoot.ApplyAuxiliaryVisibility(state, showSavedTracks);
             sceneRoot.ApplySettingsVisibility(runtimeController.IsSettingsOpen);
+            sceneRoot.GameplayHud?.SetRhythmLaneVisible(
+                !runtimeController.UsesRadialCombatPresentation);
+            sceneRoot.RadialPresentationController?.Refresh(runtimeController);
             if (runtimeController.IsSettingsOpen)
             {
                 sceneRoot.SettingsPanel?.Refresh(runtimeController);
@@ -106,6 +112,7 @@ namespace PulseForge.Runtime.Unity.UI
                     sceneRoot.GameplayHud?.Refresh(runtimeController);
                     break;
                 case PulseForgeUIState.Completed:
+                case PulseForgeUIState.Failed:
                     sceneRoot.ResultsPanel?.Refresh(runtimeController);
                     break;
                 case PulseForgeUIState.Error:

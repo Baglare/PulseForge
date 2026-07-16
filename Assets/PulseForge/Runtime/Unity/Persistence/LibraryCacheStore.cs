@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using PulseForge.AudioAnalysis;
+using PulseForge.BeatMapGeneration;
 using PulseForge.Domain.Rhythm;
 using UnityEngine;
 
@@ -19,6 +21,82 @@ namespace PulseForge.Runtime.Unity.Persistence
             this.saveRootDirectory = saveRootDirectory
                 ?? throw new ArgumentNullException(nameof(saveRootDirectory));
             cacheRootDirectory = Path.Combine(saveRootDirectory, CacheDirectoryName);
+        }
+
+        public bool TryWriteRadialPresetCache(
+            string trackId,
+            string presetId,
+            string convertedWavPath,
+            RadialBeatMapData beatMap,
+            AnalyzerQualityReport analyzerQuality,
+            PlannerQualityReport plannerQuality,
+            string createdAtUtc,
+            out string cachedAudioRelativePath,
+            out string cachedBeatmapRelativePath,
+            out string beatMapFingerprint,
+            out string errorMessage)
+        {
+            cachedAudioRelativePath = string.Empty;
+            cachedBeatmapRelativePath = string.Empty;
+            beatMapFingerprint = string.Empty;
+            errorMessage = string.Empty;
+            if (!TryBuildRadialPaths(
+                trackId,
+                presetId,
+                out string trackDirectory,
+                out string audioPath,
+                out string beatmapPath,
+                out errorMessage))
+            {
+                return false;
+            }
+            if (!IsValidWav(convertedWavPath))
+            {
+                errorMessage = "Converted WAV is missing or invalid.";
+                return false;
+            }
+            if (!HasPlayableRequirement(beatMap))
+            {
+                errorMessage = "Radial beatmap contains no playable requirements.";
+                return false;
+            }
+
+            string audioTemporaryPath = audioPath + ".tmp";
+            string beatmapTemporaryPath = beatmapPath + ".tmp";
+            try
+            {
+                RadialBeatMapCacheData data = RadialBeatMapArtifactSerializer.Create(
+                    trackId,
+                    presetId,
+                    beatMap,
+                    analyzerQuality,
+                    plannerQuality,
+                    createdAtUtc);
+                beatMapFingerprint = data.beatMapFingerprint;
+
+                Directory.CreateDirectory(trackDirectory);
+                Directory.CreateDirectory(Path.GetDirectoryName(beatmapPath));
+                TryDeleteFile(audioTemporaryPath);
+                TryDeleteFile(beatmapTemporaryPath);
+                File.Copy(convertedWavPath, audioTemporaryPath, true);
+                File.WriteAllText(
+                    beatmapTemporaryPath,
+                    RadialBeatMapArtifactSerializer.Serialize(data, true),
+                    new UTF8Encoding(false));
+                CommitTemporaryFile(audioTemporaryPath, audioPath);
+                CommitTemporaryFile(beatmapTemporaryPath, beatmapPath);
+                cachedAudioRelativePath = ToRelativePath(audioPath);
+                cachedBeatmapRelativePath = ToRelativePath(beatmapPath);
+                return true;
+            }
+            catch (Exception exception)
+            {
+                errorMessage = "Radial cache could not be written: " + exception.Message;
+                Debug.LogError("PulseForge radial cache write failed: " + exception.Message);
+                TryDeleteFile(audioTemporaryPath);
+                TryDeleteFile(beatmapTemporaryPath);
+                return false;
+            }
         }
 
         public bool TryWritePresetCache(
@@ -103,24 +181,134 @@ namespace PulseForge.Runtime.Unity.Persistence
             SavedTrackData track,
             SavedTrackPresetData preset)
         {
-            if (track == null || preset == null
-                || track.cacheVersion <= 0
-                || preset.cacheVersion <= 0
+            if (track == null || preset == null)
+            {
+                return SavedTrackCacheStatus.Damaged;
+            }
+
+            if (preset.analyzerVersion < SaveDefaults.AnalyzerVersion
+                || preset.beatMapCacheVersion < SaveDefaults.RadialBeatMapCacheVersion)
+            {
+                return SavedTrackCacheStatus.NeedsRebuild;
+            }
+
+            if (preset.analyzerVersion != SaveDefaults.AnalyzerVersion
+                || preset.beatMapCacheVersion != SaveDefaults.RadialBeatMapCacheVersion
+                || track.audioCacheVersion != SaveDefaults.AudioCacheVersion
                 || string.IsNullOrWhiteSpace(track.cachedAudioRelativePath)
-                || string.IsNullOrWhiteSpace(preset.cachedBeatmapRelativePath))
+                || string.IsNullOrWhiteSpace(preset.cachedBeatmapRelativePath)
+                || string.IsNullOrWhiteSpace(preset.beatMapFingerprint))
             {
-                return SavedTrackCacheStatus.NeedsRebuild;
+                return SavedTrackCacheStatus.Damaged;
             }
 
-            if (track.cacheVersion != SaveDefaults.LibraryCacheVersion
-                || preset.cacheVersion != SaveDefaults.LibraryCacheVersion)
-            {
-                return SavedTrackCacheStatus.NeedsRebuild;
-            }
-
-            return TryLoadPresetCache(track, preset, out _, out _, out _)
+            return TryLoadRadialPresetCache(track, preset, out _, out _, out _)
                 ? SavedTrackCacheStatus.Ready
                 : SavedTrackCacheStatus.Damaged;
+        }
+
+        public bool TryLoadRadialPresetCache(
+            SavedTrackData track,
+            SavedTrackPresetData preset,
+            out string cachedAudioPath,
+            out RadialBeatMapCacheData cacheData,
+            out string errorMessage)
+        {
+            cachedAudioPath = string.Empty;
+            cacheData = null;
+            errorMessage = string.Empty;
+            if (track == null || preset == null)
+            {
+                errorMessage = "Saved track preset was not found.";
+                return false;
+            }
+            if (!TryBuildRadialPaths(
+                track.trackId,
+                preset.presetId,
+                out _,
+                out string expectedAudioPath,
+                out string expectedBeatmapPath,
+                out errorMessage))
+            {
+                return false;
+            }
+            if (!RelativePathEquals(track.cachedAudioRelativePath, ToRelativePath(expectedAudioPath))
+                || !RelativePathEquals(preset.cachedBeatmapRelativePath, ToRelativePath(expectedBeatmapPath)))
+            {
+                errorMessage = "Saved cache metadata contains an invalid path.";
+                return false;
+            }
+            if (!IsValidWav(expectedAudioPath))
+            {
+                errorMessage = "Cached WAV is missing or damaged.";
+                return false;
+            }
+
+            try
+            {
+                if (!File.Exists(expectedBeatmapPath))
+                {
+                    throw new InvalidDataException("Radial beatmap file is missing.");
+                }
+                if (!RadialBeatMapArtifactSerializer.TryDeserialize(
+                    File.ReadAllText(expectedBeatmapPath, Encoding.UTF8),
+                    out RadialBeatMapCacheData loaded,
+                    out string artifactError))
+                {
+                    throw new InvalidDataException(artifactError);
+                }
+                if (loaded == null
+                    || !string.Equals(loaded.trackId, track.trackId, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(loaded.presetId, preset.presetId, StringComparison.Ordinal)
+                    || loaded.radialBeatMap == null)
+                {
+                    throw new InvalidDataException("Radial cache header is invalid.");
+                }
+
+                string fingerprint = RadialBeatMapFingerprint.Compute(loaded.radialBeatMap);
+                if (!string.Equals(fingerprint, loaded.beatMapFingerprint, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(fingerprint, preset.beatMapFingerprint, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidDataException("Radial beatmap fingerprint does not match.");
+                }
+                if (loaded.radialBeatMap.encounters.Count != preset.eventCount)
+                {
+                    throw new InvalidDataException("Radial encounter count does not match library metadata.");
+                }
+
+                cachedAudioPath = expectedAudioPath;
+                cacheData = loaded;
+                return true;
+            }
+            catch (Exception exception)
+            {
+                errorMessage = "Cached radial beatmap is damaged: " + exception.Message;
+                return false;
+            }
+        }
+
+        public bool TryGetCachedAudioPath(
+            SavedTrackData track,
+            out string cachedAudioPath)
+        {
+            cachedAudioPath = string.Empty;
+            if (track == null
+                || track.audioCacheVersion != SaveDefaults.AudioCacheVersion
+                || !TryBuildRadialPaths(
+                    track.trackId,
+                    "rebuild",
+                    out _,
+                    out string expectedAudioPath,
+                    out _,
+                    out _)
+                || !RelativePathEquals(track.cachedAudioRelativePath, ToRelativePath(expectedAudioPath))
+                || !IsValidWav(expectedAudioPath))
+            {
+                return false;
+            }
+
+            cachedAudioPath = expectedAudioPath;
+            return true;
         }
 
         public bool TryLoadPresetCache(
@@ -200,7 +388,20 @@ namespace PulseForge.Runtime.Unity.Persistence
                 return false;
             }
 
-            return TryDeleteWithLog(beatmapPath, "preset beatmap cache");
+            bool legacyDeleted = TryDeleteWithLog(beatmapPath, "legacy preset beatmap cache");
+            if (!TryBuildRadialPaths(
+                trackId,
+                presetId,
+                out _,
+                out _,
+                out string radialBeatmapPath,
+                out string radialError))
+            {
+                Debug.LogWarning("PulseForge radial cache cleanup skipped: " + radialError);
+                return false;
+            }
+            return TryDeleteWithLog(radialBeatmapPath, "radial preset beatmap cache")
+                && legacyDeleted;
         }
 
         public bool DeleteTrackCache(string trackId)
@@ -331,6 +532,56 @@ namespace PulseForge.Runtime.Unity.Persistence
             audioPath = Path.Combine(trackDirectory, AudioFileName);
             beatmapPath = Path.Combine(trackDirectory, "presets", presetId + ".json");
             return true;
+        }
+
+        private bool TryBuildRadialPaths(
+            string trackId,
+            string presetId,
+            out string trackDirectory,
+            out string audioPath,
+            out string beatmapPath,
+            out string errorMessage)
+        {
+            trackDirectory = string.Empty;
+            audioPath = string.Empty;
+            beatmapPath = string.Empty;
+            errorMessage = string.Empty;
+            if (!IsSafeIdentifier(trackId) || !IsSafeIdentifier(presetId))
+            {
+                errorMessage = "Saved track cache identifier is invalid.";
+                return false;
+            }
+
+            trackDirectory = Path.Combine(cacheRootDirectory, trackId);
+            audioPath = Path.Combine(trackDirectory, AudioFileName);
+            beatmapPath = Path.Combine(trackDirectory, "presets", presetId + ".radial.json");
+            return true;
+        }
+
+        private static bool IsValidWav(string path)
+        {
+            return !string.IsNullOrWhiteSpace(path)
+                && File.Exists(path)
+                && new FileInfo(path).Length > 44L;
+        }
+
+        private static bool HasPlayableRequirement(RadialBeatMapData beatMap)
+        {
+            if (beatMap == null || beatMap.encounters == null)
+            {
+                return false;
+            }
+            for (int i = 0; i < beatMap.encounters.Count; i++)
+            {
+                RadialEncounterEventData encounter = beatMap.encounters[i];
+                if (encounter != null
+                    && encounter.requirements != null
+                    && encounter.requirements.Count > 0)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private string ToRelativePath(string absolutePath)

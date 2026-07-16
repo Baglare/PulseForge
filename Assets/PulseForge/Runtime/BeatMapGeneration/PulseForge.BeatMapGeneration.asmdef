@@ -1,0 +1,17 @@
+{
+  "name": "PulseForge.BeatMapGeneration",
+  "rootNamespace": "PulseForge.BeatMapGeneration",
+  "references": [
+    "PulseForge.Domain.Rhythm",
+    "PulseForge.AudioAnalysis"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true
+}

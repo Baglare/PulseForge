@@ -2,7 +2,9 @@
   "name": "PulseForge.Tests.EditMode",
   "rootNamespace": "PulseForge.Tests.EditMode",
   "references": [
-    "PulseForge.Domain.Rhythm"
+    "PulseForge.Domain.Rhythm",
+    "PulseForge.AudioAnalysis",
+    "PulseForge.BeatMapGeneration"
   ],
   "includePlatforms": [
     "Editor"

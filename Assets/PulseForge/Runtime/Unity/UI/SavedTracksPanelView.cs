@@ -322,12 +322,15 @@ namespace PulseForge.Runtime.Unity.UI
                 + FormatDuration(track.durationSeconds) + "  •  "
                 + presetCount + (presetCount == 1 ? " saved setup" : " saved setups") + "  •  Last used "
                 + FormatDate(track.lastUsedAtUtc);
+            bool cachedRebuildAvailable = boundController != null
+                && boundController.CanRebuildSavedTrackWithoutSource(track.trackId);
+            bool trackRequiresSource = TrackRequiresSource(track) && !cachedRebuildAvailable;
             Text metadataText = PulseForgeUIFactory.CreateText(
                 "Metadata",
                 card,
                 metadata,
                 PulseForgeUITheme.SmallFontSize,
-                track.fileMissing && TrackRequiresSource(track)
+                track.fileMissing && trackRequiresSource
                     ? PulseForgeUITheme.Miss
                     : PulseForgeUITheme.SecondaryText,
                 TextAnchor.MiddleLeft);
@@ -335,7 +338,7 @@ namespace PulseForge.Runtime.Unity.UI
 
             if (track.fileMissing)
             {
-                bool requiresSource = TrackRequiresSource(track);
+                bool requiresSource = trackRequiresSource;
                 RectTransform missingRow = PulseForgeUIFactory.CreateRect("Missing File", card);
                 PulseForgeUIFactory.SetLayoutHeight(missingRow, 42f);
                 HorizontalLayoutGroup missingLayout = missingRow.gameObject.AddComponent<HorizontalLayoutGroup>();
@@ -384,7 +387,7 @@ namespace PulseForge.Runtime.Unity.UI
             SavedTrackPresetData preset)
         {
             RectTransform row = PulseForgeUIFactory.CreateRect("Preset " + preset.presetId, parent);
-            PulseForgeUIFactory.SetLayoutHeight(row, 100f);
+            PulseForgeUIFactory.SetLayoutHeight(row, 116f);
             Image background = row.gameObject.AddComponent<Image>();
             background.color = PulseForgeUITheme.SurfaceSoft;
             background.sprite = PulseForgeUIFactory.RoundedSprite;
@@ -399,11 +402,16 @@ namespace PulseForge.Runtime.Unity.UI
 
             SavedTrackCacheStatus cacheStatus = SaveDataNormalizer.GetCacheStatus(preset);
             string cacheLabel = FormatCacheStatus(cacheStatus);
+            string analyzerLabel = preset.analyzerVersion >= SaveDefaults.AnalyzerVersion
+                ? "Analyzer V2"
+                : "Legacy Analyzer";
+            string qualityLabel = FormatPlannerResult(preset.plannerResult);
             string details = "[" + preset.difficulty + "]  [" + preset.combatStyle + "]  ["
                 + preset.detectionMode + "]\n"
-                + preset.eventCount + " events  •  Best " + preset.bestScore.ToString("N0", CultureInfo.InvariantCulture)
-                + "  •  Combo " + preset.maxCombo + "  •  Played " + preset.playCount
-                + "\nCache: " + cacheLabel;
+                + analyzerLabel + "  •  " + preset.eventCount + " encounters  •  "
+                + preset.inputCost + " inputs\n"
+                + qualityLabel + "  •  " + cacheLabel
+                + FormatPerformanceModes(preset);
             Text text = PulseForgeUIFactory.CreateText(
                 "Details",
                 row,
@@ -413,9 +421,11 @@ namespace PulseForge.Runtime.Unity.UI
                 TextAnchor.MiddleLeft);
             SetWidth(text, 1f, -1f);
 
+            bool canRebuildFromCache = boundController != null
+                && boundController.CanRebuildSavedTrackWithoutSource(track.trackId);
             string actionLabel = cacheStatus == SavedTrackCacheStatus.Ready
                 ? "Load"
-                : track.fileMissing ? "Relink File" : "Rebuild from Source";
+                : track.fileMissing && !canRebuildFromCache ? "Relink File" : "Rebuild Cache";
             Button load = PulseForgeUIFactory.CreateButton(
                 actionLabel,
                 row,
@@ -431,7 +441,7 @@ namespace PulseForge.Runtime.Unity.UI
             {
                 BindDynamicButton(load, () => boundController?.LoadSavedTrackPreset(trackId, presetId));
             }
-            else if (track.fileMissing)
+            else if (track.fileMissing && !canRebuildFromCache)
             {
                 BindDynamicButton(load, () => boundController?.RelinkSavedTrack(trackId));
             }
@@ -452,6 +462,27 @@ namespace PulseForge.Runtime.Unity.UI
                 () => ShowConfirmation(
                     "Remove this saved setup from “" + track.displayName + "”?",
                     () => boundController?.RemoveSavedPreset(trackId, presetId)));
+        }
+
+        private static string FormatPerformanceModes(SavedTrackPresetData preset)
+        {
+            if (preset == null || preset.performances == null) return string.Empty;
+            List<string> modes = new List<string>();
+            for (int i = 0; i < preset.performances.Count; i++)
+            {
+                SavedTrackPerformanceData performance = preset.performances[i];
+                if (performance == null
+                    || Math.Max(performance.attemptCount, performance.playCount) == 0)
+                {
+                    continue;
+                }
+
+                string mode = string.IsNullOrWhiteSpace(performance.gameMode)
+                    ? "Standard"
+                    : performance.gameMode == "OneLife" ? "One Life" : performance.gameMode;
+                if (!modes.Contains(mode)) modes.Add(mode);
+            }
+            return modes.Count == 0 ? string.Empty : "\nModes  •  " + string.Join(" / ", modes);
         }
 
         private void CreateConfirmationOverlay(RectTransform parent)
@@ -584,6 +615,21 @@ namespace PulseForge.Runtime.Unity.UI
             return status == SavedTrackCacheStatus.NeedsRebuild
                 ? "Needs Rebuild"
                 : status.ToString();
+        }
+
+        private static string FormatPlannerResult(string result)
+        {
+            if (string.Equals(result, "PassWithRepairs", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Repaired";
+            }
+            if (string.Equals(result, "UnderCovered", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Limited Coverage";
+            }
+            return string.Equals(result, "Pass", StringComparison.OrdinalIgnoreCase)
+                ? "Pass"
+                : "Needs Analysis";
         }
 
         private static bool TrackRequiresSource(SavedTrackData track)

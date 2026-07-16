@@ -75,6 +75,19 @@ namespace PulseForge.Tests.EditMode
             Assert.That(GetProperty(flow, "ProcessingStage").ToString(), Is.EqualTo("AudioSelected"));
         }
 
+        [Test]
+        public void FailureIsTerminalAndCannotBeOverwrittenByComplete()
+        {
+            object flow = CreateFlow();
+            Invoke(flow, "MarkReady");
+            Invoke(flow, "BeginSession", false);
+
+            Invoke(flow, "Fail");
+            Invoke(flow, "Complete");
+
+            Assert.That(GetProperty(flow, "State").ToString(), Is.EqualTo("Failed"));
+        }
+
         private static object CreateFlow()
         {
             Type flowType = Type.GetType(FlowTypeName, true);

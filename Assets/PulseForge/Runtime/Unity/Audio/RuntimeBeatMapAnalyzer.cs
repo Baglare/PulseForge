@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using PulseForge.AudioAnalysis;
 using PulseForge.Domain.Rhythm;
 using UnityEngine;
 
@@ -89,6 +90,46 @@ namespace PulseForge.Runtime.Unity.Audio
             }
 
             return beatEvents;
+        }
+
+        public static RadialAudioAnalysisResult AnalyzeV2(AudioClip audioClip)
+        {
+            return AnalyzeV2(audioClip, RuntimeDetectionMode.Onset);
+        }
+
+        public static RadialAudioAnalysisResult AnalyzeV2(
+            AudioClip audioClip,
+            RuntimeDetectionMode detectionMode)
+        {
+            RadialAudioAnalyzerV2.AnalysisJob job = BeginAnalyzeV2(audioClip, detectionMode);
+            while (!job.FeatureExtractionComplete)
+            {
+                job.StepFeatureExtraction(int.MaxValue);
+            }
+
+            return job.CompleteAnalysis();
+        }
+
+        public static RadialAudioAnalyzerV2.AnalysisJob BeginAnalyzeV2(
+            AudioClip audioClip,
+            RuntimeDetectionMode detectionMode)
+        {
+            if (audioClip == null)
+            {
+                throw new ArgumentNullException(nameof(audioClip));
+            }
+
+            if (audioClip.frequency <= 0 || audioClip.channels <= 0 || audioClip.samples <= 0)
+            {
+                throw new InvalidOperationException("The audio clip contains no readable samples.");
+            }
+
+            AudioCandidateDetectionMode candidateMode = detectionMode == RuntimeDetectionMode.Amplitude
+                ? AudioCandidateDetectionMode.Amplitude
+                : AudioCandidateDetectionMode.Onset;
+            return RadialAudioAnalyzerV2.BeginAnalyze(
+                new AudioClipSampleSource(audioClip),
+                candidateMode);
         }
 
         private static List<double> BuildAmplitudeCurve(IReadOnlyList<AnalysisFrame> frames)
@@ -359,6 +400,42 @@ namespace PulseForge.Runtime.Unity.Audio
             public double TimeSeconds { get; }
 
             public double Intensity { get; }
+        }
+
+        private sealed class AudioClipSampleSource : IAudioSampleSource
+        {
+            private readonly AudioClip audioClip;
+
+            public AudioClipSampleSource(AudioClip audioClip)
+            {
+                this.audioClip = audioClip ?? throw new ArgumentNullException(nameof(audioClip));
+            }
+
+            public int SampleRate => audioClip.frequency;
+
+            public int ChannelCount => audioClip.channels;
+
+            public long FrameCount => audioClip.samples;
+
+            public void ReadFrames(long startFrame, int frameCount, float[] interleavedBuffer)
+            {
+                if (startFrame < 0L || startFrame > int.MaxValue)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(startFrame));
+                }
+
+                if (frameCount <= 0
+                    || interleavedBuffer == null
+                    || interleavedBuffer.Length < frameCount * ChannelCount)
+                {
+                    throw new ArgumentException("Audio read buffer is smaller than the requested frame range.");
+                }
+
+                if (!audioClip.GetData(interleavedBuffer, (int)startFrame))
+                {
+                    throw new InvalidOperationException("Unity could not read the audio sample data.");
+                }
+            }
         }
     }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using PulseForge.Domain.Rhythm;
 using PulseForge.Runtime.Unity.Audio;
 using PulseForge.Runtime.Unity.Prototype;
 using UnityEngine;
@@ -20,11 +21,13 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private Button[] detectionButtons;
         [SerializeField] private Button[] difficultyButtons;
         [SerializeField] private Button[] combatStyleButtons;
+        [SerializeField] private Button[] gameModeButtons;
 
         private DebugRhythmPrototypeController boundController;
         private ChoiceSelector<RuntimeDetectionMode> detectionSelector;
         private ChoiceSelector<RuntimeDifficulty> difficultySelector;
         private ChoiceSelector<RuntimeCombatStyle> combatStyleSelector;
+        private ChoiceSelector<RadialGameMode> gameModeSelector;
 
         public Button BuiltInDemoButton => builtInDemoButton;
         public Button ChooseAudioButton => chooseAudioButton;
@@ -137,6 +140,10 @@ namespace PulseForge.Runtime.Unity.UI
                     RuntimeCombatStyle.Bursty.ToString()
                 },
                 18);
+            view.gameModeButtons = CreateChoiceButtons(
+                card,
+                "Game Mode",
+                new[] { "Standard", "Survival", "One Life" });
 
             view.analyzeButton = PulseForgeUIFactory.CreateButton(
                 "Analyze Song",
@@ -157,6 +164,37 @@ namespace PulseForge.Runtime.Unity.UI
             view.EnsurePersistenceControls();
             view.EnsureSettingsButton();
             return view;
+        }
+
+        public void EnsureGameModeControls(Action<GameObject> registerCreated = null)
+        {
+            Transform card = PanelRoot == null ? null : PanelRoot.transform.Find("Setup Card");
+            if (card == null) return;
+            Transform selector = card.Find("Game Mode Selector");
+            if (selector == null)
+            {
+                gameModeButtons = CreateChoiceButtons(
+                    card,
+                    "Game Mode",
+                    new[] { "Standard", "Survival", "One Life" });
+                selector = card.Find("Game Mode Selector");
+                Transform combatStyle = card.Find("Combat Style Selector");
+                if (selector != null && combatStyle != null)
+                {
+                    selector.SetSiblingIndex(combatStyle.GetSiblingIndex() + 1);
+                }
+                if (selector != null) registerCreated?.Invoke(selector.gameObject);
+            }
+            else
+            {
+                gameModeButtons = selector.GetComponentsInChildren<Button>(true);
+            }
+
+            RectTransform cardRect = card as RectTransform;
+            if (cardRect != null && cardRect.sizeDelta.y < 1040f)
+            {
+                cardRect.sizeDelta = new Vector2(cardRect.sizeDelta.x, 1040f);
+            }
         }
 
         public void EnsureSettingsButton(Action<GameObject> registerCreated = null)
@@ -294,6 +332,11 @@ namespace PulseForge.Runtime.Unity.UI
                 },
                 PulseForgeUITheme.Primary,
                 controller.SetCombatStyle);
+            gameModeSelector = new ChoiceSelector<RadialGameMode>(
+                gameModeButtons,
+                new[] { RadialGameMode.Standard, RadialGameMode.Survival, RadialGameMode.OneLife },
+                PulseForgeUITheme.Primary,
+                controller.SetGameMode);
         }
 
         public void Unbind()
@@ -307,9 +350,11 @@ namespace PulseForge.Runtime.Unity.UI
             detectionSelector?.Unbind();
             difficultySelector?.Unbind();
             combatStyleSelector?.Unbind();
+            gameModeSelector?.Unbind();
             detectionSelector = null;
             difficultySelector = null;
             combatStyleSelector = null;
+            gameModeSelector = null;
             boundController = null;
         }
 
@@ -335,6 +380,7 @@ namespace PulseForge.Runtime.Unity.UI
             detectionSelector?.SetSelected(settings.DetectionMode);
             difficultySelector?.SetSelected(settings.Difficulty);
             combatStyleSelector?.SetSelected(settings.CombatStyle);
+            gameModeSelector?.SetSelected(controller.SelectedGameMode);
         }
 
         public override void CollectValidationErrors(List<string> errors)
@@ -351,9 +397,10 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgeUIValidation.AddArray(errors, detectionButtons, 2, "Setup: detection buttons are incomplete.");
             PulseForgeUIValidation.AddArray(errors, difficultyButtons, 3, "Setup: difficulty buttons are incomplete.");
             PulseForgeUIValidation.AddArray(errors, combatStyleButtons, 5, "Setup: combat style buttons are incomplete.");
+            PulseForgeUIValidation.AddArray(errors, gameModeButtons, 3, "Setup: game mode buttons are incomplete.");
         }
 
-        private static Button[] CreateChoiceButtons(
+        internal static Button[] CreateChoiceButtons(
             Transform parent,
             string label,
             IReadOnlyList<string> choices,

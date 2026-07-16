@@ -12,6 +12,7 @@ namespace PulseForge.Runtime.Unity.UI
         Playing,
         Paused,
         Completed,
+        Failed,
         Error
     }
 
@@ -21,9 +22,13 @@ namespace PulseForge.Runtime.Unity.UI
         AudioSelected,
         ConvertingToWav,
         LoadingConvertedAudio,
-        DetectingRhythm,
-        BuildingCombatSequence,
-        Ready
+        AnalyzingAudioFeatures,
+        PlanningRadialEncounters,
+        ValidatingBeatMap,
+        PreparingSession,
+        Ready,
+        DetectingRhythm = AnalyzingAudioFeatures,
+        BuildingCombatSequence = PlanningRadialEncounters
     }
 
     public sealed class PulseForgeRuntimeFlow
@@ -128,6 +133,14 @@ namespace PulseForge.Runtime.Unity.UI
             if (State == PulseForgeUIState.Playing || State == PulseForgeUIState.Paused)
             {
                 State = PulseForgeUIState.Completed;
+            }
+        }
+
+        public void Fail()
+        {
+            if (State == PulseForgeUIState.Playing || State == PulseForgeUIState.Paused)
+            {
+                State = PulseForgeUIState.Failed;
             }
         }
 

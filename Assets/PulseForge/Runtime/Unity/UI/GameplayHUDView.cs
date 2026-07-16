@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System;
 using PulseForge.Domain.Rhythm;
 using PulseForge.Runtime.Unity.Prototype;
 using UnityEngine;
@@ -15,9 +16,17 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private Text feedbackText;
         [SerializeField] private Button pauseButton;
         [SerializeField] private RhythmLaneView rhythmLaneView;
+        [SerializeField] private RectTransform runStatusRoot;
+        [SerializeField] private Text gameModeText;
+        [SerializeField] private GameObject healthRoot;
+        [SerializeField] private RectTransform healthFill;
+        [SerializeField] private Text healthText;
+        [SerializeField] private Text oneLifeText;
 
         private DebugRhythmPrototypeController boundController;
         private bool gameplayFeedbackManaged;
+        private int lastDamageRevision = -1;
+        private float damageFlashUntil;
 
         public RhythmLaneView RhythmLaneView => rhythmLaneView;
         public Text ComboText => comboText;
@@ -85,7 +94,70 @@ namespace PulseForge.Runtime.Unity.UI
                 PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Surface, 0.90f));
             PulseForgeUIFactory.SetBottom(bottomHud, 270f, 24f, 24f, 20f);
             view.rhythmLaneView = RhythmLaneView.Create(bottomHud);
+            view.EnsureGameModeHud();
             return view;
+        }
+
+        public void EnsureGameModeHud(Action<GameObject> registerCreated = null)
+        {
+            Transform root = PanelRoot == null ? null : PanelRoot.transform;
+            if (root == null) return;
+            Transform existing = root.Find("Run Status");
+            if (existing != null)
+            {
+                runStatusRoot = existing as RectTransform;
+                gameModeText = existing.Find("Game Mode")?.GetComponent<Text>();
+                Transform existingHealth = existing.Find("Health");
+                healthRoot = existingHealth == null ? null : existingHealth.gameObject;
+                healthFill = existingHealth == null ? null : existingHealth.Find("Fill") as RectTransform;
+                healthText = existingHealth == null ? null : existingHealth.Find("Value")?.GetComponent<Text>();
+                oneLifeText = existing.Find("One Life")?.GetComponent<Text>();
+                return;
+            }
+
+            runStatusRoot = PulseForgeUIFactory.CreatePanel(
+                "Run Status",
+                root,
+                PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Surface, 0.92f));
+            PulseForgeUIFactory.SetTop(runStatusRoot, 82f, 1390f, 24f, 148f);
+            gameModeText = PulseForgeUIFactory.CreateText(
+                "Game Mode",
+                runStatusRoot,
+                "STANDARD",
+                16,
+                PulseForgeUITheme.SecondaryText,
+                TextAnchor.MiddleCenter,
+                FontStyle.Bold);
+            gameModeText.rectTransform.anchorMin = new Vector2(0f, 0.52f);
+            gameModeText.rectTransform.anchorMax = Vector2.one;
+            gameModeText.rectTransform.offsetMin = Vector2.zero;
+            gameModeText.rectTransform.offsetMax = Vector2.zero;
+
+            RectTransform health = PulseForgeUIFactory.CreateRect("Health", runStatusRoot);
+            health.anchorMin = new Vector2(0.08f, 0.14f);
+            health.anchorMax = new Vector2(0.92f, 0.47f);
+            health.offsetMin = Vector2.zero;
+            health.offsetMax = Vector2.zero;
+            healthRoot = health.gameObject;
+            Image background = health.gameObject.AddComponent<Image>();
+            background.color = PulseForgeUITheme.SurfaceSoft;
+            healthFill = PulseForgeUIFactory.CreateRect("Fill", health);
+            healthFill.anchorMin = Vector2.zero;
+            healthFill.anchorMax = Vector2.one;
+            healthFill.offsetMin = Vector2.zero;
+            healthFill.offsetMax = Vector2.zero;
+            healthFill.gameObject.AddComponent<Image>().color = PulseForgeUITheme.Good;
+            healthText = PulseForgeUIFactory.CreateText(
+                "Value", health, "100", 15, PulseForgeUITheme.PrimaryText,
+                TextAnchor.MiddleCenter, FontStyle.Bold);
+            oneLifeText = PulseForgeUIFactory.CreateText(
+                "One Life", runStatusRoot, "ONE LIFE", 19, PulseForgeUITheme.Primary,
+                TextAnchor.MiddleCenter, FontStyle.Bold);
+            oneLifeText.rectTransform.anchorMin = new Vector2(0f, 0f);
+            oneLifeText.rectTransform.anchorMax = new Vector2(1f, 0.52f);
+            oneLifeText.rectTransform.offsetMin = Vector2.zero;
+            oneLifeText.rectTransform.offsetMax = Vector2.zero;
+            registerCreated?.Invoke(runStatusRoot.gameObject);
         }
 
         public void Bind(DebugRhythmPrototypeController controller)
@@ -104,6 +176,8 @@ namespace PulseForge.Runtime.Unity.UI
 
             PulseForgeUIFactory.BindButton(pauseButton, controller.PauseSession);
             rhythmLaneView.InitializeRuntimePool();
+            lastDamageRevision = -1;
+            damageFlashUntil = 0f;
         }
 
         public void Unbind()
@@ -116,6 +190,14 @@ namespace PulseForge.Runtime.Unity.UI
         public void SetGameplayFeedbackManaged(bool isManaged)
         {
             gameplayFeedbackManaged = isManaged;
+        }
+
+        public void SetRhythmLaneVisible(bool visible)
+        {
+            if (rhythmLaneView != null && rhythmLaneView.gameObject.activeSelf != visible)
+            {
+                rhythmLaneView.gameObject.SetActive(visible);
+            }
         }
 
         public void Refresh(DebugRhythmPrototypeController controller)
@@ -134,6 +216,7 @@ namespace PulseForge.Runtime.Unity.UI
             progressFill.anchorMax = new Vector2(progress, 1f);
             progressFill.offsetMax = Vector2.zero;
             pauseButton.interactable = controller.CanPause;
+            RefreshRunStatus(controller);
 
             if (!gameplayFeedbackManaged)
             {
@@ -148,7 +231,10 @@ namespace PulseForge.Runtime.Unity.UI
                 }
             }
 
-            rhythmLaneView.Refresh(controller.SessionEvents, controller.CurrentSongTimeSeconds);
+            if (rhythmLaneView != null && rhythmLaneView.gameObject.activeSelf)
+            {
+                rhythmLaneView.Refresh(controller.SessionEvents, controller.CurrentSongTimeSeconds);
+            }
         }
 
         public override void CollectValidationErrors(List<string> errors)
@@ -161,6 +247,12 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgeUIValidation.AddMissing(errors, feedbackText, "Gameplay HUD: feedback text is missing.");
             PulseForgeUIValidation.AddMissing(errors, pauseButton, "Gameplay HUD: Pause button is missing.");
             PulseForgeUIValidation.AddMissing(errors, rhythmLaneView, "Gameplay HUD: RhythmLaneView is missing.");
+            PulseForgeUIValidation.AddMissing(errors, runStatusRoot, "Gameplay HUD: run status is missing.");
+            PulseForgeUIValidation.AddMissing(errors, gameModeText, "Gameplay HUD: game mode text is missing.");
+            PulseForgeUIValidation.AddMissing(errors, healthRoot, "Gameplay HUD: health root is missing.");
+            PulseForgeUIValidation.AddMissing(errors, healthFill, "Gameplay HUD: health fill is missing.");
+            PulseForgeUIValidation.AddMissing(errors, healthText, "Gameplay HUD: health value is missing.");
+            PulseForgeUIValidation.AddMissing(errors, oneLifeText, "Gameplay HUD: One Life indicator is missing.");
             rhythmLaneView?.CollectValidationErrors(errors);
         }
 
@@ -179,6 +271,39 @@ namespace PulseForge.Runtime.Unity.UI
             text.rectTransform.offsetMin = Vector2.zero;
             text.rectTransform.offsetMax = Vector2.zero;
             return text;
+        }
+
+        private void RefreshRunStatus(DebugRhythmPrototypeController controller)
+        {
+            gameModeText.text = controller.RunGameModeLabel.ToUpperInvariant();
+            bool survival = controller.RunGameMode == RadialGameMode.Survival;
+            bool oneLife = controller.RunGameMode == RadialGameMode.OneLife;
+            healthRoot.SetActive(survival);
+            oneLifeText.gameObject.SetActive(oneLife);
+            if (lastDamageRevision >= 0 && controller.RunDamageRevision > lastDamageRevision)
+            {
+                damageFlashUntil = Time.unscaledTime + 0.22f;
+            }
+            lastDamageRevision = controller.RunDamageRevision;
+
+            if (survival)
+            {
+                float health = Mathf.Clamp01(controller.RunHealth / 100f);
+                healthFill.anchorMax = new Vector2(health, 1f);
+                healthFill.offsetMax = Vector2.zero;
+                healthText.text = controller.RunHealth.ToString();
+                Image fillImage = healthFill.GetComponent<Image>();
+                fillImage.color = controller.IsFailed || Time.unscaledTime < damageFlashUntil
+                    ? PulseForgeUITheme.Miss
+                    : PulseForgeUITheme.Good;
+            }
+            if (oneLife)
+            {
+                oneLifeText.text = controller.IsFailed ? "ONE LIFE  ✕" : "ONE LIFE";
+                oneLifeText.color = controller.IsFailed
+                    ? PulseForgeUITheme.Miss
+                    : PulseForgeUITheme.Primary;
+            }
         }
 
         private static Color GetFeedbackColor(PulseForgeFeedbackPresentation feedback)

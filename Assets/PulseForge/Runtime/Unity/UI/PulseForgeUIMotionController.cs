@@ -204,6 +204,7 @@ namespace PulseForge.Runtime.Unity.UI
                     AnimateOverlay(sceneRoot.PauseOverlay, "Pause Card", true, false);
                     break;
                 case PulseForgeUIState.Completed:
+                case PulseForgeUIState.Failed:
                     AnimateOverlay(sceneRoot.ResultsPanel, "Results Panel Card", true, true);
                     break;
                 case PulseForgeUIState.Error:
@@ -448,7 +449,9 @@ namespace PulseForge.Runtime.Unity.UI
             SetPanel(sceneRoot.GameplayHud, IsGameplayState(state));
             SetPanel(sceneRoot.CountdownOverlay, state == PulseForgeUIState.Countdown);
             SetPanel(sceneRoot.PauseOverlay, state == PulseForgeUIState.Paused);
-            SetPanel(sceneRoot.ResultsPanel, state == PulseForgeUIState.Completed);
+            SetPanel(
+                sceneRoot.ResultsPanel,
+                state == PulseForgeUIState.Completed || state == PulseForgeUIState.Failed);
             SetPanel(sceneRoot.ErrorPanel, state == PulseForgeUIState.Error);
             ResetKnownVisuals();
         }

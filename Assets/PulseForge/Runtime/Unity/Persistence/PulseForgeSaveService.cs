@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using PulseForge.AudioAnalysis;
+using PulseForge.BeatMapGeneration;
 using PulseForge.Domain.Rhythm;
 using PulseForge.Runtime.Unity.Audio;
 using UnityEngine;
@@ -188,6 +190,108 @@ namespace PulseForge.Runtime.Unity.Persistence
             }
         }
 
+        public bool TrySaveTrackSetup(
+            string sourcePath,
+            string displayName,
+            double durationSeconds,
+            RuntimeAudioPipelineSettings pipelineSettings,
+            string convertedWavPath,
+            RadialBeatMapData beatMap,
+            AnalyzerQualityReport analyzerQuality,
+            PlannerQualityReport plannerQuality,
+            out SavedTrackPresetReference reference)
+        {
+            EnsureInitialized();
+            reference = default;
+            if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath))
+            {
+                Debug.LogWarning(
+                    "PulseForge library save skipped because the source file is missing: "
+                    + sourcePath);
+                return false;
+            }
+
+            try
+            {
+                FileInfo info = new FileInfo(sourcePath);
+                string hash = ComputeSha256(sourcePath);
+                SavedTrackData existingTrack = libraryRepository.FindTrack(hash);
+                SavedTrackPresetData existingPreset = libraryRepository.FindPresetBySettings(
+                    existingTrack,
+                    pipelineSettings,
+                    SaveDefaults.AnalyzerVersion,
+                    true);
+                string presetId = existingPreset == null
+                    ? Guid.NewGuid().ToString("N")
+                    : existingPreset.presetId;
+                string createdAtUtc = existingPreset == null
+                    ? SaveDefaults.UtcNow()
+                    : existingPreset.createdAtUtc;
+                if (!cacheStore.TryWriteRadialPresetCache(
+                    hash,
+                    presetId,
+                    convertedWavPath,
+                    beatMap,
+                    analyzerQuality,
+                    plannerQuality,
+                    createdAtUtc,
+                    out string cachedAudioRelativePath,
+                    out string cachedBeatmapRelativePath,
+                    out string fingerprint,
+                    out string cacheError))
+                {
+                    Debug.LogError("PulseForge library metadata was not updated: " + cacheError);
+                    return false;
+                }
+
+                SavedTrackMetadata metadata = new SavedTrackMetadata(
+                    hash,
+                    string.IsNullOrWhiteSpace(displayName)
+                        ? Path.GetFileNameWithoutExtension(sourcePath)
+                        : displayName.Trim(),
+                    Path.GetFileName(sourcePath),
+                    sourcePath,
+                    info.Extension.TrimStart('.').ToUpperInvariant(),
+                    info.Length,
+                    Math.Max(0d, durationSeconds),
+                    hash);
+                bool saved = libraryRepository.AddOrUpdateRadialTrackPreset(
+                    metadata,
+                    pipelineSettings,
+                    beatMap == null || beatMap.encounters == null ? 0 : beatMap.encounters.Count,
+                    plannerQuality == null ? 0 : plannerQuality.totalInputCost,
+                    plannerQuality == null ? string.Empty : plannerQuality.result.ToString(),
+                    presetId,
+                    cachedAudioRelativePath,
+                    cachedBeatmapRelativePath,
+                    fingerprint,
+                    out reference);
+                if (!saved)
+                {
+                    if (existingTrack == null)
+                    {
+                        cacheStore.DeleteTrackCache(hash);
+                    }
+                    else if (existingPreset == null)
+                    {
+                        cacheStore.DeletePresetCache(hash, presetId);
+                    }
+
+                    reference = default;
+                    Library = libraryRepository.Load();
+                    return false;
+                }
+
+                Library = libraryRepository.Current;
+                return true;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError("PulseForge could not add the radial track: " + exception.Message);
+                return false;
+            }
+        }
+
         public bool TryGetPreset(
             string trackId,
             string presetId,
@@ -234,11 +338,11 @@ namespace PulseForge.Runtime.Unity.Persistence
             SavedTrackCacheStatus status = cacheStore.GetCacheStatus(track, preset);
             preset.cacheStatus = status.ToString();
             if (status != SavedTrackCacheStatus.Ready
-                || !cacheStore.TryLoadPresetCache(
+                || !cacheStore.TryLoadRadialPresetCache(
                     track,
                     preset,
                     out string cachedAudioPath,
-                    out IReadOnlyList<BeatEventData> beatEvents,
+                    out RadialBeatMapCacheData cacheData,
                     out errorMessage))
             {
                 if (string.IsNullOrWhiteSpace(errorMessage))
@@ -254,8 +358,68 @@ namespace PulseForge.Runtime.Unity.Persistence
                 preset,
                 settings,
                 cachedAudioPath,
-                beatEvents);
+                cacheData);
             return true;
+        }
+
+        public bool TryGetCachedAudioForRebuild(
+            string trackId,
+            out string cachedAudioPath)
+        {
+            EnsureInitialized();
+            return cacheStore.TryGetCachedAudioPath(
+                libraryRepository.FindTrack(trackId),
+                out cachedAudioPath);
+        }
+
+        public bool TrySaveRebuiltPreset(
+            string trackId,
+            string presetId,
+            RuntimeAudioPipelineSettings settings,
+            string cachedWavPath,
+            RadialBeatMapData beatMap,
+            AnalyzerQualityReport analyzerQuality,
+            PlannerQualityReport plannerQuality,
+            out string beatMapFingerprint)
+        {
+            EnsureInitialized();
+            beatMapFingerprint = string.Empty;
+            SavedTrackData track = libraryRepository.FindTrack(trackId);
+            SavedTrackPresetData preset = libraryRepository.FindPreset(track, presetId);
+            if (track == null || preset == null)
+            {
+                return false;
+            }
+
+            if (!cacheStore.TryWriteRadialPresetCache(
+                trackId,
+                presetId,
+                cachedWavPath,
+                beatMap,
+                analyzerQuality,
+                plannerQuality,
+                preset.createdAtUtc,
+                out string cachedAudioRelativePath,
+                out string cachedBeatmapRelativePath,
+                out beatMapFingerprint,
+                out string errorMessage))
+            {
+                Debug.LogError("PulseForge rebuild cache was not saved: " + errorMessage);
+                return false;
+            }
+
+            bool saved = libraryRepository.UpdateRebuiltRadialPreset(
+                trackId,
+                presetId,
+                settings,
+                beatMap == null || beatMap.encounters == null ? 0 : beatMap.encounters.Count,
+                plannerQuality == null ? 0 : plannerQuality.totalInputCost,
+                plannerQuality == null ? string.Empty : plannerQuality.result.ToString(),
+                cachedAudioRelativePath,
+                cachedBeatmapRelativePath,
+                beatMapFingerprint);
+            Library = libraryRepository.Current;
+            return saved;
         }
 
         public bool TryRelinkTrack(string trackId, string selectedPath, out string errorMessage)
@@ -300,13 +464,17 @@ namespace PulseForge.Runtime.Unity.Persistence
         public bool RemoveTrack(string trackId)
         {
             EnsureInitialized();
-            bool saved = libraryRepository.RemoveTrack(trackId);
-            Library = libraryRepository.Current;
-            if (saved)
+            if (libraryRepository.FindTrack(trackId) == null)
             {
-                cacheStore.DeleteTrackCache(trackId);
+                return false;
+            }
+            if (!cacheStore.DeleteTrackCache(trackId))
+            {
+                return false;
             }
 
+            bool saved = libraryRepository.RemoveTrack(trackId);
+            Library = libraryRepository.Current;
             return saved;
         }
 
@@ -320,20 +488,24 @@ namespace PulseForge.Runtime.Unity.Persistence
         public bool RemovePreset(string trackId, string presetId)
         {
             EnsureInitialized();
-            bool saved = libraryRepository.RemovePreset(trackId, presetId, out bool removedTrack);
-            Library = libraryRepository.Current;
-            if (saved)
+            SavedTrackData track = libraryRepository.FindTrack(trackId);
+            SavedTrackPresetData preset = libraryRepository.FindPreset(track, presetId);
+            if (track == null || track.presets == null || preset == null)
             {
-                if (removedTrack)
-                {
-                    cacheStore.DeleteTrackCache(trackId);
-                }
-                else
-                {
-                    cacheStore.DeletePresetCache(trackId, presetId);
-                }
+                return false;
             }
 
+            bool removeTrack = track.presets.Count == 1;
+            bool cacheRemoved = removeTrack
+                ? cacheStore.DeleteTrackCache(trackId)
+                : cacheStore.DeletePresetCache(trackId, presetId);
+            if (!cacheRemoved)
+            {
+                return false;
+            }
+
+            bool saved = libraryRepository.RemovePreset(trackId, presetId, out bool removedTrack);
+            Library = libraryRepository.Current;
             return saved;
         }
 
@@ -365,12 +537,60 @@ namespace PulseForge.Runtime.Unity.Persistence
             string trackId,
             string presetId)
         {
+            RecordCompletedSession(
+                snapshot,
+                trackId,
+                presetId,
+                ScoreSchema.LegacyV1,
+                string.Empty,
+                RadialGameMode.Standard,
+                RadialRunOutcome.Clear);
+        }
+
+        public void RecordCompletedSession(
+            ScoreSnapshot snapshot,
+            string trackId,
+            string presetId,
+            string scoreSchema,
+            string beatMapFingerprint)
+        {
+            RecordCompletedSession(
+                snapshot,
+                trackId,
+                presetId,
+                scoreSchema,
+                beatMapFingerprint,
+                RadialGameMode.Standard,
+                RadialRunOutcome.Clear);
+        }
+
+        public void RecordCompletedSession(
+            ScoreSnapshot snapshot,
+            string trackId,
+            string presetId,
+            string scoreSchema,
+            string beatMapFingerprint,
+            RadialGameMode gameMode,
+            RadialRunOutcome outcome)
+        {
             EnsureInitialized();
-            profileRepository.RecordCompletedSession(snapshot);
+            bool legacyScore = string.Equals(
+                scoreSchema,
+                ScoreSchema.LegacyV1,
+                StringComparison.Ordinal)
+                && gameMode == RadialGameMode.Standard;
+            profileRepository.RecordCompletedSession(snapshot, legacyScore);
             Profile = profileRepository.Current;
             if (!string.IsNullOrWhiteSpace(trackId) && !string.IsNullOrWhiteSpace(presetId))
             {
-                libraryRepository.RecordPerformance(trackId, presetId, snapshot);
+                libraryRepository.RecordPerformance(
+                    trackId,
+                    presetId,
+                    snapshot,
+                    scoreSchema,
+                    beatMapFingerprint,
+                    gameMode,
+                    outcome);
                 Library = libraryRepository.Current;
             }
         }
@@ -436,19 +656,29 @@ namespace PulseForge.Runtime.Unity.Persistence
             SavedTrackPresetData preset,
             RuntimeAudioPipelineSettings settings,
             string cachedAudioPath,
-            IReadOnlyList<BeatEventData> beatEvents)
+            RadialBeatMapCacheData cacheData)
         {
             Track = track;
             Preset = preset;
             Settings = settings;
             CachedAudioPath = cachedAudioPath;
-            BeatEvents = beatEvents;
+            CacheData = cacheData;
         }
 
         public SavedTrackData Track { get; }
         public SavedTrackPresetData Preset { get; }
         public RuntimeAudioPipelineSettings Settings { get; }
         public string CachedAudioPath { get; }
-        public IReadOnlyList<BeatEventData> BeatEvents { get; }
+        public RadialBeatMapCacheData CacheData { get; }
+        public RadialBeatMapData RadialBeatMap => CacheData == null ? null : CacheData.radialBeatMap;
+        public AnalyzerQualityReport AnalyzerQuality => CacheData == null
+            ? null
+            : CacheData.analyzerQuality;
+        public PlannerQualityReport PlannerQuality => CacheData == null
+            ? null
+            : CacheData.plannerQuality;
+        public string BeatMapFingerprint => CacheData == null
+            ? string.Empty
+            : CacheData.beatMapFingerprint;
     }
 }

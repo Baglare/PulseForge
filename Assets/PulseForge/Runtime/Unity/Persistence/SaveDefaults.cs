@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using PulseForge.Domain.Rhythm;
 using PulseForge.Runtime.Unity.Audio;
 using UnityEngine;
 
@@ -9,10 +10,13 @@ namespace PulseForge.Runtime.Unity.Persistence
 {
     public static class SaveDefaults
     {
-        public const int SettingsSchemaVersion = 2;
+        public const int SettingsSchemaVersion = 3;
         public const int ProfileSchemaVersion = 1;
-        public const int LibrarySchemaVersion = 2;
+        public const int LibrarySchemaVersion = 4;
         public const int LibraryCacheVersion = 1;
+        public const int AudioCacheVersion = 1;
+        public const int RadialBeatMapCacheVersion = 3;
+        public const int AnalyzerVersion = 2;
 
         public static PulseForgeSettingsData CreateSettings()
         {
@@ -28,6 +32,7 @@ namespace PulseForge.Runtime.Unity.Persistence
                 defaultDetection = pipeline.DetectionMode.ToString(),
                 defaultDifficulty = pipeline.Difficulty.ToString(),
                 defaultCombatStyle = pipeline.CombatStyle.ToString(),
+                defaultGameMode = RadialGameMode.Standard.ToString(),
                 beatmapOffsetSeconds = 0f,
                 inputTimingOffsetSeconds = 0f,
                 audio = new PulseForgeAudioSettingsData
@@ -118,6 +123,11 @@ namespace PulseForge.Runtime.Unity.Persistence
             data.defaultCombatStyle = NormalizeEnum(
                 data.defaultCombatStyle,
                 RuntimeCombatStyle.Legacy).ToString();
+            data.defaultGameMode = sourceSchemaVersion < 3
+                ? RadialGameMode.Standard.ToString()
+                : NormalizeEnum(
+                    data.defaultGameMode,
+                    RadialGameMode.Standard).ToString();
             data.beatmapOffsetSeconds = NormalizeFinite(
                 data.beatmapOffsetSeconds,
                 defaults.beatmapOffsetSeconds,
@@ -247,6 +257,7 @@ namespace PulseForge.Runtime.Unity.Persistence
                 return SaveDefaults.CreateLibrary();
             }
 
+            int sourceSchemaVersion = data.schemaVersion;
             data.schemaVersion = SaveDefaults.LibrarySchemaVersion;
             data.tracks = data.tracks ?? new List<SavedTrackData>();
             HashSet<string> trackIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -260,7 +271,7 @@ namespace PulseForge.Runtime.Unity.Persistence
                     continue;
                 }
 
-                NormalizeTrack(track);
+                NormalizeTrack(track, sourceSchemaVersion);
             }
 
             return data;
@@ -292,12 +303,53 @@ namespace PulseForge.Runtime.Unity.Persistence
             string difficulty,
             string combatStyle)
         {
-            return (detection ?? string.Empty).Trim().ToUpperInvariant() + "|"
-                + (difficulty ?? string.Empty).Trim().ToUpperInvariant() + "|"
-                + (combatStyle ?? string.Empty).Trim().ToUpperInvariant();
+            return PresetKey(detection, difficulty, combatStyle, 0);
         }
 
-        private static void NormalizeTrack(SavedTrackData track)
+        public static string PresetKey(
+            string detection,
+            string difficulty,
+            string combatStyle,
+            int analyzerVersion)
+        {
+            return (detection ?? string.Empty).Trim().ToUpperInvariant() + "|"
+                + (difficulty ?? string.Empty).Trim().ToUpperInvariant() + "|"
+                + (combatStyle ?? string.Empty).Trim().ToUpperInvariant() + "|A"
+                + Math.Max(0, analyzerVersion).ToString(CultureInfo.InvariantCulture);
+        }
+
+        public static string PresetKey(
+            string detection,
+            string difficulty,
+            string combatStyle,
+            int analyzerVersion,
+            string gameMode)
+        {
+            return PresetKey(detection, difficulty, combatStyle, analyzerVersion);
+        }
+
+        public static bool CanComparePerformance(
+            string leftGameMode,
+            string leftScoreSchema,
+            string leftBeatMapFingerprint,
+            string rightGameMode,
+            string rightScoreSchema,
+            string rightBeatMapFingerprint)
+        {
+            RadialGameMode leftMode = NormalizeEnum(
+                leftGameMode,
+                RadialGameMode.Standard);
+            RadialGameMode rightMode = NormalizeEnum(
+                rightGameMode,
+                RadialGameMode.Standard);
+            return leftMode == rightMode && ScoreSchema.CanCompare(
+                leftScoreSchema,
+                leftBeatMapFingerprint,
+                rightScoreSchema,
+                rightBeatMapFingerprint);
+        }
+
+        private static void NormalizeTrack(SavedTrackData track, int sourceSchemaVersion)
         {
             track.trackId = track.trackId.Trim().ToLowerInvariant();
             track.contentHash = string.IsNullOrWhiteSpace(track.contentHash)
@@ -321,6 +373,13 @@ namespace PulseForge.Runtime.Unity.Persistence
                 || !File.Exists(track.originalFilePath);
             track.cachedAudioRelativePath = NormalizeRelativeCachePath(track.cachedAudioRelativePath);
             track.cacheVersion = Math.Max(0, track.cacheVersion);
+            track.audioCacheVersion = Math.Max(0, track.audioCacheVersion);
+            if (track.audioCacheVersion == 0
+                && track.cacheVersion > 0
+                && !string.IsNullOrWhiteSpace(track.cachedAudioRelativePath))
+            {
+                track.audioCacheVersion = SaveDefaults.AudioCacheVersion;
+            }
             string now = SaveDefaults.UtcNow();
             track.createdAtUtc = NormalizeRequiredUtc(track.createdAtUtc, now);
             track.updatedAtUtc = NormalizeRequiredUtc(track.updatedAtUtc, track.createdAtUtc);
@@ -338,8 +397,12 @@ namespace PulseForge.Runtime.Unity.Persistence
                     continue;
                 }
 
-                NormalizePreset(preset, track.createdAtUtc);
-                string key = PresetKey(preset.detectionMode, preset.difficulty, preset.combatStyle);
+                NormalizePreset(preset, track.createdAtUtc, sourceSchemaVersion);
+                string key = PresetKey(
+                    preset.detectionMode,
+                    preset.difficulty,
+                    preset.combatStyle,
+                    preset.analyzerVersion);
                 if (presets.TryGetValue(key, out SavedTrackPresetData existing))
                 {
                     MergePreset(existing, preset);
@@ -352,7 +415,10 @@ namespace PulseForge.Runtime.Unity.Persistence
             }
         }
 
-        private static void NormalizePreset(SavedTrackPresetData preset, string fallbackUtc)
+        private static void NormalizePreset(
+            SavedTrackPresetData preset,
+            string fallbackUtc,
+            int sourceSchemaVersion)
         {
             preset.presetId = string.IsNullOrWhiteSpace(preset.presetId)
                 ? Guid.NewGuid().ToString("N")
@@ -379,7 +445,96 @@ namespace PulseForge.Runtime.Unity.Persistence
             preset.cachedBeatmapRelativePath = NormalizeRelativeCachePath(
                 preset.cachedBeatmapRelativePath);
             preset.cacheVersion = Math.Max(0, preset.cacheVersion);
+            preset.beatMapCacheVersion = Math.Max(0, preset.beatMapCacheVersion);
+            preset.analyzerVersion = Math.Max(0, preset.analyzerVersion);
+            preset.beatMapFingerprint = (preset.beatMapFingerprint ?? string.Empty)
+                .Trim()
+                .ToLowerInvariant();
+            preset.inputCost = Math.Max(0, preset.inputCost);
+            preset.plannerResult = preset.plannerResult ?? string.Empty;
+            preset.performances = preset.performances ?? new List<SavedTrackPerformanceData>();
+            NormalizePerformances(preset, sourceSchemaVersion);
             preset.cacheStatus = NormalizeCacheStatus(preset);
+        }
+
+        private static void NormalizePerformances(
+            SavedTrackPresetData preset,
+            int sourceSchemaVersion)
+        {
+            for (int i = preset.performances.Count - 1; i >= 0; i--)
+            {
+                SavedTrackPerformanceData performance = preset.performances[i];
+                if (performance == null || string.IsNullOrWhiteSpace(performance.scoreSchema))
+                {
+                    preset.performances.RemoveAt(i);
+                    continue;
+                }
+                performance.scoreSchema = performance.scoreSchema.Trim();
+                performance.gameMode = sourceSchemaVersion < 4
+                    ? RadialGameMode.Standard.ToString()
+                    : NormalizeEnum(
+                        performance.gameMode,
+                        RadialGameMode.Standard).ToString();
+                performance.beatMapFingerprint = (performance.beatMapFingerprint ?? string.Empty)
+                    .Trim()
+                    .ToLowerInvariant();
+                performance.playCount = Math.Max(0, performance.playCount);
+                performance.attemptCount = Math.Max(
+                    performance.playCount,
+                    Math.Max(0, performance.attemptCount));
+                performance.clearCount = sourceSchemaVersion < 4
+                    ? performance.attemptCount
+                    : Math.Max(0, Math.Min(
+                        performance.attemptCount,
+                        performance.clearCount));
+                performance.playCount = performance.attemptCount;
+                performance.bestScore = Math.Max(0, performance.bestScore);
+                performance.maxCombo = Math.Max(0, performance.maxCombo);
+                performance.bestPerfectCount = Math.Max(0, performance.bestPerfectCount);
+                performance.bestGoodCount = Math.Max(0, performance.bestGoodCount);
+                performance.lowestMissCount = Math.Max(0, performance.lowestMissCount);
+                performance.lastOutcome = performance.attemptCount == 0
+                    ? string.Empty
+                    : NormalizeEnum(
+                        performance.lastOutcome,
+                        RadialRunOutcome.Clear).ToString();
+                performance.lastPlayedAtUtc = NormalizeOptionalUtc(performance.lastPlayedAtUtc);
+            }
+
+            bool hasLegacyPerformance = false;
+            for (int i = 0; i < preset.performances.Count; i++)
+            {
+                if (CanComparePerformance(
+                    preset.performances[i].gameMode,
+                    preset.performances[i].scoreSchema,
+                    preset.performances[i].beatMapFingerprint,
+                    RadialGameMode.Standard.ToString(),
+                    ScoreSchema.LegacyV1,
+                    string.Empty))
+                {
+                    hasLegacyPerformance = true;
+                    break;
+                }
+            }
+            if (!hasLegacyPerformance && preset.playCount > 0)
+            {
+                preset.performances.Add(new SavedTrackPerformanceData
+                {
+                    gameMode = RadialGameMode.Standard.ToString(),
+                    scoreSchema = ScoreSchema.LegacyV1,
+                    beatMapFingerprint = string.Empty,
+                    playCount = preset.playCount,
+                    attemptCount = preset.playCount,
+                    clearCount = preset.playCount,
+                    bestScore = preset.bestScore,
+                    maxCombo = preset.maxCombo,
+                    bestPerfectCount = preset.bestPerfectCount,
+                    bestGoodCount = preset.bestGoodCount,
+                    lowestMissCount = preset.lowestMissCount,
+                    lastOutcome = RadialRunOutcome.Clear.ToString(),
+                    lastPlayedAtUtc = preset.lastPlayedAtUtc
+                });
+            }
         }
 
         public static SavedTrackCacheStatus GetCacheStatus(SavedTrackPresetData preset)
@@ -428,9 +583,99 @@ namespace PulseForge.Runtime.Unity.Persistence
                 target.cacheStatus = source.cacheStatus;
             }
 
+            target.beatMapCacheVersion = Math.Max(
+                target.beatMapCacheVersion,
+                source.beatMapCacheVersion);
+            target.analyzerVersion = Math.Max(target.analyzerVersion, source.analyzerVersion);
+            if (!string.IsNullOrWhiteSpace(source.beatMapFingerprint))
+            {
+                target.beatMapFingerprint = source.beatMapFingerprint;
+            }
+            target.inputCost = Math.Max(target.inputCost, source.inputCost);
+            if (!string.IsNullOrWhiteSpace(source.plannerResult))
+            {
+                target.plannerResult = source.plannerResult;
+            }
+
             if (string.CompareOrdinal(source.lastPlayedAtUtc, target.lastPlayedAtUtc) > 0)
             {
                 target.lastPlayedAtUtc = source.lastPlayedAtUtc;
+            }
+
+            MergePerformances(target, source);
+        }
+
+        private static void MergePerformances(
+            SavedTrackPresetData target,
+            SavedTrackPresetData source)
+        {
+            target.performances = target.performances ?? new List<SavedTrackPerformanceData>();
+            if (source.performances == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < source.performances.Count; i++)
+            {
+                SavedTrackPerformanceData incoming = source.performances[i];
+                if (incoming == null)
+                {
+                    continue;
+                }
+
+                SavedTrackPerformanceData existing = null;
+                for (int targetIndex = 0;
+                    targetIndex < target.performances.Count;
+                    targetIndex++)
+                {
+                    SavedTrackPerformanceData candidate = target.performances[targetIndex];
+                    if (candidate != null && CanComparePerformance(
+                        candidate.gameMode,
+                        candidate.scoreSchema,
+                        candidate.beatMapFingerprint,
+                        incoming.gameMode,
+                        incoming.scoreSchema,
+                        incoming.beatMapFingerprint))
+                    {
+                        existing = candidate;
+                        break;
+                    }
+                }
+
+                if (existing == null)
+                {
+                    target.performances.Add(incoming);
+                    continue;
+                }
+
+                bool existingPlayed = existing.attemptCount > 0;
+                bool incomingPlayed = incoming.attemptCount > 0;
+                existing.attemptCount += incoming.attemptCount;
+                existing.clearCount += incoming.clearCount;
+                existing.playCount = existing.attemptCount;
+                existing.bestScore = Math.Max(existing.bestScore, incoming.bestScore);
+                existing.maxCombo = Math.Max(existing.maxCombo, incoming.maxCombo);
+                existing.bestPerfectCount = Math.Max(
+                    existing.bestPerfectCount,
+                    incoming.bestPerfectCount);
+                existing.bestGoodCount = Math.Max(
+                    existing.bestGoodCount,
+                    incoming.bestGoodCount);
+                if (!existingPlayed && incomingPlayed)
+                {
+                    existing.lowestMissCount = incoming.lowestMissCount;
+                }
+                else if (existingPlayed && incomingPlayed)
+                {
+                    existing.lowestMissCount = Math.Min(
+                        existing.lowestMissCount,
+                        incoming.lowestMissCount);
+                }
+                if (string.CompareOrdinal(incoming.lastPlayedAtUtc, existing.lastPlayedAtUtc) > 0)
+                {
+                    existing.lastOutcome = incoming.lastOutcome;
+                    existing.lastPlayedAtUtc = incoming.lastPlayedAtUtc;
+                }
             }
         }
 
@@ -489,10 +734,16 @@ namespace PulseForge.Runtime.Unity.Persistence
 
         private static string NormalizeCacheStatus(SavedTrackPresetData preset)
         {
-            if (preset.cacheVersion <= 0
-                || string.IsNullOrWhiteSpace(preset.cachedBeatmapRelativePath))
+            if (preset.analyzerVersion < SaveDefaults.AnalyzerVersion
+                || preset.beatMapCacheVersion < SaveDefaults.RadialBeatMapCacheVersion)
             {
                 return SavedTrackCacheStatus.NeedsRebuild.ToString();
+            }
+
+            if (string.IsNullOrWhiteSpace(preset.cachedBeatmapRelativePath)
+                || string.IsNullOrWhiteSpace(preset.beatMapFingerprint))
+            {
+                return SavedTrackCacheStatus.Damaged.ToString();
             }
 
             return Enum.TryParse(preset.cacheStatus, true, out SavedTrackCacheStatus status)

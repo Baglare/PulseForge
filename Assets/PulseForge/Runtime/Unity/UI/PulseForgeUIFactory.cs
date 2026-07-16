@@ -13,6 +13,7 @@ namespace PulseForge.Runtime.Unity.UI
         private static Sprite roundedSprite;
 
         internal static Sprite RoundedSprite => GetRoundedSprite();
+        internal static Font DefaultFont => GetDefaultFont();
 
         public static PulseForgeSceneUIRoot CreateStaticHierarchy(
             Transform parent = null,
@@ -70,6 +71,8 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgeUIVisualStyle.Apply(root);
             PulseForgeUIMotionSetup.Apply(root);
             PulseForgeGameplayFeedbackSetup.Apply(root);
+            RadialSaboteurFogSetup.Apply(root);
+            PulseForgeGameModesUISetup.Apply(root);
             root.ApplyVisibility(PulseForgeUIState.Setup);
             return root;
         }

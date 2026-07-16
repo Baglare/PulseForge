@@ -3,6 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using PulseForge.AudioAnalysis;
+using PulseForge.BeatMapGeneration;
 using PulseForge.Domain.Rhythm;
 using PulseForge.Runtime.Unity.Audio;
 using PulseForge.Runtime.Unity.BeatMaps;
@@ -40,6 +42,7 @@ namespace PulseForge.Runtime.Unity.Prototype
         private static readonly Color PendingColor = new Color(0.82f, 0.86f, 0.9f, 1f);
 
         [SerializeField] private TextAsset debugBeatMapJson = null;
+        [SerializeField] private TextAsset debugRadialBeatMapJson = null;
         [SerializeField] private DebugBeatMapAsset debugBeatMapAsset = null;
         [SerializeField] private AudioClip debugAudioClip = null;
         [SerializeField] private bool useAudioClockWhenClipAssigned = true;
@@ -51,6 +54,7 @@ namespace PulseForge.Runtime.Unity.Prototype
         [SerializeField] private DebugCombatSceneView combatSceneView = null;
 
         private RhythmSession session;
+        private RadialRhythmSession radialSession;
         private ScoreTracker scoreTracker;
         private ISongClock songClock;
         private string lastFeedback = "Press Start / Restart";
@@ -76,12 +80,24 @@ namespace PulseForge.Runtime.Unity.Prototype
         private GUIStyle badgeStyle;
         private AudioClip runtimeAudioClip;
         private IReadOnlyList<BeatEventData> runtimeBeatEvents;
+        private RadialBeatMapData runtimeRadialBeatMap;
+        private AnalyzerQualityReport runtimeAnalyzerQuality;
+        private PlannerQualityReport runtimePlannerQuality;
+        private string runtimeBeatMapFingerprint = string.Empty;
+        private bool activeSessionUsesRadialV2ScoreSchema;
+        private long radialInputSequence;
+        private readonly HashSet<string> scoredRadialUnits = new HashSet<string>(StringComparer.Ordinal);
         private string runtimeAudioDisplayName = string.Empty;
         private string runtimeAudioImportStatus = "Select MP3, WAV, M4A, AAC, FLAC, OGG, OPUS, WMA or AIFF.";
         private bool isRuntimeAudioImportBusy;
         private RuntimeDetectionMode runtimeDetectionMode = RuntimeDetectionMode.Onset;
         private RuntimeDifficulty runtimeDifficulty = RuntimeDifficulty.Normal;
         private RuntimeCombatStyle runtimeCombatStyle = RuntimeCombatStyle.Legacy;
+        private RadialGameMode selectedGameMode = RadialGameMode.Standard;
+        private readonly RadialGameModePolicy radialRunPolicy = new RadialGameModePolicy();
+        private readonly RadialRunStatusController radialStatusEffects =
+            new RadialRunStatusController();
+        private int runDamageRevision;
         private RuntimeAudioPipelineSettings appliedRuntimePipelineSettings = RuntimeAudioPipelineSettings.Default;
         private readonly PulseForgeRuntimeFlow runtimeFlow = new PulseForgeRuntimeFlow();
         private bool useRuntimeSessionSource;
@@ -120,6 +136,25 @@ namespace PulseForge.Runtime.Unity.Prototype
         public bool IsInputRebinding => inputService != null && inputService.IsRebinding;
         public string SettingsMessage => settingsMessage;
         public int SettingsDraftRevision => settingsDraftRevision;
+        public RadialGameMode SelectedGameMode => selectedGameMode;
+        public string SelectedGameModeLabel => selectedGameMode == RadialGameMode.OneLife
+            ? "One Life"
+            : selectedGameMode.ToString();
+        public RadialGameMode RunGameMode => radialRunPolicy.Mode;
+        public string RunGameModeLabel => radialRunPolicy.Mode == RadialGameMode.OneLife
+            ? "One Life"
+            : radialRunPolicy.Mode.ToString();
+        public RadialRunState RunState => radialRunPolicy.State;
+        public RadialRunOutcome RunOutcome => radialRunPolicy.Outcome;
+        public int RunHealth => radialRunPolicy.CurrentHealth;
+        public int RunDamageRevision => runDamageRevision;
+        public double RunFailureTimeSeconds => radialRunPolicy.FailureTimeSeconds;
+        public string RunFailureReason => radialRunPolicy.FailureReason == RadialRunFailureReason.WrongInput
+            ? "Wrong Input"
+            : radialRunPolicy.FailureReason == RadialRunFailureReason.Miss ? "Miss" : string.Empty;
+        public bool IsFogActive => radialStatusEffects
+            .GetSnapshot(CurrentSongTimeSeconds)
+            .IsFogActive;
         public PulseForgeSettingsData SettingsDraft => settingsDraft;
         public IReadOnlyList<PulseForgeResolutionOption> AvailableResolutions => availableResolutions;
         public bool MotionEnabledSetting
@@ -167,12 +202,46 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         public IReadOnlyList<BeatEventRuntime> SessionEvents
         {
-            get { return session == null ? Array.Empty<BeatEventRuntime>() : session.Events; }
+            get
+            {
+                return radialSession != null || session == null
+                    ? Array.Empty<BeatEventRuntime>()
+                    : session.Events;
+            }
         }
 
         public int SessionEventCount
         {
-            get { return session == null ? 0 : session.TotalEventCount; }
+            get
+            {
+                return radialSession != null
+                    ? radialSession.TotalEncounterCount
+                    : session == null ? 0 : session.TotalEventCount;
+            }
+        }
+
+        public int SessionInputCost => !useRuntimeSessionSource || runtimePlannerQuality == null
+            ? SessionEventCount
+            : runtimePlannerQuality.totalInputCost;
+
+        public string AnalysisQualitySummary => GetAnalysisQualitySummary();
+
+        public bool IsRadialSessionActive => radialSession != null;
+
+        public bool UsesRadialCombatPresentation => radialSession != null
+            && activeSessionUsesRadialV2ScoreSchema;
+
+        internal IReadOnlyList<RadialEncounterRuntime> RadialPresentationEncounters =>
+            UsesRadialCombatPresentation
+                ? radialSession.Encounters
+                : Array.Empty<RadialEncounterRuntime>();
+
+        internal RadialStatusEffectSnapshot RadialStatusForPresentation =>
+            radialStatusEffects.GetSnapshot(CurrentSongTimeSeconds);
+
+        internal bool IsRadialActionHeldForPresentation(RhythmAction action)
+        {
+            return UsesRadialCombatPresentation && radialSession.IsHeld(action);
         }
 
         public bool HasBuiltInDemo
@@ -180,7 +249,9 @@ namespace PulseForge.Runtime.Unity.Prototype
             get
             {
                 return debugAudioClip != null
-                    && (debugBeatMapJson != null || debugBeatMapAsset != null);
+                    && (debugRadialBeatMapJson != null
+                        || debugBeatMapJson != null
+                        || debugBeatMapAsset != null);
             }
         }
 
@@ -267,7 +338,7 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         public bool CanStart
         {
-            get { return UIState == PulseForgeUIState.Ready && session != null && !isRuntimeAudioImportBusy; }
+            get { return UIState == PulseForgeUIState.Ready && HasActiveSession && !isRuntimeAudioImportBusy; }
         }
 
         public bool CanPause
@@ -285,9 +356,16 @@ namespace PulseForge.Runtime.Unity.Prototype
             get { return UIState == PulseForgeUIState.Completed; }
         }
 
+        public bool IsFailed => UIState == PulseForgeUIState.Failed;
+
         public double CurrentSongTimeSeconds
         {
-            get { return CurrentTimeSeconds; }
+            get
+            {
+                return UIState == PulseForgeUIState.Failed
+                    ? radialRunPolicy.FailureTimeSeconds
+                    : CurrentTimeSeconds;
+            }
         }
 
         public double SessionDurationSeconds
@@ -336,14 +414,29 @@ namespace PulseForge.Runtime.Unity.Prototype
         {
             HandleRuntimeKeyboardInput();
 
+            if (radialSession != null)
+            {
+                radialStatusEffects.Update(CurrentTimeSeconds);
+            }
+
             if (isCountdownActive)
             {
                 UpdateCountdown();
                 return;
             }
 
-            if (!IsSessionRunning || session == null || session.IsComplete)
+            if (!IsSessionRunning || !HasActiveSession || IsActiveSessionComplete)
             {
+                return;
+            }
+
+            if (radialSession != null)
+            {
+                IReadOnlyList<RequirementResult> radialResults = radialSession.Update(
+                    CurrentTimeSeconds,
+                    IsActionHeld);
+                ProcessRadialRequirementResults(radialResults);
+                StopIfComplete();
                 return;
             }
 
@@ -416,7 +509,10 @@ namespace PulseForge.Runtime.Unity.Prototype
             GUILayout.Space(CardSpacing);
             DrawSectionTitle("Rhythm Lane");
             Rect rhythmLaneRect = GUILayoutUtility.GetRect(1f, RhythmLaneHeight, GUILayout.ExpandWidth(true));
-            rhythmLaneRenderer.Draw(rhythmLaneRect, session == null ? null : session.Events, CurrentTimeSeconds);
+            rhythmLaneRenderer.Draw(
+                rhythmLaneRect,
+                radialSession != null || session == null ? null : session.Events,
+                CurrentTimeSeconds);
 
             GUILayout.Space(CardSpacing);
             DrawSectionTitle("Combat Debug");
@@ -519,9 +615,9 @@ namespace PulseForge.Runtime.Unity.Prototype
                     HandleInput(RhythmAction.Guard);
                 }
 
-                if (DrawActionButton("Strike (J)", StrikeColor))
+                if (DrawActionButton("Light Attack (J)", StrikeColor))
                 {
-                    HandleInput(RhythmAction.Strike);
+                    HandleInput(RhythmAction.LightAttack);
                 }
 
                 GUILayout.EndHorizontal();
@@ -638,6 +734,16 @@ namespace PulseForge.Runtime.Unity.Prototype
                 }
 
                 runtimeCombatStyle = combatStyle;
+                SaveCurrentSettings();
+            }
+        }
+
+        public void SetGameMode(RadialGameMode gameMode)
+        {
+            if ((UIState == PulseForgeUIState.Setup || UIState == PulseForgeUIState.Ready)
+                && !isRuntimeAudioImportBusy)
+            {
+                selectedGameMode = gameMode;
                 SaveCurrentSettings();
             }
         }
@@ -794,7 +900,7 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         public void RequestStrike()
         {
-            HandleInput(RhythmAction.Strike);
+            HandleInput(RhythmAction.LightAttack);
         }
 
         public void ChangeSettings()
@@ -849,6 +955,30 @@ namespace PulseForge.Runtime.Unity.Prototype
                 return;
             }
 
+            runtimeDetectionMode = settings.DetectionMode;
+            runtimeDifficulty = settings.Difficulty;
+            runtimeCombatStyle = settings.CombatStyle;
+            activeSavedTrackId = track.trackId;
+            activeSavedPresetId = preset.presetId;
+
+            if (saveService.TryGetCachedAudioForRebuild(trackId, out string cachedAudioPath))
+            {
+                string flowPath = string.IsNullOrWhiteSpace(track.originalFilePath)
+                    ? cachedAudioPath
+                    : track.originalFilePath;
+                if (!runtimeFlow.SelectAudioPath(flowPath) || !runtimeFlow.BeginProcessing())
+                {
+                    return;
+                }
+                isSavedTracksOpen = false;
+                StartCoroutine(RebuildSavedTrackFromCachedWav(
+                    track,
+                    preset,
+                    settings,
+                    cachedAudioPath));
+                return;
+            }
+
             if (track.fileMissing || string.IsNullOrWhiteSpace(track.originalFilePath)
                 || !File.Exists(track.originalFilePath))
             {
@@ -861,18 +991,122 @@ namespace PulseForge.Runtime.Unity.Prototype
             {
                 return;
             }
+            if (!runtimeFlow.BeginProcessing())
+            {
+                return;
+            }
 
-            runtimeDetectionMode = settings.DetectionMode;
-            runtimeDifficulty = settings.Difficulty;
-            runtimeCombatStyle = settings.CombatStyle;
-            activeSavedTrackId = track.trackId;
-            activeSavedPresetId = preset.presetId;
             saveSetupToLibrary = true;
             isSavedTracksOpen = false;
             runtimeAudioImportStatus = "Audio selected: " + Path.GetFileName(track.originalFilePath);
-            setupStatusMessage = "Saved track cache is missing or damaged. Analyze Song to rebuild it.";
+            setupStatusMessage = "Rebuilding saved track from its source audio.";
             savedTrackLibraryMessage = string.Empty;
             SaveCurrentSettings();
+            StartCoroutine(ImportRuntimeAudio(track.originalFilePath, settings));
+        }
+
+        public bool CanRebuildSavedTrackWithoutSource(string trackId)
+        {
+            EnsureSaveService();
+            return saveService.TryGetCachedAudioForRebuild(trackId, out _);
+        }
+
+        private IEnumerator RebuildSavedTrackFromCachedWav(
+            SavedTrackData track,
+            SavedTrackPresetData preset,
+            RuntimeAudioPipelineSettings settings,
+            string cachedAudioPath)
+        {
+            isRuntimeAudioImportBusy = true;
+            runtimeFlow.SetProcessingStage(PulseForgeProcessingStage.LoadingConvertedAudio);
+            savedTrackLibraryMessage = "Loading cached audio for rebuild";
+            savedTrackLibraryRevision++;
+            AudioClip loadedClip = null;
+            string loadError = string.Empty;
+            yield return RuntimeAudioImportService.LoadCachedWav(
+                cachedAudioPath,
+                track.displayName,
+                clip => loadedClip = clip,
+                error => loadError = error);
+            if (loadedClip == null || !string.IsNullOrWhiteSpace(loadError))
+            {
+                isRuntimeAudioImportBusy = false;
+                savedTrackLibraryMessage = "Cached audio is damaged; relink the source file to rebuild.";
+                runtimeFlow.ReturnToSetup(false);
+                isSavedTracksOpen = true;
+                savedTrackLibraryRevision++;
+                yield break;
+            }
+
+            RuntimeAudioImportResult rebuildResult = null;
+            string rebuildError = string.Empty;
+            yield return RuntimeAudioImportService.AnalyzeLoadedAudio(
+                loadedClip,
+                track.originalFilePath,
+                cachedAudioPath,
+                track.displayName,
+                settings,
+                SetRuntimeAudioImportStatus,
+                result => rebuildResult = result,
+                error => rebuildError = error,
+                track.trackId,
+                false);
+            if (rebuildResult == null || !string.IsNullOrWhiteSpace(rebuildError))
+            {
+                Destroy(loadedClip);
+                isRuntimeAudioImportBusy = false;
+                savedTrackLibraryMessage = string.IsNullOrWhiteSpace(rebuildError)
+                    ? "Saved track rebuild failed."
+                    : rebuildError;
+                runtimeFlow.ReturnToSetup(false);
+                isSavedTracksOpen = true;
+                savedTrackLibraryRevision++;
+                yield break;
+            }
+
+            StopClock();
+            if (runtimeAudioClip != null && runtimeAudioClip != loadedClip)
+            {
+                Destroy(runtimeAudioClip);
+            }
+            runtimeAudioClip = loadedClip;
+            runtimeBeatEvents = null;
+            runtimeRadialBeatMap = rebuildResult.RadialBeatMap;
+            runtimeAnalyzerQuality = rebuildResult.AnalyzerQuality;
+            runtimePlannerQuality = rebuildResult.PlannerQuality;
+            runtimeAudioDisplayName = track.displayName;
+            appliedRuntimePipelineSettings = settings;
+            useRuntimeSessionSource = true;
+            if (!PrepareSession(false)
+                || !saveService.TrySaveRebuiltPreset(
+                    track.trackId,
+                    preset.presetId,
+                    settings,
+                    cachedAudioPath,
+                    runtimeRadialBeatMap,
+                    runtimeAnalyzerQuality,
+                    runtimePlannerQuality,
+                    out runtimeBeatMapFingerprint))
+            {
+                isRuntimeAudioImportBusy = false;
+                savedTrackLibraryMessage = "Saved track rebuild could not be prepared or cached.";
+                runtimeFlow.ReturnToSetup(false);
+                isSavedTracksOpen = true;
+                savedTrackLibraryRevision++;
+                yield break;
+            }
+
+            isRuntimeAudioImportBusy = false;
+            saveSetupToLibrary = false;
+            isSavedTracksOpen = false;
+            savedTrackLibraryMessage = string.Empty;
+            runtimeAudioImportStatus = "Ready";
+            setupStatusMessage = runtimePlannerQuality != null
+                && runtimePlannerQuality.result == PlannerQualityResult.UnderCovered
+                ? "Saved track rebuilt with limited coverage."
+                : "Saved track rebuilt from cached audio.";
+            savedTrackLibraryRevision++;
+            runtimeFlow.MarkReady();
         }
 
         public void RelinkSavedTrack(string trackId)
@@ -978,6 +1212,7 @@ namespace PulseForge.Runtime.Unity.Prototype
         private void ReturnToSetup(bool clearSelectedAudio)
         {
             StopClock();
+            radialStatusEffects.Reset();
             isCountdownActive = false;
             ClearPendingInput();
             isSavedTracksOpen = false;
@@ -1162,7 +1397,7 @@ namespace PulseForge.Runtime.Unity.Prototype
                 return "Waiting";
             }
 
-            if (session != null && session.IsComplete)
+            if (IsActiveSessionComplete)
             {
                 return "Complete";
             }
@@ -1198,13 +1433,39 @@ namespace PulseForge.Runtime.Unity.Prototype
 
             try
             {
-                session = new RhythmSession(
-                    CreateSessionBeatEvents(),
-                    new JudgementWindows(PerfectWindowSeconds, GoodWindowSeconds),
-                    new RhythmInputResolver(new BeatEventMatcher(), new HitJudge()),
-                    new BeatEventTimeoutProcessor(new HitJudge()));
+                if (useRuntimeSessionSource && runtimeRadialBeatMap != null)
+                {
+                    activeSessionUsesRadialV2ScoreSchema = true;
+                    radialSession = new RadialRhythmSession(runtimeRadialBeatMap.encounters);
+                    session = null;
+                }
+                else
+                {
+                    RadialBeatMapData radialBeatMap = CreateConfiguredRadialBeatMap();
+                    if (radialBeatMap != null && radialBeatMap.encounters.Count > 0)
+                    {
+                        activeSessionUsesRadialV2ScoreSchema = debugRadialBeatMapJson != null;
+                        radialSession = new RadialRhythmSession(radialBeatMap.encounters);
+                        session = null;
+                    }
+                    else
+                    {
+                        activeSessionUsesRadialV2ScoreSchema = false;
+                        session = new RhythmSession(
+                            CreateSessionBeatEvents(),
+                            new JudgementWindows(PerfectWindowSeconds, GoodWindowSeconds),
+                            new RhythmInputResolver(new BeatEventMatcher(), new HitJudge()),
+                            new BeatEventTimeoutProcessor(new HitJudge()));
+                        radialSession = null;
+                    }
+                }
                 scoreTracker = new ScoreTracker();
+                radialInputSequence = 0L;
+                scoredRadialUnits.Clear();
                 completedSessionRecorded = false;
+                radialRunPolicy.Reset(selectedGameMode);
+                radialStatusEffects.Reset();
+                runDamageRevision = 0;
                 combatFeedbackRenderer.Clear();
                 ClearPendingInput();
                 ClearLastInputTimingError();
@@ -1219,6 +1480,7 @@ namespace PulseForge.Runtime.Unity.Prototype
                     lastFeedback = "Press Start / Restart";
                 }
 
+                RefreshCombatSceneVisibility();
                 GameplaySessionRestarted?.Invoke();
                 return true;
             }
@@ -1228,6 +1490,9 @@ namespace PulseForge.Runtime.Unity.Prototype
                 isCountdownActive = false;
                 ClearPendingInput();
                 session = null;
+                radialSession = null;
+                radialStatusEffects.Reset();
+                activeSessionUsesRadialV2ScoreSchema = false;
                 scoreTracker = new ScoreTracker();
                 combatFeedbackRenderer.Clear();
                 ClearLastInputTimingError();
@@ -1258,6 +1523,31 @@ namespace PulseForge.Runtime.Unity.Prototype
             }
 
             return ApplyDebugBeatMapOffset(beatEvents);
+        }
+
+        private RadialBeatMapData CreateConfiguredRadialBeatMap()
+        {
+            if (debugRadialBeatMapJson != null)
+            {
+                return ParseRadialBeatMapJson(debugRadialBeatMapJson.text);
+            }
+
+            IReadOnlyList<BeatEventData> legacyEvents = CreateSessionBeatEvents();
+            return legacyEvents == null || legacyEvents.Count == 0
+                ? null
+                : LegacyBeatMapRadialAdapter.Convert(legacyEvents);
+        }
+
+        private static RadialBeatMapData ParseRadialBeatMapJson(string json)
+        {
+            if (!RadialBeatMapArtifactSerializer.TryDeserialize(
+                json,
+                out RadialBeatMapCacheData artifact,
+                out string errorMessage))
+            {
+                throw new FormatException(errorMessage);
+            }
+            return artifact.radialBeatMap;
         }
 
         private IReadOnlyList<BeatEventData> ApplyDebugBeatMapOffset(IReadOnlyList<BeatEventData> beatEvents)
@@ -1393,8 +1683,8 @@ namespace PulseForge.Runtime.Unity.Prototype
             get
             {
                 return !isCountdownActive
-                    && session != null
-                    && !session.IsComplete
+                    && HasActiveSession
+                    && !IsActiveSessionComplete
                     && songClock != null
                     && (songClock.IsRunning || songClock.IsPaused);
             }
@@ -1481,11 +1771,19 @@ namespace PulseForge.Runtime.Unity.Prototype
             StopClock();
             AudioClip previousRuntimeAudioClip = runtimeAudioClip;
             IReadOnlyList<BeatEventData> previousRuntimeBeatEvents = runtimeBeatEvents;
+            RadialBeatMapData previousRuntimeRadialBeatMap = runtimeRadialBeatMap;
+            AnalyzerQualityReport previousAnalyzerQuality = runtimeAnalyzerQuality;
+            PlannerQualityReport previousPlannerQuality = runtimePlannerQuality;
+            string previousFingerprint = runtimeBeatMapFingerprint;
             string previousRuntimeAudioDisplayName = runtimeAudioDisplayName;
             RuntimeAudioPipelineSettings previousAppliedSettings = appliedRuntimePipelineSettings;
             bool previousUseRuntimeSessionSource = useRuntimeSessionSource;
             runtimeAudioClip = importResult.AudioClip;
-            runtimeBeatEvents = importResult.BeatEvents;
+            runtimeBeatEvents = null;
+            runtimeRadialBeatMap = importResult.RadialBeatMap;
+            runtimeAnalyzerQuality = importResult.AnalyzerQuality;
+            runtimePlannerQuality = importResult.PlannerQuality;
+            runtimeBeatMapFingerprint = RadialBeatMapFingerprint.Compute(runtimeRadialBeatMap);
             runtimeAudioDisplayName = importResult.DisplayName;
             appliedRuntimePipelineSettings = pipelineSettings;
             useRuntimeSessionSource = true;
@@ -1495,6 +1793,10 @@ namespace PulseForge.Runtime.Unity.Prototype
                 string preparationError = lastFeedback;
                 runtimeAudioClip = previousRuntimeAudioClip;
                 runtimeBeatEvents = previousRuntimeBeatEvents;
+                runtimeRadialBeatMap = previousRuntimeRadialBeatMap;
+                runtimeAnalyzerQuality = previousAnalyzerQuality;
+                runtimePlannerQuality = previousPlannerQuality;
+                runtimeBeatMapFingerprint = previousFingerprint;
                 runtimeAudioDisplayName = previousRuntimeAudioDisplayName;
                 appliedRuntimePipelineSettings = previousAppliedSettings;
                 useRuntimeSessionSource = previousUseRuntimeSessionSource;
@@ -1515,7 +1817,10 @@ namespace PulseForge.Runtime.Unity.Prototype
             runtimeFlow.SetProcessingStage(PulseForgeProcessingStage.Ready);
             yield return null;
             runtimeFlow.MarkReady();
-            setupStatusMessage = "Song analyzed and ready to play.";
+            setupStatusMessage = runtimePlannerQuality != null
+                && runtimePlannerQuality.result == PlannerQualityResult.UnderCovered
+                ? "Song is ready with limited coverage."
+                : "Song analyzed and ready to play.";
             if (saveSetupToLibrary)
             {
                 SaveAnalyzedTrackToLibrary(
@@ -1558,11 +1863,19 @@ namespace PulseForge.Runtime.Unity.Prototype
             StopClock();
             AudioClip previousRuntimeAudioClip = runtimeAudioClip;
             IReadOnlyList<BeatEventData> previousRuntimeBeatEvents = runtimeBeatEvents;
+            RadialBeatMapData previousRuntimeRadialBeatMap = runtimeRadialBeatMap;
+            AnalyzerQualityReport previousAnalyzerQuality = runtimeAnalyzerQuality;
+            PlannerQualityReport previousPlannerQuality = runtimePlannerQuality;
+            string previousFingerprint = runtimeBeatMapFingerprint;
             string previousRuntimeAudioDisplayName = runtimeAudioDisplayName;
             RuntimeAudioPipelineSettings previousAppliedSettings = appliedRuntimePipelineSettings;
             bool previousUseRuntimeSessionSource = useRuntimeSessionSource;
             runtimeAudioClip = loadedClip;
-            runtimeBeatEvents = loadData.BeatEvents;
+            runtimeBeatEvents = null;
+            runtimeRadialBeatMap = loadData.RadialBeatMap;
+            runtimeAnalyzerQuality = loadData.AnalyzerQuality;
+            runtimePlannerQuality = loadData.PlannerQuality;
+            runtimeBeatMapFingerprint = loadData.BeatMapFingerprint;
             runtimeAudioDisplayName = loadData.Track.displayName;
             appliedRuntimePipelineSettings = loadData.Settings;
             useRuntimeSessionSource = true;
@@ -1572,6 +1885,10 @@ namespace PulseForge.Runtime.Unity.Prototype
                 string preparationError = lastFeedback;
                 runtimeAudioClip = previousRuntimeAudioClip;
                 runtimeBeatEvents = previousRuntimeBeatEvents;
+                runtimeRadialBeatMap = previousRuntimeRadialBeatMap;
+                runtimeAnalyzerQuality = previousAnalyzerQuality;
+                runtimePlannerQuality = previousPlannerQuality;
+                runtimeBeatMapFingerprint = previousFingerprint;
                 runtimeAudioDisplayName = previousRuntimeAudioDisplayName;
                 appliedRuntimePipelineSettings = previousAppliedSettings;
                 useRuntimeSessionSource = previousUseRuntimeSessionSource;
@@ -1627,13 +1944,21 @@ namespace PulseForge.Runtime.Unity.Prototype
             {
                 runtimeFlow.SetProcessingStage(PulseForgeProcessingStage.LoadingConvertedAudio);
             }
-            else if (runtimeAudioImportStatus.IndexOf("Detecting", StringComparison.OrdinalIgnoreCase) >= 0)
+            else if (runtimeAudioImportStatus.IndexOf("Analyzing", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                runtimeFlow.SetProcessingStage(PulseForgeProcessingStage.DetectingRhythm);
+                runtimeFlow.SetProcessingStage(PulseForgeProcessingStage.AnalyzingAudioFeatures);
             }
-            else if (runtimeAudioImportStatus.IndexOf("Building", StringComparison.OrdinalIgnoreCase) >= 0)
+            else if (runtimeAudioImportStatus.IndexOf("Planning", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                runtimeFlow.SetProcessingStage(PulseForgeProcessingStage.BuildingCombatSequence);
+                runtimeFlow.SetProcessingStage(PulseForgeProcessingStage.PlanningRadialEncounters);
+            }
+            else if (runtimeAudioImportStatus.IndexOf("Validating", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                runtimeFlow.SetProcessingStage(PulseForgeProcessingStage.ValidatingBeatMap);
+            }
+            else if (runtimeAudioImportStatus.IndexOf("Preparing", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                runtimeFlow.SetProcessingStage(PulseForgeProcessingStage.PreparingSession);
             }
             else if (runtimeAudioImportStatus.IndexOf("Ready", StringComparison.OrdinalIgnoreCase) >= 0)
             {
@@ -1672,25 +1997,243 @@ namespace PulseForge.Runtime.Unity.Prototype
                 return;
             }
 
+            if (radialSession != null)
+            {
+                ForwardRadialInput(
+                    RhythmAction.Guard,
+                    inputService.GuardWasPressedThisFrame,
+                    inputService.GuardWasReleasedThisFrame);
+                ForwardRadialInput(
+                    RhythmAction.LightAttack,
+                    inputService.LightAttackWasPressedThisFrame,
+                    inputService.LightAttackWasReleasedThisFrame);
+                ForwardRadialInput(
+                    RhythmAction.Dodge,
+                    inputService.DodgeWasPressedThisFrame,
+                    inputService.DodgeWasReleasedThisFrame);
+                ForwardRadialInput(
+                    RhythmAction.HeavyAttack,
+                    inputService.HeavyAttackWasPressedThisFrame,
+                    inputService.HeavyAttackWasReleasedThisFrame);
+                return;
+            }
+
             if (inputService.GuardWasPressedThisFrame)
             {
                 HandleInput(RhythmAction.Guard);
             }
 
-            if (inputService.StrikeWasPressedThisFrame)
+            if (inputService.LightAttackWasPressedThisFrame)
             {
-                HandleInput(RhythmAction.Strike);
+                HandleInput(RhythmAction.LightAttack);
             }
         }
 
         private void HandleInput(RhythmAction action)
         {
-            if (!IsSessionRunning || session == null || isCountdownActive)
+            if (!IsSessionRunning || !HasActiveSession || isCountdownActive)
             {
                 return;
             }
 
+            if (radialSession != null)
+            {
+                ResolveRadialInput(action, RhythmInputPhase.Pressed, CurrentTimeSeconds);
+                return;
+            }
+
             QueueInput(action, CurrentTimeSeconds, GetPresentationTimeSeconds());
+        }
+
+        private void ForwardRadialInput(RhythmAction action, bool pressed, bool released)
+        {
+            if (pressed)
+            {
+                ResolveRadialInput(action, RhythmInputPhase.Pressed, CurrentTimeSeconds);
+            }
+            if (released)
+            {
+                ResolveRadialInput(action, RhythmInputPhase.Released, CurrentTimeSeconds);
+            }
+        }
+
+        private void ResolveRadialInput(
+            RhythmAction action,
+            RhythmInputPhase phase,
+            double songTimeSeconds)
+        {
+            if (!IsSessionRunning || radialSession == null || radialSession.IsComplete)
+            {
+                return;
+            }
+
+            double adjustedTime = songTimeSeconds + inputTimingOffsetSeconds;
+            long sequenceId = ++radialInputSequence;
+            RadialInputResolveResult result = phase == RhythmInputPhase.Pressed
+                ? radialSession.Press(action, adjustedTime, sequenceId)
+                : radialSession.Release(action, adjustedTime, sequenceId);
+            ProcessRadialRequirementResults(result.RequirementResults);
+            if (!result.Consumed && result.RequirementResults.Count == 0)
+            {
+                lastFeedback = "No match";
+            }
+            StopIfComplete();
+        }
+
+        private bool IsActionHeld(RhythmAction action)
+        {
+            if (inputService == null)
+            {
+                return radialSession != null && radialSession.IsHeld(action);
+            }
+
+            switch (action)
+            {
+                case RhythmAction.Guard:
+                    return inputService.GuardIsHeld;
+                case RhythmAction.LightAttack:
+                    return inputService.LightAttackIsHeld;
+                case RhythmAction.Dodge:
+                    return inputService.DodgeIsHeld;
+                case RhythmAction.HeavyAttack:
+                    return inputService.HeavyAttackIsHeld;
+                default:
+                    return false;
+            }
+        }
+
+        private void ProcessRadialRequirementResults(
+            IReadOnlyList<RequirementResult> requirementResults)
+        {
+            if (requirementResults == null || radialSession == null)
+            {
+                return;
+            }
+
+            bool runFailed = false;
+            for (int i = 0; i < requirementResults.Count; i++)
+            {
+                RequirementResult requirementResult = requirementResults[i];
+                RadialEncounterRuntime encounter = FindRadialEncounter(
+                    requirementResult.EncounterId);
+                if (encounter == null)
+                {
+                    continue;
+                }
+
+                RadialRunObservation observation = radialRunPolicy.Observe(
+                    encounter.Data.eventType,
+                    encounter.Data.intensity,
+                    requirementResult);
+                if (observation.DamageApplied)
+                {
+                    runDamageRevision++;
+                }
+                runFailed |= observation.CausedFailure;
+                radialStatusEffects.TryApplyFailure(
+                    encounter.Data,
+                    requirementResult,
+                    radialRunPolicy.State,
+                    CurrentTimeSeconds);
+
+                bool scoresPerStep = encounter.Data.eventType == RadialEventType.TimedChain
+                    || encounter.Data.eventType == RadialEventType.OrderedSequence
+                    || encounter.Data.eventType == RadialEventType.SwarmChain;
+                string scoreId;
+                HitGrade grade;
+                if (scoresPerStep)
+                {
+                    scoreId = encounter.Data.eventId + "/" + requirementResult.RequirementId;
+                    grade = requirementResult.Grade;
+                }
+                else
+                {
+                    if (!encounter.IsResolved)
+                    {
+                        continue;
+                    }
+                    scoreId = encounter.Data.eventId;
+                    grade = encounter.Result.Grade;
+                }
+
+                if (!scoredRadialUnits.Add(scoreId))
+                {
+                    continue;
+                }
+
+                HitResult hitResult = new HitResult(
+                    scoreId,
+                    grade,
+                    requirementResult.TimingErrorSeconds);
+                SetLastInputTimingError(hitResult);
+                RecordRadialResult(
+                    hitResult,
+                    requirementResult.Action,
+                    encounter.Data.intensity);
+                lastFeedback = FormatFeedback(hitResult);
+                if (requirementResult.Reason != RadialResultReason.None)
+                {
+                    lastFeedback += " / " + requirementResult.Reason;
+                }
+            }
+
+            if (runFailed)
+            {
+                FailRun();
+            }
+        }
+
+        private RadialEncounterRuntime FindRadialEncounter(string encounterId)
+        {
+            if (radialSession == null)
+            {
+                return null;
+            }
+            for (int i = 0; i < radialSession.Encounters.Count; i++)
+            {
+                RadialEncounterRuntime encounter = radialSession.Encounters[i];
+                if (string.Equals(encounter.Data.eventId, encounterId, StringComparison.Ordinal))
+                {
+                    return encounter;
+                }
+            }
+            return null;
+        }
+
+        private void RecordRadialResult(
+            HitResult result,
+            RhythmAction action,
+            float intensity)
+        {
+            ScoreSnapshot previousSnapshot = GetSnapshot();
+            scoreTracker.Record(result);
+            ScoreSnapshot currentSnapshot = GetSnapshot();
+            long sequenceId = ++gameplayFeedbackSequence;
+            GameplayResultResolved?.Invoke(new PulseForgeGameplayResultEvent(
+                sequenceId,
+                result.EventId,
+                action,
+                result.Grade,
+                intensity,
+                previousSnapshot.CurrentCombo,
+                currentSnapshot.CurrentCombo));
+            if (previousSnapshot.CurrentCombo != currentSnapshot.CurrentCombo)
+            {
+                GameplayComboChanged?.Invoke(new PulseForgeComboChangedEvent(
+                    sequenceId,
+                    previousSnapshot.CurrentCombo,
+                    currentSnapshot.CurrentCombo));
+            }
+
+            double presentationTime = GetPresentationTimeSeconds();
+            if (result.Grade == HitGrade.Miss)
+            {
+                combatFeedbackRenderer.ShowMiss(presentationTime);
+            }
+            else
+            {
+                combatFeedbackRenderer.ShowHit(action, result.Grade, presentationTime);
+            }
         }
 
         private void QueueInput(RhythmAction action, double songTimeSeconds, double realtimeSeconds)
@@ -1813,6 +2356,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             bool isVisible = UIState == PulseForgeUIState.Countdown
                 || UIState == PulseForgeUIState.Playing
                 || UIState == PulseForgeUIState.Paused;
+            isVisible = isVisible && !UsesRadialCombatPresentation;
             combatSceneView.SetVisible(isVisible);
         }
 
@@ -1988,15 +2532,35 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private void StopIfComplete()
         {
-            if (session == null || !session.IsComplete)
+            if (radialRunPolicy.State == RadialRunState.Failed
+                || !HasActiveSession
+                || !IsActiveSessionComplete)
+            {
+                return;
+            }
+
+            radialRunPolicy.Complete(CurrentTimeSeconds);
+            radialStatusEffects.ClearActiveEffects();
+            songClock.Stop();
+            runtimeFlow.Complete();
+            lastFeedback = "Session complete";
+            RecordTerminalSessionPersistence();
+        }
+
+        private void FailRun()
+        {
+            if (radialRunPolicy.State != RadialRunState.Failed)
             {
                 return;
             }
 
             songClock.Stop();
-            runtimeFlow.Complete();
-            lastFeedback = "Session complete";
-            RecordCompletedSessionPersistence();
+            radialStatusEffects.ClearActiveEffects();
+            isCountdownActive = false;
+            ClearPendingInput();
+            runtimeFlow.Fail();
+            lastFeedback = "Run failed / " + RunFailureReason;
+            RecordTerminalSessionPersistence();
         }
 
         private void SaveAnalyzedTrackToLibrary(
@@ -2012,7 +2576,9 @@ namespace PulseForge.Runtime.Unity.Prototype
                 duration,
                 pipelineSettings,
                 convertedWavPath,
-                runtimeBeatEvents,
+                runtimeRadialBeatMap,
+                runtimeAnalyzerQuality,
+                runtimePlannerQuality,
                 out SavedTrackPresetReference reference))
             {
                 activeSavedTrackId = reference.TrackId;
@@ -2026,9 +2592,11 @@ namespace PulseForge.Runtime.Unity.Prototype
             }
         }
 
-        private void RecordCompletedSessionPersistence()
+        private void RecordTerminalSessionPersistence()
         {
-            if (completedSessionRecorded || UIState != PulseForgeUIState.Completed)
+            if (completedSessionRecorded
+                || !radialRunPolicy.IsTerminal
+                || (UIState != PulseForgeUIState.Completed && UIState != PulseForgeUIState.Failed))
             {
                 return;
             }
@@ -2038,7 +2606,11 @@ namespace PulseForge.Runtime.Unity.Prototype
             saveService.RecordCompletedSession(
                 GetSnapshot(),
                 useRuntimeSessionSource ? activeSavedTrackId : string.Empty,
-                useRuntimeSessionSource ? activeSavedPresetId : string.Empty);
+                useRuntimeSessionSource ? activeSavedPresetId : string.Empty,
+                activeSessionUsesRadialV2ScoreSchema ? ScoreSchema.RadialV2 : ScoreSchema.LegacyV1,
+                activeSessionUsesRadialV2ScoreSchema ? runtimeBeatMapFingerprint : string.Empty,
+                radialRunPolicy.Mode,
+                radialRunPolicy.Outcome);
             savedTrackLibraryRevision++;
         }
 
@@ -2065,6 +2637,10 @@ namespace PulseForge.Runtime.Unity.Prototype
                 runtimeDetectionMode = pipeline.DetectionMode;
                 runtimeDifficulty = pipeline.Difficulty;
                 runtimeCombatStyle = pipeline.CombatStyle;
+            }
+            if (!Enum.TryParse(settings.defaultGameMode, true, out selectedGameMode))
+            {
+                selectedGameMode = RadialGameMode.Standard;
             }
 
             debugBeatMapOffsetSeconds = settings.beatmapOffsetSeconds;
@@ -2110,6 +2686,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             data.defaultDetection = runtimeDetectionMode.ToString();
             data.defaultDifficulty = runtimeDifficulty.ToString();
             data.defaultCombatStyle = runtimeCombatStyle.ToString();
+            data.defaultGameMode = selectedGameMode.ToString();
             data.beatmapOffsetSeconds = debugBeatMapOffsetSeconds;
             data.inputTimingOffsetSeconds = inputTimingOffsetSeconds;
             if (inputService != null && data.input != null)
@@ -2308,6 +2885,16 @@ namespace PulseForge.Runtime.Unity.Prototype
             settingsDraftRevision++;
         }
 
+        public void CycleDraftGameMode(int direction)
+        {
+            if (!TryGetSettingsDraft(out PulseForgeSettingsData draft)) return;
+            RadialGameMode current;
+            if (!Enum.TryParse(draft.defaultGameMode, true, out current)) current = RadialGameMode.Standard;
+            RadialGameMode[] values = (RadialGameMode[])Enum.GetValues(typeof(RadialGameMode));
+            draft.defaultGameMode = values[WrapIndex((int)current + direction, values.Length)].ToString();
+            settingsDraftRevision++;
+        }
+
         public string GetDraftBindingDisplay(PulseForgeInputAction action)
         {
             EnsureInputService();
@@ -2354,6 +2941,10 @@ namespace PulseForge.Runtime.Unity.Prototype
             runtimeDetectionMode = pipeline.DetectionMode;
             runtimeDifficulty = pipeline.Difficulty;
             runtimeCombatStyle = pipeline.CombatStyle;
+            if (Enum.TryParse(normalized.defaultGameMode, true, out RadialGameMode gameMode))
+            {
+                selectedGameMode = gameMode;
+            }
             debugBeatMapOffsetSeconds = normalized.beatmapOffsetSeconds;
             inputTimingOffsetSeconds = normalized.inputTimingOffsetSeconds;
             inputService?.LoadBindingOverridesFromJson(normalized.input.inputBindingOverridesJson);
@@ -2412,9 +3003,23 @@ namespace PulseForge.Runtime.Unity.Prototype
         {
             DrawCard(() =>
             {
-                if (session == null)
+                if (!HasActiveSession)
                 {
                     GUILayout.Label("No session", mutedLabelStyle);
+                    return;
+                }
+
+                if (radialSession != null)
+                {
+                    GUILayout.Label(
+                        "Radial V2 active. Legacy lane event rendering is disabled.",
+                        mutedLabelStyle);
+                    GUILayout.Label(
+                        radialSession.TotalEncounterCount.ToString(CultureInfo.InvariantCulture)
+                        + " encounters / "
+                        + SessionInputCost.ToString(CultureInfo.InvariantCulture)
+                        + " inputs",
+                        mutedLabelStyle);
                     return;
                 }
 
@@ -2535,6 +3140,12 @@ namespace PulseForge.Runtime.Unity.Prototype
             get { return !isCountdownActive && songClock != null && songClock.IsRunning; }
         }
 
+        private bool HasActiveSession => session != null || radialSession != null;
+
+        private bool IsActiveSessionComplete => radialSession != null
+            ? radialSession.IsComplete
+            : session != null && session.IsComplete;
+
         private string GetClockName()
         {
             return songClock == null ? "None" : songClock.GetType().Name;
@@ -2552,9 +3163,9 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private string GetBeatMapSourceName()
         {
-            if (useRuntimeSessionSource && runtimeBeatEvents != null)
+            if (useRuntimeSessionSource && runtimeRadialBeatMap != null)
             {
-                return "Runtime pipeline: "
+                return "Runtime radial V2: "
                     + runtimeAudioDisplayName
                     + " / "
                     + appliedRuntimePipelineSettings.DetectionMode
@@ -2562,6 +3173,11 @@ namespace PulseForge.Runtime.Unity.Prototype
                     + appliedRuntimePipelineSettings.Difficulty
                     + " / "
                     + appliedRuntimePipelineSettings.CombatStyle;
+            }
+
+            if (debugRadialBeatMapJson != null)
+            {
+                return "Inspector radial V2 JSON: " + debugRadialBeatMapJson.name;
             }
 
             if (debugBeatMapJson != null)
@@ -2579,12 +3195,7 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private string GetEventCountText()
         {
-            if (session == null)
-            {
-                return "0";
-            }
-
-            return session.TotalEventCount.ToString(CultureInfo.InvariantCulture);
+            return SessionEventCount.ToString(CultureInfo.InvariantCulture);
         }
 
         private static double GetPresentationTimeSeconds()
@@ -2594,9 +3205,14 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private string FormatBeatMapError(Exception exception)
         {
-            if (useRuntimeSessionSource && runtimeBeatEvents != null)
+            if (useRuntimeSessionSource && runtimeRadialBeatMap != null)
             {
-                return "Runtime beat map error: " + exception.Message;
+                return "Runtime radial beat map error: " + exception.Message;
+            }
+
+            if (debugRadialBeatMapJson != null)
+            {
+                return "Inspector radial beat map JSON error: " + exception.Message;
             }
 
             if (debugBeatMapJson != null)
@@ -2615,6 +3231,28 @@ namespace PulseForge.Runtime.Unity.Prototype
                 return activeAudioClip.length;
             }
 
+            if (radialSession != null && runtimeRadialBeatMap != null)
+            {
+                double lastRequirementTime = 0d;
+                for (int i = 0; i < runtimeRadialBeatMap.encounters.Count; i++)
+                {
+                    RadialEncounterEventData encounter = runtimeRadialBeatMap.encounters[i];
+                    if (encounter == null || encounter.requirements == null)
+                    {
+                        continue;
+                    }
+                    for (int requirementIndex = 0;
+                        requirementIndex < encounter.requirements.Count;
+                        requirementIndex++)
+                    {
+                        lastRequirementTime = Math.Max(
+                            lastRequirementTime,
+                            encounter.requirements[requirementIndex].targetTimeSeconds);
+                    }
+                }
+                return lastRequirementTime + GoodWindowSeconds;
+            }
+
             if (session == null || session.Events.Count == 0)
             {
                 return 0d;
@@ -2629,6 +3267,38 @@ namespace PulseForge.Runtime.Unity.Prototype
             }
 
             return lastEventTimeSeconds + GoodWindowSeconds;
+        }
+
+        private string GetAnalysisQualitySummary()
+        {
+            if (!useRuntimeSessionSource || runtimePlannerQuality == null)
+            {
+                return debugRadialBeatMapJson == null
+                    ? radialSession == null ? "Legacy V1" : "Legacy V1 adapted to radial"
+                    : "Analyzer V2 JSON";
+            }
+
+            string label;
+            switch (runtimePlannerQuality.result)
+            {
+                case PlannerQualityResult.PassWithRepairs:
+                    label = "Repaired";
+                    break;
+                case PlannerQualityResult.UnderCovered:
+                    label = "Limited Coverage";
+                    break;
+                default:
+                    label = "Pass";
+                    break;
+            }
+
+            if (runtimeAnalyzerQuality != null
+                && runtimeAnalyzerQuality.warnings != null
+                && runtimeAnalyzerQuality.warnings.Count > 0)
+            {
+                label += " / " + runtimeAnalyzerQuality.warnings[0];
+            }
+            return label;
         }
 
         private string ResolveBuiltInDifficultyLabel()
@@ -2672,6 +3342,10 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private string GetBuiltInBeatMapName()
         {
+            if (debugRadialBeatMapJson != null)
+            {
+                return debugRadialBeatMapJson.name;
+            }
             if (debugBeatMapJson != null)
             {
                 return debugBeatMapJson.name;
@@ -2698,14 +3372,14 @@ namespace PulseForge.Runtime.Unity.Prototype
             {
                 new BeatEventData("event-001", 1.00d, RhythmAction.Guard, 1f),
                 new BeatEventData("event-002", 1.50d, RhythmAction.Guard, 1f),
-                new BeatEventData("event-003", 2.00d, RhythmAction.Strike, 1f),
+                new BeatEventData("event-003", 2.00d, RhythmAction.LightAttack, 1f),
                 new BeatEventData("event-004", 2.50d, RhythmAction.Guard, 1f),
-                new BeatEventData("event-005", 3.00d, RhythmAction.Strike, 1f),
-                new BeatEventData("event-006", 3.25d, RhythmAction.Strike, 1f),
+                new BeatEventData("event-005", 3.00d, RhythmAction.LightAttack, 1f),
+                new BeatEventData("event-006", 3.25d, RhythmAction.LightAttack, 1f),
                 new BeatEventData("event-007", 3.75d, RhythmAction.Guard, 1f),
-                new BeatEventData("event-008", 4.25d, RhythmAction.Strike, 1f),
+                new BeatEventData("event-008", 4.25d, RhythmAction.LightAttack, 1f),
                 new BeatEventData("event-009", 4.75d, RhythmAction.Guard, 1f),
-                new BeatEventData("event-010", 5.25d, RhythmAction.Strike, 1f)
+                new BeatEventData("event-010", 5.25d, RhythmAction.LightAttack, 1f)
             };
         }
 

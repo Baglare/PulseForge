@@ -63,6 +63,11 @@ namespace PulseForge.Runtime.Unity.Persistence
 
         public bool RecordCompletedSession(ScoreSnapshot snapshot)
         {
+            return RecordCompletedSession(snapshot, true);
+        }
+
+        public bool RecordCompletedSession(ScoreSnapshot snapshot, bool compareWithLegacyBest)
+        {
             if (snapshot == null)
             {
                 return false;
@@ -73,8 +78,11 @@ namespace PulseForge.Runtime.Unity.Persistence
             Current.totalPerfect += snapshot.PerfectCount;
             Current.totalGood += snapshot.GoodCount;
             Current.totalMiss += snapshot.MissCount;
-            Current.highestScore = Math.Max(Current.highestScore, snapshot.TotalScore);
-            Current.highestCombo = Math.Max(Current.highestCombo, snapshot.MaxCombo);
+            if (compareWithLegacyBest)
+            {
+                Current.highestScore = Math.Max(Current.highestScore, snapshot.TotalScore);
+                Current.highestCombo = Math.Max(Current.highestCombo, snapshot.MaxCombo);
+            }
             Current.lastPlayedAtUtc = SaveDefaults.UtcNow();
             return store.Save(FileName, Current, SaveDataNormalizer.NormalizeProfile);
         }
@@ -193,10 +201,155 @@ namespace PulseForge.Runtime.Unity.Persistence
             return Save();
         }
 
+        internal bool AddOrUpdateRadialTrackPreset(
+            SavedTrackMetadata metadata,
+            RuntimeAudioPipelineSettings settings,
+            int eventCount,
+            int inputCost,
+            string plannerResult,
+            string presetId,
+            string cachedAudioRelativePath,
+            string cachedBeatmapRelativePath,
+            string beatMapFingerprint,
+            out SavedTrackPresetReference reference)
+        {
+            Current = SaveDataNormalizer.NormalizeLibrary(Current);
+            string now = SaveDefaults.UtcNow();
+            SavedTrackData track = FindTrack(metadata.TrackId);
+            if (track == null)
+            {
+                track = new SavedTrackData
+                {
+                    trackId = metadata.TrackId,
+                    createdAtUtc = now,
+                    presets = new System.Collections.Generic.List<SavedTrackPresetData>()
+                };
+                Current.tracks.Add(track);
+            }
+
+            track.displayName = metadata.DisplayName;
+            track.originalFileName = metadata.OriginalFileName;
+            track.originalFilePath = metadata.OriginalFilePath;
+            track.sourceExtension = metadata.SourceExtension;
+            track.fileSizeBytes = metadata.FileSizeBytes;
+            track.durationSeconds = metadata.DurationSeconds;
+            track.contentHash = metadata.ContentHash;
+            track.fileMissing = false;
+            track.cachedAudioRelativePath = cachedAudioRelativePath;
+            track.cacheVersion = SaveDefaults.AudioCacheVersion;
+            track.audioCacheVersion = SaveDefaults.AudioCacheVersion;
+            track.updatedAtUtc = now;
+            track.lastUsedAtUtc = now;
+
+            SavedTrackPresetData preset = FindPresetBySettings(
+                track,
+                settings,
+                SaveDefaults.AnalyzerVersion,
+                true);
+            if (preset == null)
+            {
+                preset = new SavedTrackPresetData
+                {
+                    presetId = string.IsNullOrWhiteSpace(presetId)
+                        ? Guid.NewGuid().ToString("N")
+                        : presetId,
+                    createdAtUtc = now,
+                    lastPlayedAtUtc = string.Empty,
+                    performances = new System.Collections.Generic.List<SavedTrackPerformanceData>()
+                };
+                track.presets.Add(preset);
+            }
+
+            ApplyRadialPresetMetadata(
+                preset,
+                settings,
+                eventCount,
+                inputCost,
+                plannerResult,
+                cachedBeatmapRelativePath,
+                beatMapFingerprint,
+                now);
+            reference = new SavedTrackPresetReference(track.trackId, preset.presetId);
+            return Save();
+        }
+
+        internal bool UpdateRebuiltRadialPreset(
+            string trackId,
+            string presetId,
+            RuntimeAudioPipelineSettings settings,
+            int eventCount,
+            int inputCost,
+            string plannerResult,
+            string cachedAudioRelativePath,
+            string cachedBeatmapRelativePath,
+            string beatMapFingerprint)
+        {
+            Current = SaveDataNormalizer.NormalizeLibrary(Current);
+            SavedTrackData track = FindTrack(trackId);
+            SavedTrackPresetData preset = FindPreset(track, presetId);
+            if (track == null || preset == null)
+            {
+                return false;
+            }
+
+            string now = SaveDefaults.UtcNow();
+            track.cachedAudioRelativePath = cachedAudioRelativePath;
+            track.cacheVersion = SaveDefaults.AudioCacheVersion;
+            track.audioCacheVersion = SaveDefaults.AudioCacheVersion;
+            track.updatedAtUtc = now;
+            track.lastUsedAtUtc = now;
+            ApplyRadialPresetMetadata(
+                preset,
+                settings,
+                eventCount,
+                inputCost,
+                plannerResult,
+                cachedBeatmapRelativePath,
+                beatMapFingerprint,
+                now);
+            return Save();
+        }
+
         public bool RecordPerformance(
             string trackId,
             string presetId,
             ScoreSnapshot snapshot)
+        {
+            return RecordPerformance(
+                trackId,
+                presetId,
+                snapshot,
+                ScoreSchema.LegacyV1,
+                string.Empty,
+                RadialGameMode.Standard,
+                RadialRunOutcome.Clear);
+        }
+
+        public bool RecordPerformance(
+            string trackId,
+            string presetId,
+            ScoreSnapshot snapshot,
+            string scoreSchema,
+            string beatMapFingerprint)
+        {
+            return RecordPerformance(
+                trackId,
+                presetId,
+                snapshot,
+                scoreSchema,
+                beatMapFingerprint,
+                RadialGameMode.Standard,
+                RadialRunOutcome.Clear);
+        }
+
+        public bool RecordPerformance(
+            string trackId,
+            string presetId,
+            ScoreSnapshot snapshot,
+            string scoreSchema,
+            string beatMapFingerprint,
+            RadialGameMode gameMode,
+            RadialRunOutcome outcome)
         {
             if (snapshot == null)
             {
@@ -210,16 +363,70 @@ namespace PulseForge.Runtime.Unity.Persistence
                 return false;
             }
 
-            bool isFirstPerformance = preset.playCount == 0;
             string now = SaveDefaults.UtcNow();
-            preset.playCount++;
-            preset.bestScore = Math.Max(preset.bestScore, snapshot.TotalScore);
-            preset.maxCombo = Math.Max(preset.maxCombo, snapshot.MaxCombo);
-            preset.bestPerfectCount = Math.Max(preset.bestPerfectCount, snapshot.PerfectCount);
-            preset.bestGoodCount = Math.Max(preset.bestGoodCount, snapshot.GoodCount);
-            preset.lowestMissCount = isFirstPerformance
+            scoreSchema = string.IsNullOrWhiteSpace(scoreSchema)
+                ? ScoreSchema.LegacyV1
+                : scoreSchema.Trim();
+            beatMapFingerprint = (beatMapFingerprint ?? string.Empty).Trim().ToLowerInvariant();
+            preset.performances = preset.performances
+                ?? new System.Collections.Generic.List<SavedTrackPerformanceData>();
+            SavedTrackPerformanceData performance = null;
+            for (int i = 0; i < preset.performances.Count; i++)
+            {
+                SavedTrackPerformanceData candidate = preset.performances[i];
+                if (candidate != null && SaveDataNormalizer.CanComparePerformance(
+                    candidate.gameMode,
+                    candidate.scoreSchema,
+                    candidate.beatMapFingerprint,
+                    gameMode.ToString(),
+                    scoreSchema,
+                    beatMapFingerprint))
+                {
+                    performance = candidate;
+                    break;
+                }
+            }
+
+            if (performance == null)
+            {
+                performance = new SavedTrackPerformanceData
+                {
+                    gameMode = gameMode.ToString(),
+                    scoreSchema = scoreSchema,
+                    beatMapFingerprint = beatMapFingerprint
+                };
+                preset.performances.Add(performance);
+            }
+
+            bool isFirstPerformance = performance.attemptCount == 0;
+            performance.attemptCount++;
+            performance.playCount = performance.attemptCount;
+            if (outcome == RadialRunOutcome.Clear)
+            {
+                performance.clearCount++;
+            }
+            performance.bestScore = Math.Max(performance.bestScore, snapshot.TotalScore);
+            performance.maxCombo = Math.Max(performance.maxCombo, snapshot.MaxCombo);
+            performance.bestPerfectCount = Math.Max(
+                performance.bestPerfectCount,
+                snapshot.PerfectCount);
+            performance.bestGoodCount = Math.Max(performance.bestGoodCount, snapshot.GoodCount);
+            performance.lowestMissCount = isFirstPerformance
                 ? snapshot.MissCount
-                : Math.Min(preset.lowestMissCount, snapshot.MissCount);
+                : Math.Min(performance.lowestMissCount, snapshot.MissCount);
+            performance.lastOutcome = outcome.ToString();
+            performance.lastPlayedAtUtc = now;
+
+            if (gameMode == RadialGameMode.Standard
+                && string.Equals(scoreSchema, ScoreSchema.LegacyV1, StringComparison.Ordinal))
+            {
+                preset.playCount = performance.playCount;
+                preset.bestScore = performance.bestScore;
+                preset.maxCombo = performance.maxCombo;
+                preset.bestPerfectCount = performance.bestPerfectCount;
+                preset.bestGoodCount = performance.bestGoodCount;
+                preset.lowestMissCount = performance.lowestMissCount;
+            }
             preset.lastPlayedAtUtc = now;
             preset.updatedAtUtc = now;
             track.updatedAtUtc = now;
@@ -357,6 +564,15 @@ namespace PulseForge.Runtime.Unity.Persistence
             SavedTrackData track,
             RuntimeAudioPipelineSettings settings)
         {
+            return FindPresetBySettings(track, settings, 0, false);
+        }
+
+        internal SavedTrackPresetData FindPresetBySettings(
+            SavedTrackData track,
+            RuntimeAudioPipelineSettings settings,
+            int analyzerVersion,
+            bool includeLegacyFallback)
+        {
             if (track == null || track.presets == null)
             {
                 return null;
@@ -365,21 +581,37 @@ namespace PulseForge.Runtime.Unity.Persistence
             string expected = SaveDataNormalizer.PresetKey(
                 settings.DetectionMode.ToString(),
                 settings.Difficulty.ToString(),
-                settings.CombatStyle.ToString());
+                settings.CombatStyle.ToString(),
+                analyzerVersion);
+            SavedTrackPresetData legacyFallback = null;
             for (int i = 0; i < track.presets.Count; i++)
             {
                 SavedTrackPresetData preset = track.presets[i];
                 string actual = SaveDataNormalizer.PresetKey(
                     preset.detectionMode,
                     preset.difficulty,
-                    preset.combatStyle);
+                    preset.combatStyle,
+                    preset.analyzerVersion);
                 if (string.Equals(expected, actual, StringComparison.Ordinal))
                 {
                     return preset;
                 }
+
+                if (includeLegacyFallback && preset.analyzerVersion <= 0)
+                {
+                    string legacyActual = SaveDataNormalizer.PresetKey(
+                        preset.detectionMode,
+                        preset.difficulty,
+                        preset.combatStyle,
+                        analyzerVersion);
+                    if (string.Equals(expected, legacyActual, StringComparison.Ordinal))
+                    {
+                        legacyFallback = preset;
+                    }
+                }
             }
 
-            return null;
+            return legacyFallback;
         }
 
         public bool SaveCacheStatuses()
@@ -398,6 +630,33 @@ namespace PulseForge.Runtime.Unity.Persistence
         {
             Current = SaveDataNormalizer.NormalizeLibrary(Current);
             return store.Save(FileName, Current, SaveDataNormalizer.NormalizeLibrary);
+        }
+
+        private static void ApplyRadialPresetMetadata(
+            SavedTrackPresetData preset,
+            RuntimeAudioPipelineSettings settings,
+            int eventCount,
+            int inputCost,
+            string plannerResult,
+            string cachedBeatmapRelativePath,
+            string beatMapFingerprint,
+            string now)
+        {
+            preset.detectionMode = settings.DetectionMode.ToString();
+            preset.difficulty = settings.Difficulty.ToString();
+            preset.combatStyle = settings.CombatStyle.ToString();
+            preset.eventCount = Math.Max(0, eventCount);
+            preset.inputCost = Math.Max(0, inputCost);
+            preset.plannerResult = plannerResult ?? string.Empty;
+            preset.updatedAtUtc = now;
+            preset.cachedBeatmapRelativePath = cachedBeatmapRelativePath;
+            preset.cacheVersion = SaveDefaults.RadialBeatMapCacheVersion;
+            preset.beatMapCacheVersion = SaveDefaults.RadialBeatMapCacheVersion;
+            preset.analyzerVersion = SaveDefaults.AnalyzerVersion;
+            preset.beatMapFingerprint = (beatMapFingerprint ?? string.Empty)
+                .Trim()
+                .ToLowerInvariant();
+            preset.cacheStatus = SavedTrackCacheStatus.Ready.ToString();
         }
     }
 }

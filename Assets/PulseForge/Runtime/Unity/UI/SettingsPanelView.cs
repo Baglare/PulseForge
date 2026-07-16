@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using PulseForge.Runtime.Unity.Input;
@@ -20,11 +21,14 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private Toggle vSync;
         [SerializeField] private Text guardBinding;
         [SerializeField] private Text strikeBinding;
+        [SerializeField] private Text dodgeBinding;
+        [SerializeField] private Text heavyAttackBinding;
         [SerializeField] private Text pauseBinding;
         [SerializeField] private Toggle motion;
         [SerializeField] private Text detectionValue;
         [SerializeField] private Text difficultyValue;
         [SerializeField] private Text combatStyleValue;
+        [SerializeField] private Text gameModeValue;
         [SerializeField] private InputField beatmapOffset;
         [SerializeField] private InputField inputOffset;
         [SerializeField] private Text message;
@@ -107,7 +111,9 @@ namespace PulseForge.Runtime.Unity.UI
             AddSection(content, "CONTROLS");
             List<Button> rebinds = new List<Button>();
             view.guardBinding = AddBindingRow(content, "Guard", rebinds);
-            view.strikeBinding = AddBindingRow(content, "Strike", rebinds);
+            view.strikeBinding = AddBindingRow(content, "Light Attack", rebinds);
+            view.dodgeBinding = AddBindingRow(content, "Dodge", rebinds);
+            view.heavyAttackBinding = AddBindingRow(content, "Heavy Attack", rebinds);
             view.pauseBinding = AddBindingRow(content, "Pause", rebinds);
             view.resetBindingsButton = PulseForgeUIFactory.CreateButton(
                 "Reset Bindings", content, "Reset Bindings", PulseForgeUITheme.SecondaryText);
@@ -118,6 +124,7 @@ namespace PulseForge.Runtime.Unity.UI
             view.detectionValue = AddOptionRow(content, "Default Detection", options);
             view.difficultyValue = AddOptionRow(content, "Default Difficulty", options);
             view.combatStyleValue = AddOptionRow(content, "Default Combat Style", options);
+            view.gameModeValue = AddOptionRow(content, "Default Game Mode", options);
             view.beatmapOffset = AddInputRow(content, "Beatmap Offset (ms)");
             view.inputOffset = AddInputRow(content, "Input Timing Offset (ms)");
             view.optionButtons = options.ToArray();
@@ -154,6 +161,38 @@ namespace PulseForge.Runtime.Unity.UI
             return view;
         }
 
+        public void EnsureGameModeControl(Action<GameObject> registerCreated = null)
+        {
+            Transform content = PanelRoot == null
+                ? null
+                : PanelRoot.transform.Find("Settings Card/Settings Scroll/Viewport/Content");
+            if (content == null) return;
+            Transform row = content.Find("Default Game Mode Row");
+            if (row == null)
+            {
+                List<Button> addedButtons = new List<Button>();
+                gameModeValue = AddOptionRow(content, "Default Game Mode", addedButtons);
+                row = content.Find("Default Game Mode Row");
+                Transform offsetRow = content.Find("Beatmap Offset (ms) Row");
+                if (row != null && offsetRow != null)
+                {
+                    row.SetSiblingIndex(offsetRow.GetSiblingIndex());
+                }
+                optionButtons = AppendButtons(optionButtons, addedButtons);
+                if (row != null) registerCreated?.Invoke(row.gameObject);
+            }
+            else
+            {
+                Transform value = row.Find("Value");
+                gameModeValue = value == null ? null : value.GetComponent<Text>();
+                if (optionButtons == null || optionButtons.Length < 14)
+                {
+                    List<Button> addedButtons = new List<Button>(row.GetComponentsInChildren<Button>(true));
+                    optionButtons = AppendButtons(optionButtons, addedButtons);
+                }
+            }
+        }
+
         public void Bind(DebugRhythmPrototypeController value)
         {
             if (controller == value) return;
@@ -168,8 +207,10 @@ namespace PulseForge.Runtime.Unity.UI
             inputOffset.onEndEdit.AddListener(controller.SetDraftInputOffsetMilliseconds);
             BindOptions();
             PulseForgeUIFactory.BindButton(rebindButtons[0], () => controller.BeginDraftRebind(PulseForgeInputAction.Guard));
-            PulseForgeUIFactory.BindButton(rebindButtons[1], () => controller.BeginDraftRebind(PulseForgeInputAction.Strike));
-            PulseForgeUIFactory.BindButton(rebindButtons[2], () => controller.BeginDraftRebind(PulseForgeInputAction.Pause));
+            PulseForgeUIFactory.BindButton(rebindButtons[1], () => controller.BeginDraftRebind(PulseForgeInputAction.LightAttack));
+            PulseForgeUIFactory.BindButton(rebindButtons[2], () => controller.BeginDraftRebind(PulseForgeInputAction.Dodge));
+            PulseForgeUIFactory.BindButton(rebindButtons[3], () => controller.BeginDraftRebind(PulseForgeInputAction.HeavyAttack));
+            PulseForgeUIFactory.BindButton(rebindButtons[4], () => controller.BeginDraftRebind(PulseForgeInputAction.Pause));
             PulseForgeUIFactory.BindButton(resetBindingsButton, controller.ResetDraftBindings);
             PulseForgeUIFactory.BindButton(cancelRebindButton, controller.CancelDraftRebind);
             PulseForgeUIFactory.BindButton(applyButton, controller.ApplySettingsDraft);
@@ -213,12 +254,15 @@ namespace PulseForge.Runtime.Unity.UI
             vSync.SetIsOnWithoutNotify(draft.display.vSync);
             frameRateValue.text = draft.display.frameRateLimit < 0 ? "Unlimited" : draft.display.frameRateLimit.ToString();
             guardBinding.text = value.GetDraftBindingDisplay(PulseForgeInputAction.Guard);
-            strikeBinding.text = value.GetDraftBindingDisplay(PulseForgeInputAction.Strike);
+            strikeBinding.text = value.GetDraftBindingDisplay(PulseForgeInputAction.LightAttack);
+            dodgeBinding.text = value.GetDraftBindingDisplay(PulseForgeInputAction.Dodge);
+            heavyAttackBinding.text = value.GetDraftBindingDisplay(PulseForgeInputAction.HeavyAttack);
             pauseBinding.text = value.GetDraftBindingDisplay(PulseForgeInputAction.Pause);
             motion.SetIsOnWithoutNotify(draft.enableMotion);
             detectionValue.text = draft.defaultDetection;
             difficultyValue.text = draft.defaultDifficulty;
             combatStyleValue.text = draft.defaultCombatStyle;
+            gameModeValue.text = draft.defaultGameMode == "OneLife" ? "One Life" : draft.defaultGameMode;
             beatmapOffset.SetTextWithoutNotify((draft.beatmapOffsetSeconds * 1000f).ToString("0", CultureInfo.InvariantCulture));
             inputOffset.SetTextWithoutNotify((draft.inputTimingOffsetSeconds * 1000f).ToString("0", CultureInfo.InvariantCulture));
             message.text = value.SettingsMessage;
@@ -230,6 +274,7 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgeUIValidation.AddMissing(errors, applyButton, "Settings: Apply button is missing.");
             PulseForgeUIValidation.AddMissing(errors, cancelButton, "Settings: Cancel button is missing.");
             PulseForgeUIValidation.AddMissing(errors, resetDefaultsButton, "Settings: Reset to Defaults button is missing.");
+            PulseForgeUIValidation.AddMissing(errors, gameModeValue, "Settings: Default Game Mode is missing.");
         }
 
         private void BindOptions()
@@ -245,6 +290,17 @@ namespace PulseForge.Runtime.Unity.UI
             pair(6, controller.CycleDraftDetection);
             pair(8, controller.CycleDraftDifficulty);
             pair(10, controller.CycleDraftCombatStyle);
+            pair(12, controller.CycleDraftGameMode);
+        }
+
+        private static Button[] AppendButtons(Button[] existing, List<Button> added)
+        {
+            List<Button> combined = new List<Button>(existing ?? System.Array.Empty<Button>());
+            for (int i = 0; i < added.Count; i++)
+            {
+                if (added[i] != null && !combined.Contains(added[i])) combined.Add(added[i]);
+            }
+            return combined.ToArray();
         }
 
         private static void UnbindButtons(Button[] buttons)

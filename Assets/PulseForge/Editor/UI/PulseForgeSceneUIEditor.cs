@@ -20,6 +20,10 @@ namespace PulseForge.Editor.UI
         private const string ApplyM8B2FeedbackMenu = "Tools/PulseForge/UI/Apply M8B.2 Gameplay Feedback Setup";
         private const string ApplyM8CPersistenceMenu = "Tools/PulseForge/UI/Apply M8C Persistence UI Setup";
         private const string ApplyM8DSettingsMenu = "Tools/PulseForge/UI/Apply M8D Settings UI Setup";
+        private const string ApplyM9D1RadialStageMenu = "Tools/PulseForge/UI/Apply M9D.1 Radial Stage Setup";
+        private const string ApplyM9D2CompoundVisualMenu = "Tools/PulseForge/UI/Apply M9D.2 Compound Visual Setup";
+        private const string ApplyM9E1GameModesMenu = "Tools/PulseForge/UI/Apply M9E.1 Game Modes Setup";
+        private const string ApplyM9E2SaboteurFogMenu = "Tools/PulseForge/UI/Apply M9E.2 Saboteur & Fog Setup";
         private const string ValidateMenu = "Tools/PulseForge/UI/Validate Scene UI";
 
         [MenuItem(MaterializeMenu)]
@@ -453,6 +457,238 @@ namespace PulseForge.Editor.UI
                 root);
         }
 
+        [MenuItem(ApplyM9D1RadialStageMenu)]
+        private static void ApplyM9D1RadialStageSetup()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                EditorUtility.DisplayDialog(
+                    "PulseForge UI",
+                    "M9D.1 radial stage setup can only be applied in Edit Mode.",
+                    "OK");
+                return;
+            }
+
+            Scene activeScene = SceneManager.GetActiveScene();
+            PulseForgeSceneUIRoot[] roots = FindInActiveScene<PulseForgeSceneUIRoot>(activeScene);
+            if (roots.Length != 1)
+            {
+                Debug.LogError(
+                    roots.Length == 0
+                        ? "Apply M9D.1 Radial Stage Setup requires one PulseForgeSceneUIRoot in the active scene. None was found."
+                        : "Apply M9D.1 Radial Stage Setup requires exactly one PulseForgeSceneUIRoot in the active scene. "
+                            + roots.Length + " were found.");
+                return;
+            }
+
+            PulseForgeSceneUIRoot root = roots[0];
+            int undoGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName("Apply PulseForge M9D.1 Radial Stage Setup");
+            Undo.RegisterFullObjectHierarchyUndo(
+                root.gameObject,
+                "Apply PulseForge M9D.1 Radial Stage Setup");
+            Undo.RecordObject(root, "Configure PulseForge M9D.1 Radial Stage");
+
+            RadialCombatStageView stage = RadialCombatStageSetup.Apply(
+                root,
+                gameObject => Undo.RegisterCreatedObjectUndo(
+                    gameObject,
+                    "Create PulseForge M9D.1 Radial Stage UI"),
+                (gameObject, componentType) => Undo.AddComponent(gameObject, componentType));
+
+            Component[] components = root.GetComponentsInChildren<Component>(true);
+            for (int i = 0; i < components.Length; i++)
+            {
+                if (components[i] != null)
+                {
+                    EditorUtility.SetDirty(components[i]);
+                }
+            }
+
+            EditorSceneManager.MarkSceneDirty(activeScene);
+            Selection.activeGameObject = stage == null ? root.gameObject : stage.gameObject;
+            EditorGUIUtility.PingObject(stage == null ? (Object)root : stage);
+            Undo.CollapseUndoOperations(undoGroup);
+            Debug.Log(
+                "PulseForge M9D.1 radial stage setup was applied. The scene is dirty and has not been saved automatically.",
+                root);
+        }
+
+        [MenuItem(ApplyM9D2CompoundVisualMenu)]
+        private static void ApplyM9D2CompoundVisualSetup()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                EditorUtility.DisplayDialog(
+                    "PulseForge UI",
+                    "M9D.2 compound visual setup can only be applied in Edit Mode.",
+                    "OK");
+                return;
+            }
+
+            Scene activeScene = SceneManager.GetActiveScene();
+            PulseForgeSceneUIRoot[] roots = FindInActiveScene<PulseForgeSceneUIRoot>(activeScene);
+            if (roots.Length != 1)
+            {
+                Debug.LogError(
+                    roots.Length == 0
+                        ? "Apply M9D.2 Compound Visual Setup requires one PulseForgeSceneUIRoot in the active scene. None was found."
+                        : "Apply M9D.2 Compound Visual Setup requires exactly one PulseForgeSceneUIRoot in the active scene. "
+                            + roots.Length + " were found.");
+                return;
+            }
+
+            PulseForgeSceneUIRoot root = roots[0];
+            int undoGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName("Apply PulseForge M9D.2 Compound Visual Setup");
+            Undo.RegisterFullObjectHierarchyUndo(
+                root.gameObject,
+                "Apply PulseForge M9D.2 Compound Visual Setup");
+            Undo.RecordObject(root, "Configure PulseForge M9D.2 Compound Visuals");
+
+            RadialCombatStageView stage = RadialCompoundVisualSetup.Apply(
+                root,
+                gameObject => Undo.RegisterCreatedObjectUndo(
+                    gameObject,
+                    "Create PulseForge M9D.2 Compound Visual UI"),
+                (gameObject, componentType) => Undo.AddComponent(gameObject, componentType));
+
+            Component[] components = root.GetComponentsInChildren<Component>(true);
+            for (int i = 0; i < components.Length; i++)
+            {
+                if (components[i] != null)
+                {
+                    EditorUtility.SetDirty(components[i]);
+                }
+            }
+
+            EditorSceneManager.MarkSceneDirty(activeScene);
+            Selection.activeGameObject = stage == null ? root.gameObject : stage.gameObject;
+            EditorGUIUtility.PingObject(stage == null ? (Object)root : stage);
+            Undo.CollapseUndoOperations(undoGroup);
+            Debug.Log(
+                "PulseForge M9D.2 compound visual setup was applied. The scene is dirty and has not been saved automatically.",
+                root);
+        }
+
+        [MenuItem(ApplyM9E1GameModesMenu)]
+        private static void ApplyM9E1GameModesSetup()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                EditorUtility.DisplayDialog(
+                    "PulseForge UI",
+                    "M9E.1 game modes setup can only be applied in Edit Mode.",
+                    "OK");
+                return;
+            }
+
+            Scene activeScene = SceneManager.GetActiveScene();
+            PulseForgeSceneUIRoot[] roots = FindInActiveScene<PulseForgeSceneUIRoot>(activeScene);
+            if (roots.Length != 1)
+            {
+                Debug.LogError(
+                    roots.Length == 0
+                        ? "Apply M9E.1 Game Modes Setup requires one PulseForgeSceneUIRoot in the active scene. None was found."
+                        : "Apply M9E.1 Game Modes Setup requires exactly one PulseForgeSceneUIRoot in the active scene. "
+                            + roots.Length + " were found.");
+                return;
+            }
+
+            PulseForgeSceneUIRoot root = roots[0];
+            int undoGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName("Apply PulseForge M9E.1 Game Modes Setup");
+            Undo.RegisterFullObjectHierarchyUndo(
+                root.gameObject,
+                "Apply PulseForge M9E.1 Game Modes Setup");
+            Undo.RecordObject(root, "Configure PulseForge M9E.1 Game Modes UI");
+            PulseForgeGameModesUISetup.Apply(
+                root,
+                gameObject =>
+                {
+                    if (gameObject != null)
+                    {
+                        Undo.RegisterCreatedObjectUndo(
+                            gameObject,
+                            "Create PulseForge M9E.1 Game Modes UI");
+                    }
+                });
+
+            Component[] components = root.GetComponentsInChildren<Component>(true);
+            for (int i = 0; i < components.Length; i++)
+            {
+                if (components[i] != null)
+                {
+                    EditorUtility.SetDirty(components[i]);
+                }
+            }
+
+            EditorSceneManager.MarkSceneDirty(activeScene);
+            Selection.activeGameObject = root.gameObject;
+            EditorGUIUtility.PingObject(root);
+            Undo.CollapseUndoOperations(undoGroup);
+            Debug.Log(
+                "PulseForge M9E.1 game modes setup was applied. The scene is dirty and has not been saved automatically.",
+                root);
+        }
+
+        [MenuItem(ApplyM9E2SaboteurFogMenu)]
+        private static void ApplyM9E2SaboteurFogSetup()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                EditorUtility.DisplayDialog(
+                    "PulseForge UI",
+                    "M9E.2 Saboteur & Fog setup can only be applied in Edit Mode.",
+                    "OK");
+                return;
+            }
+
+            Scene activeScene = SceneManager.GetActiveScene();
+            PulseForgeSceneUIRoot[] roots = FindInActiveScene<PulseForgeSceneUIRoot>(activeScene);
+            if (roots.Length != 1)
+            {
+                Debug.LogError(
+                    roots.Length == 0
+                        ? "Apply M9E.2 Saboteur & Fog Setup requires one PulseForgeSceneUIRoot in the active scene. None was found."
+                        : "Apply M9E.2 Saboteur & Fog Setup requires exactly one PulseForgeSceneUIRoot in the active scene. "
+                            + roots.Length + " were found.");
+                return;
+            }
+
+            PulseForgeSceneUIRoot root = roots[0];
+            int undoGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName("Apply PulseForge M9E.2 Saboteur & Fog Setup");
+            Undo.RegisterFullObjectHierarchyUndo(
+                root.gameObject,
+                "Apply PulseForge M9E.2 Saboteur & Fog Setup");
+            Undo.RecordObject(root, "Configure PulseForge M9E.2 Saboteur & Fog UI");
+
+            RadialCombatStageView stage = RadialSaboteurFogSetup.Apply(
+                root,
+                gameObject => Undo.RegisterCreatedObjectUndo(
+                    gameObject,
+                    "Create PulseForge M9E.2 Saboteur & Fog UI"),
+                (gameObject, componentType) => Undo.AddComponent(gameObject, componentType));
+
+            Component[] components = root.GetComponentsInChildren<Component>(true);
+            for (int i = 0; i < components.Length; i++)
+            {
+                if (components[i] != null)
+                {
+                    EditorUtility.SetDirty(components[i]);
+                }
+            }
+
+            EditorSceneManager.MarkSceneDirty(activeScene);
+            Selection.activeGameObject = stage == null ? root.gameObject : stage.gameObject;
+            EditorGUIUtility.PingObject(stage == null ? (Object)root : stage);
+            Undo.CollapseUndoOperations(undoGroup);
+            Debug.Log(
+                "PulseForge M9E.2 Saboteur & Fog setup was applied. The scene is dirty and has not been saved automatically.",
+                root);
+        }
+
         private static EventSystem EnsureSingleInputSystemEventSystem(Scene scene)
         {
             EventSystem[] eventSystems = FindInActiveScene<EventSystem>(scene);
@@ -552,6 +788,7 @@ namespace PulseForge.Editor.UI
             DrawStateButton(root, "Playing", PulseForgeUIState.Playing);
             DrawStateButton(root, "Paused", PulseForgeUIState.Paused);
             DrawStateButton(root, "Completed", PulseForgeUIState.Completed);
+            DrawStateButton(root, "Failed", PulseForgeUIState.Failed);
             DrawStateButton(root, "Error", PulseForgeUIState.Error);
 
             if (GUILayout.Button("Show All"))
@@ -599,7 +836,8 @@ namespace PulseForge.Editor.UI
             bool showCombat = showAll
                 || state == PulseForgeUIState.Countdown
                 || state == PulseForgeUIState.Playing
-                || state == PulseForgeUIState.Paused;
+                || state == PulseForgeUIState.Paused
+                || state == PulseForgeUIState.Failed;
             SetExistingCombatVisualRoot(root.gameObject.scene, showCombat);
             EditorUtility.SetDirty(root);
             EditorSceneManager.MarkSceneDirty(root.gameObject.scene);
