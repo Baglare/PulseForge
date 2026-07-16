@@ -18,6 +18,7 @@ namespace PulseForge.Runtime.Unity.UI
                 registerCreated?.Invoke(panel.gameObject);
             }
 
+            panel?.EnsureActionBindingControls(registerCreated);
             root.ConfigureSettingsPanel(panel);
             panel?.SetActive(false);
         }

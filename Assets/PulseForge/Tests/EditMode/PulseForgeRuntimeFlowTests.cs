@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
@@ -153,7 +152,7 @@ namespace PulseForge.Tests.EditMode
             Component controller = CreatePreparedController();
 
             Assert.That(ReadPublicProperty(controller, "UIState").ToString(), Is.EqualTo("Setup"));
-            Assert.That(CountEnumerable(ReadPublicProperty(controller, "SessionEvents")), Is.EqualTo(10));
+            Assert.That(ReadPublicProperty(controller, "SessionEventCount"), Is.EqualTo(10));
             Assert.That(ReadPublicProperty(controller, "CanPause"), Is.EqualTo(false));
             Assert.That((double)ReadPublicProperty(controller, "CurrentSongTimeSeconds"), Is.EqualTo(0d));
         }
@@ -162,7 +161,7 @@ namespace PulseForge.Tests.EditMode
         public void ReturnToSetup_ChangesPresentationWithoutDiscardingSessionEvents()
         {
             Component controller = CreatePreparedController();
-            int eventCount = CountEnumerable(ReadPublicProperty(controller, "SessionEvents"));
+            int eventCount = (int)ReadPublicProperty(controller, "SessionEventCount");
 
             InvokePublicMethod(controller, "RestartSession");
             Assert.That(ReadPublicProperty(controller, "UIState").ToString(), Is.EqualTo("Countdown"));
@@ -170,7 +169,7 @@ namespace PulseForge.Tests.EditMode
             InvokePublicMethod(controller, "ChangeSettings");
 
             Assert.That(ReadPublicProperty(controller, "UIState").ToString(), Is.EqualTo("Setup"));
-            Assert.That(CountEnumerable(ReadPublicProperty(controller, "SessionEvents")), Is.EqualTo(eventCount));
+            Assert.That(ReadPublicProperty(controller, "SessionEventCount"), Is.EqualTo(eventCount));
         }
 
         private Component CreatePreparedController()
@@ -204,15 +203,5 @@ namespace PulseForge.Tests.EditMode
             method.Invoke(target, null);
         }
 
-        private static int CountEnumerable(object value)
-        {
-            int count = 0;
-            foreach (object unused in (IEnumerable)value)
-            {
-                count++;
-            }
-
-            return count;
-        }
     }
 }

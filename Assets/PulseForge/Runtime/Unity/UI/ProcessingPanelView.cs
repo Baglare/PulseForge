@@ -69,6 +69,46 @@ namespace PulseForge.Runtime.Unity.UI
             return view;
         }
 
+        public void EnsureV2Stages(Action<GameObject> registerCreated = null)
+        {
+            Transform card = PanelRoot == null ? null : PanelRoot.transform.Find("Processing Panel Card");
+            if (card == null) return;
+
+            Text[] orderedStages = new Text[Stages.Length];
+            int firstStageIndex = card.childCount;
+            for (int i = 0; i < StageLabels.Length; i++)
+            {
+                Transform existing = card.Find(StageLabels[i]);
+                if (existing != null)
+                {
+                    orderedStages[i] = existing.GetComponent<Text>();
+                    firstStageIndex = Math.Min(firstStageIndex, existing.GetSiblingIndex());
+                }
+            }
+
+            if (firstStageIndex == card.childCount)
+            {
+                firstStageIndex = Math.Min(3, card.childCount);
+            }
+
+            RectTransform cardRect = card as RectTransform;
+            for (int i = 0; i < StageLabels.Length; i++)
+            {
+                if (orderedStages[i] == null)
+                {
+                    orderedStages[i] = FlowPanelBuilder.AddCenteredText(
+                        cardRect,
+                        StageLabels[i],
+                        24,
+                        PulseForgeUITheme.SecondaryText,
+                        54f);
+                    registerCreated?.Invoke(orderedStages[i].gameObject);
+                }
+                orderedStages[i].transform.SetSiblingIndex(firstStageIndex + i);
+            }
+            stageTexts = orderedStages;
+        }
+
         public void Refresh(DebugRhythmPrototypeController controller)
         {
             songText.text = controller.SelectedAudioFileName;

@@ -133,6 +133,37 @@ namespace PulseForge.Tests.EditMode
             Assert.That(atTarget.y, Is.EqualTo(155f).Within(0.001f));
         }
 
+        [Test]
+        public void TimingWindowMatchesPerfectAndGoodBoundaries()
+        {
+            MethodInfo evaluate = PresentationMathType().GetMethod("EvaluateTimingWindow");
+
+            object earlyGood = evaluate.Invoke(null, new object[] { 9.9d, 10d, 0.045d, 0.1d });
+            object earlyPerfect = evaluate.Invoke(null, new object[] { 9.955d, 10d, 0.045d, 0.1d });
+            object target = evaluate.Invoke(null, new object[] { 10d, 10d, 0.045d, 0.1d });
+            object lateGood = evaluate.Invoke(null, new object[] { 10.1d, 10d, 0.045d, 0.1d });
+
+            Assert.That(GetProperty<object>(earlyGood, "State").ToString(), Is.EqualTo("Good"));
+            Assert.That(GetProperty<object>(earlyPerfect, "State").ToString(), Is.EqualTo("Perfect"));
+            Assert.That(GetProperty<object>(target, "State").ToString(), Is.EqualTo("Perfect"));
+            Assert.That(GetProperty<object>(lateGood, "State").ToString(), Is.EqualTo("Good"));
+            Assert.That(GetProperty<float>(target, "Position01"), Is.EqualTo(0.5f).Within(0.0001f));
+            Assert.That(GetProperty<float>(target, "PerfectWidth01"), Is.EqualTo(0.45f).Within(0.0001f));
+        }
+
+        [Test]
+        public void TimingWindowClearlyMarksWaitingAndLateStates()
+        {
+            MethodInfo evaluate = PresentationMathType().GetMethod("EvaluateTimingWindow");
+            object waiting = evaluate.Invoke(null, new object[] { 9.89d, 10d, 0.045d, 0.1d });
+            object late = evaluate.Invoke(null, new object[] { 10.11d, 10d, 0.045d, 0.1d });
+
+            Assert.That(GetProperty<object>(waiting, "State").ToString(), Is.EqualTo("Waiting"));
+            Assert.That(GetProperty<float>(waiting, "Position01"), Is.EqualTo(0f));
+            Assert.That(GetProperty<object>(late, "State").ToString(), Is.EqualTo("Late"));
+            Assert.That(GetProperty<float>(late, "Position01"), Is.EqualTo(1f));
+        }
+
         private static Type PresentationMathType()
         {
             return RuntimeType("RadialPresentationMath");

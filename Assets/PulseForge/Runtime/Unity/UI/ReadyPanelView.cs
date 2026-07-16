@@ -52,6 +52,36 @@ namespace PulseForge.Runtime.Unity.UI
             return view;
         }
 
+        public void EnsureV2SummaryFields(Action<GameObject> registerCreated = null)
+        {
+            RectTransform card = PanelRoot == null
+                ? null
+                : PanelRoot.transform.Find("Ready Panel Card") as RectTransform;
+            if (card == null) return;
+
+            Transform inputCost = card.Find("Input Cost");
+            inputCostText = inputCost == null ? null : inputCost.GetComponent<Text>();
+            if (inputCostText == null)
+            {
+                inputCostText = FlowPanelBuilder.AddValue(card, "Input Cost");
+                registerCreated?.Invoke(inputCostText.gameObject);
+            }
+
+            int inputCostIndex = eventCountText == null
+                ? Math.Max(0, Math.Min(3, card.childCount - 1))
+                : eventCountText.transform.GetSiblingIndex() + 1;
+            inputCostText.transform.SetSiblingIndex(inputCostIndex);
+
+            Transform analysisQuality = card.Find("Analysis Quality");
+            analysisQualityText = analysisQuality == null ? null : analysisQuality.GetComponent<Text>();
+            if (analysisQualityText == null)
+            {
+                analysisQualityText = FlowPanelBuilder.AddValue(card, "Analysis Quality");
+                registerCreated?.Invoke(analysisQualityText.gameObject);
+            }
+            analysisQualityText.transform.SetSiblingIndex(inputCostText.transform.GetSiblingIndex() + 1);
+        }
+
         public void EnsureGameModeControls(Action<GameObject> registerCreated = null)
         {
             Transform card = PanelRoot == null ? null : PanelRoot.transform.Find("Ready Panel Card");

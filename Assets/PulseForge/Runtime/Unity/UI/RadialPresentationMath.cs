@@ -14,6 +14,31 @@ namespace PulseForge.Runtime.Unity.UI
         Resolved
     }
 
+    public enum RadialTimingWindowState
+    {
+        Waiting,
+        Good,
+        Perfect,
+        Late
+    }
+
+    public readonly struct RadialTimingWindowVisual
+    {
+        public RadialTimingWindowVisual(
+            float position01,
+            float perfectWidth01,
+            RadialTimingWindowState state)
+        {
+            Position01 = position01;
+            PerfectWidth01 = perfectWidth01;
+            State = state;
+        }
+
+        public float Position01 { get; }
+        public float PerfectWidth01 { get; }
+        public RadialTimingWindowState State { get; }
+    }
+
     public readonly struct RadialPresentationKey : IEquatable<RadialPresentationKey>
     {
         public RadialPresentationKey(string eventId, string targetId, string requirementId)
@@ -143,6 +168,43 @@ namespace PulseForge.Runtime.Unity.UI
             return Mathf.Clamp01((float)(
                 (songTimeSeconds - startTimeSeconds)
                 / (endTimeSeconds - startTimeSeconds)));
+        }
+
+        public static RadialTimingWindowVisual EvaluateTimingWindow(
+            double songTimeSeconds,
+            double targetTimeSeconds,
+            double perfectWindowSeconds,
+            double goodWindowSeconds)
+        {
+            double goodWindow = Math.Max(0.000001d, goodWindowSeconds);
+            double perfectWindow = Math.Max(
+                0d,
+                Math.Min(perfectWindowSeconds, goodWindow));
+            double timingError = songTimeSeconds - targetTimeSeconds;
+            float position = Mathf.Clamp01((float)(
+                (timingError + goodWindow) / (goodWindow * 2d)));
+            RadialTimingWindowState state;
+            if (timingError < -goodWindow)
+            {
+                state = RadialTimingWindowState.Waiting;
+            }
+            else if (timingError > goodWindow)
+            {
+                state = RadialTimingWindowState.Late;
+            }
+            else if (Math.Abs(timingError) <= perfectWindow)
+            {
+                state = RadialTimingWindowState.Perfect;
+            }
+            else
+            {
+                state = RadialTimingWindowState.Good;
+            }
+
+            return new RadialTimingWindowVisual(
+                position,
+                (float)(perfectWindow / goodWindow),
+                state);
         }
 
         public static double EvaluateRevealLead(

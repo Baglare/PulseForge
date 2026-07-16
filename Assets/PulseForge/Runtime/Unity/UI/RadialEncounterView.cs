@@ -6,6 +6,8 @@ namespace PulseForge.Runtime.Unity.UI
 {
     public sealed class RadialEncounterView : MonoBehaviour
     {
+        private const float TimingTrackWidth = 104f;
+
         [SerializeField] private RectTransform viewRoot;
         [SerializeField] private Image bodyImage;
         [SerializeField] private Outline bodyOutline;
@@ -22,6 +24,13 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private Text stepLabel;
         [SerializeField] private RectTransform segmentRoot;
         [SerializeField] private Image[] segments;
+        [SerializeField] private Image perfectTimingHalo;
+        [SerializeField] private RectTransform timingRoot;
+        [SerializeField] private Image timingGoodTrack;
+        [SerializeField] private Image timingPerfectZone;
+        [SerializeField] private RectTransform timingNeedle;
+        [SerializeField] private Image timingNeedleImage;
+        [SerializeField] private Text timingLabel;
 
         private Color actionColor;
         private Color baseBodyColor;
@@ -50,6 +59,17 @@ namespace PulseForge.Runtime.Unity.UI
 
             RadialEncounterView view = root.gameObject.AddComponent<RadialEncounterView>();
             view.viewRoot = root;
+
+            RectTransform timingHalo = PulseForgeUIFactory.CreateRect("Perfect Timing Halo", root);
+            timingHalo.anchorMin = new Vector2(0.5f, 0.5f);
+            timingHalo.anchorMax = new Vector2(0.5f, 0.5f);
+            timingHalo.pivot = new Vector2(0.5f, 0.5f);
+            timingHalo.sizeDelta = new Vector2(102f, 102f);
+            Image timingHaloImage = timingHalo.gameObject.AddComponent<Image>();
+            timingHaloImage.sprite = PulseForgeUIFactory.RoundedSprite;
+            timingHaloImage.color = PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Perfect, 0.22f);
+            timingHaloImage.raycastTarget = false;
+            view.perfectTimingHalo = timingHaloImage;
 
             RectTransform body = PulseForgeUIFactory.CreateRect("Body", root);
             body.anchorMin = new Vector2(0.5f, 0.5f);
@@ -238,6 +258,72 @@ namespace PulseForge.Runtime.Unity.UI
                 segmentImage.raycastTarget = false;
                 view.segments[segmentIndex] = segmentImage;
             }
+
+            RectTransform timingRoot = PulseForgeUIFactory.CreateRect("Timing Window", root);
+            timingRoot.anchorMin = new Vector2(0.5f, 0.5f);
+            timingRoot.anchorMax = new Vector2(0.5f, 0.5f);
+            timingRoot.pivot = new Vector2(0.5f, 0.5f);
+            timingRoot.sizeDelta = new Vector2(118f, 32f);
+            Image timingBackground = timingRoot.gameObject.AddComponent<Image>();
+            timingBackground.sprite = PulseForgeUIFactory.RoundedSprite;
+            timingBackground.color = PulseForgeUITheme.WithAlpha(PulseForgeUITheme.SurfaceRaised, 0.96f);
+            timingBackground.raycastTarget = false;
+            Outline timingOutline = timingRoot.gameObject.AddComponent<Outline>();
+            timingOutline.effectColor = PulseForgeUITheme.Border;
+            timingOutline.effectDistance = new Vector2(1f, -1f);
+            timingOutline.useGraphicAlpha = true;
+            view.timingRoot = timingRoot;
+
+            Text timingLabel = PulseForgeUIFactory.CreateText(
+                "Timing State",
+                timingRoot,
+                "WAIT",
+                10,
+                PulseForgeUITheme.SecondaryText,
+                TextAnchor.UpperCenter,
+                FontStyle.Bold);
+            timingLabel.rectTransform.anchorMin = new Vector2(0f, 1f);
+            timingLabel.rectTransform.anchorMax = new Vector2(1f, 1f);
+            timingLabel.rectTransform.pivot = new Vector2(0.5f, 1f);
+            timingLabel.rectTransform.anchoredPosition = new Vector2(0f, -1f);
+            timingLabel.rectTransform.sizeDelta = new Vector2(0f, 13f);
+            view.timingLabel = timingLabel;
+
+            RectTransform goodTrack = PulseForgeUIFactory.CreateRect("Good Window", timingRoot);
+            goodTrack.anchorMin = new Vector2(0.5f, 0f);
+            goodTrack.anchorMax = new Vector2(0.5f, 0f);
+            goodTrack.pivot = new Vector2(0.5f, 0f);
+            goodTrack.anchoredPosition = new Vector2(0f, 5f);
+            goodTrack.sizeDelta = new Vector2(TimingTrackWidth, 10f);
+            Image goodTrackImage = goodTrack.gameObject.AddComponent<Image>();
+            goodTrackImage.sprite = PulseForgeUIFactory.RoundedSprite;
+            goodTrackImage.color = PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Good, 0.42f);
+            goodTrackImage.raycastTarget = false;
+            view.timingGoodTrack = goodTrackImage;
+
+            RectTransform perfectZone = PulseForgeUIFactory.CreateRect("Perfect Window", goodTrack);
+            perfectZone.anchorMin = new Vector2(0.5f, 0.5f);
+            perfectZone.anchorMax = new Vector2(0.5f, 0.5f);
+            perfectZone.pivot = new Vector2(0.5f, 0.5f);
+            perfectZone.sizeDelta = new Vector2(TimingTrackWidth * 0.45f, 10f);
+            Image perfectZoneImage = perfectZone.gameObject.AddComponent<Image>();
+            perfectZoneImage.sprite = PulseForgeUIFactory.RoundedSprite;
+            perfectZoneImage.color = PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Perfect, 0.82f);
+            perfectZoneImage.raycastTarget = false;
+            view.timingPerfectZone = perfectZoneImage;
+
+            RectTransform timingNeedle = PulseForgeUIFactory.CreateRect("Song Time Marker", goodTrack);
+            timingNeedle.anchorMin = new Vector2(0.5f, 0.5f);
+            timingNeedle.anchorMax = new Vector2(0.5f, 0.5f);
+            timingNeedle.pivot = new Vector2(0.5f, 0.5f);
+            timingNeedle.sizeDelta = new Vector2(4f, 16f);
+            Image timingNeedleImage = timingNeedle.gameObject.AddComponent<Image>();
+            timingNeedleImage.sprite = PulseForgeUIFactory.RoundedSprite;
+            timingNeedleImage.color = PulseForgeUITheme.PrimaryText;
+            timingNeedleImage.raycastTarget = false;
+            view.timingNeedle = timingNeedle;
+            view.timingNeedleImage = timingNeedleImage;
+
             view.ResetView();
             return view;
         }
@@ -284,6 +370,71 @@ namespace PulseForge.Runtime.Unity.UI
             saboteurFuseLabel.gameObject.SetActive(showSaboteur);
             saboteurPreparation.gameObject.SetActive(showSaboteur);
             ApplyResult(resultState);
+        }
+
+        public void RenderTimingWindow(
+            RadialDirection direction,
+            double songTimeSeconds,
+            double targetTimeSeconds,
+            double perfectWindowSeconds,
+            double goodWindowSeconds,
+            bool visible)
+        {
+            timingRoot.gameObject.SetActive(visible);
+            perfectTimingHalo.gameObject.SetActive(false);
+            if (!visible)
+            {
+                return;
+            }
+
+            RadialTimingWindowVisual timing = RadialPresentationMath.EvaluateTimingWindow(
+                songTimeSeconds,
+                targetTimeSeconds,
+                perfectWindowSeconds,
+                goodWindowSeconds);
+            timingRoot.anchoredPosition = ResolveTimingOffset(direction);
+            timingRoot.localScale = timing.State == RadialTimingWindowState.Perfect
+                ? Vector3.one * 1.12f
+                : Vector3.one;
+            timingPerfectZone.rectTransform.sizeDelta = new Vector2(
+                TimingTrackWidth * timing.PerfectWidth01,
+                timingPerfectZone.rectTransform.sizeDelta.y);
+            timingNeedle.anchoredPosition = new Vector2(
+                (timing.Position01 - 0.5f) * TimingTrackWidth,
+                0f);
+
+            switch (timing.State)
+            {
+                case RadialTimingWindowState.Perfect:
+                    timingLabel.text = "PERFECT!";
+                    timingLabel.color = PulseForgeUITheme.Perfect;
+                    timingGoodTrack.color = PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Good, 0.76f);
+                    timingPerfectZone.color = PulseForgeUITheme.Perfect;
+                    timingNeedleImage.color = PulseForgeUITheme.PrimaryText;
+                    perfectTimingHalo.gameObject.SetActive(true);
+                    break;
+                case RadialTimingWindowState.Good:
+                    timingLabel.text = "GOOD";
+                    timingLabel.color = PulseForgeUITheme.Good;
+                    timingGoodTrack.color = PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Good, 0.90f);
+                    timingPerfectZone.color = PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Perfect, 0.86f);
+                    timingNeedleImage.color = PulseForgeUITheme.PrimaryText;
+                    break;
+                case RadialTimingWindowState.Late:
+                    timingLabel.text = "LATE";
+                    timingLabel.color = PulseForgeUITheme.Miss;
+                    timingGoodTrack.color = PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Miss, 0.46f);
+                    timingPerfectZone.color = PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Miss, 0.60f);
+                    timingNeedleImage.color = PulseForgeUITheme.Miss;
+                    break;
+                default:
+                    timingLabel.text = "WAIT";
+                    timingLabel.color = PulseForgeUITheme.SecondaryText;
+                    timingGoodTrack.color = PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Good, 0.42f);
+                    timingPerfectZone.color = PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Perfect, 0.82f);
+                    timingNeedleImage.color = PulseForgeUITheme.SecondaryText;
+                    break;
+            }
         }
 
         public void RenderSaboteur(float preparationProgress, bool failed)
@@ -472,6 +623,16 @@ namespace PulseForge.Runtime.Unity.UI
                 saboteurPreparation.fillAmount = 0f;
                 saboteurPreparation.gameObject.SetActive(false);
             }
+            if (perfectTimingHalo != null)
+            {
+                perfectTimingHalo.gameObject.SetActive(false);
+            }
+            if (timingRoot != null)
+            {
+                timingRoot.anchoredPosition = Vector2.zero;
+                timingRoot.localScale = Vector3.one;
+                timingRoot.gameObject.SetActive(false);
+            }
             ResetCompoundVisuals();
             gameObject.SetActive(false);
         }
@@ -608,6 +769,27 @@ namespace PulseForge.Runtime.Unity.UI
             bodyImage.rectTransform.sizeDelta = size;
             bodyImage.rectTransform.localRotation = Quaternion.Euler(0f, 0f, rotation);
             archetypeGlyph.text = glyph;
+        }
+
+        private static Vector2 ResolveTimingOffset(RadialDirection direction)
+        {
+            switch (direction)
+            {
+                case RadialDirection.North:
+                case RadialDirection.NorthEast:
+                case RadialDirection.NorthWest:
+                    return new Vector2(0f, -62f);
+                case RadialDirection.South:
+                case RadialDirection.SouthEast:
+                case RadialDirection.SouthWest:
+                    return new Vector2(0f, 62f);
+                case RadialDirection.East:
+                    return new Vector2(-72f, 0f);
+                case RadialDirection.West:
+                    return new Vector2(72f, 0f);
+                default:
+                    return new Vector2(0f, -62f);
+            }
         }
 
         private void ApplyResult(RadialPresentationResultState state)

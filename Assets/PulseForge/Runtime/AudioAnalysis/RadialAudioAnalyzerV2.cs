@@ -82,6 +82,9 @@ namespace PulseForge.AudioAnalysis
         {
             private readonly IAudioSampleSource source;
             private readonly AudioCandidateDetectionMode detectionMode;
+            private readonly int sampleRate;
+            private readonly int channelCount;
+            private readonly long frameCount;
             private readonly int hopSizeSamples;
             private readonly int chunkFrameCount;
             private readonly float[] interleavedBuffer;
@@ -105,10 +108,13 @@ namespace PulseForge.AudioAnalysis
             {
                 this.source = source;
                 this.detectionMode = detectionMode;
-                hopSizeSamples = Math.Max(1, (int)Math.Round(source.SampleRate * 0.010d));
+                sampleRate = source.SampleRate;
+                channelCount = source.ChannelCount;
+                frameCount = source.FrameCount;
+                hopSizeSamples = Math.Max(1, (int)Math.Round(sampleRate * 0.010d));
                 int fftSize = AnalyzerV2Defaults.FftSize;
-                chunkFrameCount = Math.Max(fftSize, source.SampleRate / 4);
-                interleavedBuffer = new float[checked(chunkFrameCount * source.ChannelCount)];
+                chunkFrameCount = Math.Max(fftSize, sampleRate / 4);
+                interleavedBuffer = new float[checked(chunkFrameCount * channelCount)];
                 monoRingBuffer = new float[fftSize];
                 hannWindow = new double[fftSize];
                 fftReal = new double[fftSize];
@@ -121,9 +127,9 @@ namespace PulseForge.AudioAnalysis
                     hannWindow[i] = 0.5d - (0.5d * Math.Cos(HannScale * i));
                 }
 
-                long estimatedFrameCount = source.FrameCount <= fftSize
+                long estimatedFrameCount = frameCount <= fftSize
                     ? 1L
-                    : 1L + ((source.FrameCount - fftSize) / hopSizeSamples);
+                    : 1L + ((frameCount - fftSize) / hopSizeSamples);
                 frames = new List<AudioFeatureFrame>(
                     (int)Math.Min(estimatedFrameCount, 1000000L));
             }
@@ -142,22 +148,22 @@ namespace PulseForge.AudioAnalysis
                 }
 
                 int processedChunks = 0;
-                while (offsetFrame < source.FrameCount && processedChunks < maximumChunks)
+                while (offsetFrame < frameCount && processedChunks < maximumChunks)
                 {
                     int readableFrameCount = (int)Math.Min(
                         chunkFrameCount,
-                        source.FrameCount - offsetFrame);
+                        frameCount - offsetFrame);
                     source.ReadFrames(offsetFrame, readableFrameCount, interleavedBuffer);
                     for (int frameIndex = 0; frameIndex < readableFrameCount; frameIndex++)
                     {
-                        int sampleStart = frameIndex * source.ChannelCount;
+                        int sampleStart = frameIndex * channelCount;
                         double monoTotal = 0d;
-                        for (int channelIndex = 0; channelIndex < source.ChannelCount; channelIndex++)
+                        for (int channelIndex = 0; channelIndex < channelCount; channelIndex++)
                         {
                             monoTotal += interleavedBuffer[sampleStart + channelIndex];
                         }
 
-                        monoRingBuffer[ringWriteIndex] = (float)(monoTotal / source.ChannelCount);
+                        monoRingBuffer[ringWriteIndex] = (float)(monoTotal / channelCount);
                         ringWriteIndex = (ringWriteIndex + 1) % monoRingBuffer.Length;
                         processedFrameCount++;
                         if (processedFrameCount != nextFeatureFrameEnd)
@@ -166,7 +172,7 @@ namespace PulseForge.AudioAnalysis
                         }
 
                         frames.Add(ExtractFeatureFrame(
-                            source.SampleRate,
+                            sampleRate,
                             processedFrameCount,
                             monoRingBuffer,
                             ringWriteIndex,
@@ -183,7 +189,7 @@ namespace PulseForge.AudioAnalysis
                     processedChunks++;
                 }
 
-                if (offsetFrame < source.FrameCount)
+                if (offsetFrame < frameCount)
                 {
                     return;
                 }
@@ -191,7 +197,7 @@ namespace PulseForge.AudioAnalysis
                 if (frames.Count == 0 && processedFrameCount > 0L)
                 {
                     frames.Add(ExtractPartialFeatureFrame(
-                        source.SampleRate,
+                        sampleRate,
                         processedFrameCount,
                         monoRingBuffer,
                         hannWindow,
@@ -215,8 +221,8 @@ namespace PulseForge.AudioAnalysis
                     result = BuildResult(
                         frames,
                         hopSizeSamples,
-                        source.SampleRate,
-                        source.FrameCount / (double)source.SampleRate,
+                        sampleRate,
+                        frameCount / (double)sampleRate,
                         detectionMode);
                 }
                 return result;

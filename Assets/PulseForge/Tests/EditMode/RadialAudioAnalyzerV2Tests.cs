@@ -131,6 +131,24 @@ namespace PulseForge.Tests.EditMode
             Assert.That(result.qualityReport.frameCount, Is.LessThan(source.FrameCount / 100L));
         }
 
+        [Test]
+        public void CompleteAnalysisDoesNotReadSourceMetadataAfterFeatureExtraction()
+        {
+            MetadataLockingSampleSource source = new MetadataLockingSampleSource(
+                CreateClickTrack(2d, 0.5d),
+                SampleRate,
+                1);
+            RadialAudioAnalyzerV2.AnalysisJob job = RadialAudioAnalyzerV2.BeginAnalyze(source);
+            while (!job.FeatureExtractionComplete)
+            {
+                job.StepFeatureExtraction(1);
+            }
+
+            source.LockMetadata();
+
+            Assert.DoesNotThrow(() => job.CompleteAnalysis());
+        }
+
         private static RadialAudioAnalysisResult Analyze(float[] samples)
         {
             return RadialAudioAnalyzerV2.Analyze(new ArrayAudioSampleSource(samples, SampleRate, 1));
@@ -240,6 +258,51 @@ namespace PulseForge.Tests.EditMode
                     interleavedBuffer,
                     0,
                     checked(frameCount * ChannelCount));
+            }
+        }
+
+        private sealed class MetadataLockingSampleSource : IAudioSampleSource
+        {
+            private readonly float[] samples;
+            private readonly int sampleRate;
+            private readonly int channelCount;
+            private bool metadataLocked;
+
+            public MetadataLockingSampleSource(float[] samples, int sampleRate, int channelCount)
+            {
+                this.samples = samples ?? throw new ArgumentNullException(nameof(samples));
+                this.sampleRate = sampleRate;
+                this.channelCount = channelCount;
+            }
+
+            public int SampleRate => ReadMetadata(sampleRate);
+
+            public int ChannelCount => ReadMetadata(channelCount);
+
+            public long FrameCount => ReadMetadata(samples.Length / channelCount);
+
+            public void LockMetadata()
+            {
+                metadataLocked = true;
+            }
+
+            public void ReadFrames(long startFrame, int frameCount, float[] interleavedBuffer)
+            {
+                Array.Copy(
+                    samples,
+                    checked((int)(startFrame * channelCount)),
+                    interleavedBuffer,
+                    0,
+                    checked(frameCount * channelCount));
+            }
+
+            private T ReadMetadata<T>(T value)
+            {
+                if (metadataLocked)
+                {
+                    throw new InvalidOperationException("Sample metadata was read after feature extraction.");
+                }
+                return value;
             }
         }
 

@@ -1,0 +1,125 @@
+{
+    "totalInputCost": 8,
+    "activeDurationSeconds": 6.25,
+    "overallDensity": 1.28,
+    "longestActiveGapSeconds": 1.2632199546485259,
+    "onsetInputCost": 7,
+    "gridFillInputCost": 1,
+    "onsetToGridFillRatio": 7.0,
+    "sectionDensities": [
+        {
+            "startTimeSeconds": 0.0,
+            "endTimeSeconds": 6.25,
+            "activityLevel": 1,
+            "inputCost": 8,
+            "density": 1.28,
+            "longestGapSeconds": 1.2632199546485259
+        }
+    ],
+    "actionCounts": [
+        {
+            "action": 0,
+            "count": 2
+        },
+        {
+            "action": 1,
+            "count": 6
+        },
+        {
+            "action": 2,
+            "count": 0
+        },
+        {
+            "action": 3,
+            "count": 0
+        }
+    ],
+    "eventTypeCounts": [
+        {
+            "eventType": 0,
+            "count": 8
+        },
+        {
+            "eventType": 1,
+            "count": 0
+        },
+        {
+            "eventType": 2,
+            "count": 0
+        },
+        {
+            "eventType": 3,
+            "count": 0
+        },
+        {
+            "eventType": 4,
+            "count": 0
+        },
+        {
+            "eventType": 5,
+            "count": 0
+        },
+        {
+            "eventType": 6,
+            "count": 0
+        },
+        {
+            "eventType": 7,
+            "count": 0
+        },
+        {
+            "eventType": 8,
+            "count": 0
+        },
+        {
+            "eventType": 9,
+            "count": 0
+        }
+    ],
+    "enemyArchetypeCounts": [
+        {
+            "archetype": 0,
+            "count": 2
+        },
+        {
+            "archetype": 1,
+            "count": 0
+        },
+        {
+            "archetype": 2,
+            "count": 6
+        },
+        {
+            "archetype": 3,
+            "count": 0
+        },
+        {
+            "archetype": 4,
+            "count": 0
+        },
+        {
+            "archetype": 5,
+            "count": 0
+        },
+        {
+            "archetype": 6,
+            "count": 0
+        },
+        {
+            "archetype": 7,
+            "count": 0
+        }
+    ],
+    "sweepCount": 0,
+    "compoundEventCount": 0,
+    "saboteurEncounterCount": 0,
+    "fogFailureEffectCount": 0,
+    "totalFogDurationSeconds": 0.0,
+    "minimumFogDurationSeconds": 0.0,
+    "maximumFogDurationSeconds": 0.0,
+    "repairReasons": [
+        "Active gap filled from beat grid."
+    ],
+    "dropReasons": [],
+    "result": 1
+}

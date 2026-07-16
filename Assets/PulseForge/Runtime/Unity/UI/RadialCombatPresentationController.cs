@@ -323,6 +323,18 @@ namespace PulseForge.Runtime.Unity.UI
                 exclamationVisible,
                 resultState);
             encounterView.ApplyCompoundState(compoundState, requirementData.acceptedActions);
+            bool showTimingWindow = resultState == RadialPresentationResultState.Pending
+                && bodyVisible
+                && requirementData.gestureType != InputGestureType.RepeatedPress
+                && (requirementData.gestureType != InputGestureType.Hold
+                    || !requirement.HasCapturedInput);
+            encounterView.RenderTimingWindow(
+                targetData.direction,
+                songTimeSeconds,
+                requirementData.targetTimeSeconds,
+                requirementData.perfectWindowSeconds,
+                requirementData.goodWindowSeconds,
+                showTimingWindow);
             if (isSaboteur)
             {
                 bool failed = resultState == RadialPresentationResultState.Miss

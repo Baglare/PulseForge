@@ -1,0 +1,549 @@
+{
+    "beatMapCacheVersion": 3,
+    "analyzerVersion": 2,
+    "trackId": "b6c559ae053cda14686717601101f293",
+    "presetId": "editor-v2-amplitude-normal-legacy",
+    "beatMapFingerprint": "51b4d601db3acf1aba716fd55a0e05c48a4a2014bc5f9728dbd06f0618d75440",
+    "createdAtUtc": "2026-07-16T14:22:06.0037761Z",
+    "updatedAtUtc": "2026-07-16T14:22:06.0037761Z",
+    "radialBeatMap": {
+        "schemaVersion": 3,
+        "displayName": "Debug_120BPM",
+        "globalOffsetSeconds": 0.0,
+        "encounters": [
+            {
+                "eventId": "grid-repair-00000",
+                "eventType": 0,
+                "intensity": 0.25,
+                "telegraphLeadSeconds": 0.85,
+                "perfectSpreadSeconds": 0.045,
+                "goodSpreadSeconds": 0.1,
+                "failureEffect": {
+                    "effectType": 0,
+                    "durationSeconds": 0.0,
+                    "revealLeadMultiplier": 1.0,
+                    "minimumVisibleLeadSeconds": 0.0
+                },
+                "requirements": [
+                    {
+                        "requirementId": "grid-repair-00000-input",
+                        "acceptedActions": 2,
+                        "gestureType": 0,
+                        "phase": 0,
+                        "targetTimeSeconds": 1.2632199546485259,
+                        "perfectWindowSeconds": 0.045,
+                        "goodWindowSeconds": 0.1,
+                        "orderIndex": 0,
+                        "isOptional": false,
+                        "exclusive": true,
+                        "holdEndTimeSeconds": 0.0,
+                        "earlyReleaseGraceSeconds": 0.0,
+                        "allowEarlyReleaseAsGood": false,
+                        "autoCompleteAtHoldEnd": true,
+                        "pairedRequirementId": "",
+                        "minimumHoldSeconds": 0.0,
+                        "maximumHoldSeconds": 0.0,
+                        "windowStartTimeSeconds": 0.0,
+                        "perfectDeadlineSeconds": 0.0,
+                        "goodDeadlineSeconds": 0.0,
+                        "requiredPressCount": 0,
+                        "minimumPressIntervalSeconds": 0.0
+                    }
+                ],
+                "targets": [
+                    {
+                        "targetId": "grid-repair-00000-target",
+                        "requirementId": "grid-repair-00000-input",
+                        "direction": 3,
+                        "archetype": 2
+                    }
+                ]
+            },
+            {
+                "eventId": "onset-00000",
+                "eventType": 0,
+                "intensity": 0.7811577320098877,
+                "telegraphLeadSeconds": 0.8686916828155518,
+                "perfectSpreadSeconds": 0.045,
+                "goodSpreadSeconds": 0.1,
+                "failureEffect": {
+                    "effectType": 0,
+                    "durationSeconds": 0.0,
+                    "revealLeadMultiplier": 1.0,
+                    "minimumVisibleLeadSeconds": 0.0
+                },
+                "requirements": [
+                    {
+                        "requirementId": "onset-00000-input",
+                        "acceptedActions": 1,
+                        "gestureType": 0,
+                        "phase": 0,
+                        "targetTimeSeconds": 2.513219954648526,
+                        "perfectWindowSeconds": 0.045,
+                        "goodWindowSeconds": 0.1,
+                        "orderIndex": 0,
+                        "isOptional": false,
+                        "exclusive": true,
+                        "holdEndTimeSeconds": 0.0,
+                        "earlyReleaseGraceSeconds": 0.0,
+                        "allowEarlyReleaseAsGood": false,
+                        "autoCompleteAtHoldEnd": true,
+                        "pairedRequirementId": "",
+                        "minimumHoldSeconds": 0.0,
+                        "maximumHoldSeconds": 0.0,
+                        "windowStartTimeSeconds": 0.0,
+                        "perfectDeadlineSeconds": 0.0,
+                        "goodDeadlineSeconds": 0.0,
+                        "requiredPressCount": 0,
+                        "minimumPressIntervalSeconds": 0.0
+                    }
+                ],
+                "targets": [
+                    {
+                        "targetId": "onset-00000-target-0",
+                        "requirementId": "onset-00000-input",
+                        "direction": 1,
+                        "archetype": 0
+                    }
+                ]
+            },
+            {
+                "eventId": "onset-00001",
+                "eventType": 0,
+                "intensity": 0.7811546325683594,
+                "telegraphLeadSeconds": 0.7742463499307633,
+                "perfectSpreadSeconds": 0.045,
+                "goodSpreadSeconds": 0.1,
+                "failureEffect": {
+                    "effectType": 0,
+                    "durationSeconds": 0.0,
+                    "revealLeadMultiplier": 1.0,
+                    "minimumVisibleLeadSeconds": 0.0
+                },
+                "requirements": [
+                    {
+                        "requirementId": "onset-00001-input",
+                        "acceptedActions": 2,
+                        "gestureType": 0,
+                        "phase": 0,
+                        "targetTimeSeconds": 3.013219954648526,
+                        "perfectWindowSeconds": 0.045,
+                        "goodWindowSeconds": 0.1,
+                        "orderIndex": 0,
+                        "isOptional": false,
+                        "exclusive": true,
+                        "holdEndTimeSeconds": 0.0,
+                        "earlyReleaseGraceSeconds": 0.0,
+                        "allowEarlyReleaseAsGood": false,
+                        "autoCompleteAtHoldEnd": true,
+                        "pairedRequirementId": "",
+                        "minimumHoldSeconds": 0.0,
+                        "maximumHoldSeconds": 0.0,
+                        "windowStartTimeSeconds": 0.0,
+                        "perfectDeadlineSeconds": 0.0,
+                        "goodDeadlineSeconds": 0.0,
+                        "requiredPressCount": 0,
+                        "minimumPressIntervalSeconds": 0.0
+                    }
+                ],
+                "targets": [
+                    {
+                        "targetId": "onset-00001-target-0",
+                        "requirementId": "onset-00001-input",
+                        "direction": 4,
+                        "archetype": 2
+                    }
+                ]
+            },
+            {
+                "eventId": "onset-00002",
+                "eventType": 0,
+                "intensity": 0.9111465215682983,
+                "telegraphLeadSeconds": 0.8713166564702988,
+                "perfectSpreadSeconds": 0.045,
+                "goodSpreadSeconds": 0.1,
+                "failureEffect": {
+                    "effectType": 0,
+                    "durationSeconds": 0.0,
+                    "revealLeadMultiplier": 1.0,
+                    "minimumVisibleLeadSeconds": 0.0
+                },
+                "requirements": [
+                    {
+                        "requirementId": "onset-00002-input",
+                        "acceptedActions": 1,
+                        "gestureType": 0,
+                        "phase": 0,
+                        "targetTimeSeconds": 3.263219954648526,
+                        "perfectWindowSeconds": 0.045,
+                        "goodWindowSeconds": 0.1,
+                        "orderIndex": 0,
+                        "isOptional": false,
+                        "exclusive": true,
+                        "holdEndTimeSeconds": 0.0,
+                        "earlyReleaseGraceSeconds": 0.0,
+                        "allowEarlyReleaseAsGood": false,
+                        "autoCompleteAtHoldEnd": true,
+                        "pairedRequirementId": "",
+                        "minimumHoldSeconds": 0.0,
+                        "maximumHoldSeconds": 0.0,
+                        "windowStartTimeSeconds": 0.0,
+                        "perfectDeadlineSeconds": 0.0,
+                        "goodDeadlineSeconds": 0.0,
+                        "requiredPressCount": 0,
+                        "minimumPressIntervalSeconds": 0.0
+                    }
+                ],
+                "targets": [
+                    {
+                        "targetId": "onset-00002-target-0",
+                        "requirementId": "onset-00002-input",
+                        "direction": 7,
+                        "archetype": 0
+                    }
+                ]
+            },
+            {
+                "eventId": "onset-00003",
+                "eventType": 0,
+                "intensity": 0.9111534953117371,
+                "telegraphLeadSeconds": 0.805191844701767,
+                "perfectSpreadSeconds": 0.045,
+                "goodSpreadSeconds": 0.1,
+                "failureEffect": {
+                    "effectType": 0,
+                    "durationSeconds": 0.0,
+                    "revealLeadMultiplier": 1.0,
+                    "minimumVisibleLeadSeconds": 0.0
+                },
+                "requirements": [
+                    {
+                        "requirementId": "onset-00003-input",
+                        "acceptedActions": 2,
+                        "gestureType": 0,
+                        "phase": 0,
+                        "targetTimeSeconds": 3.763219954648526,
+                        "perfectWindowSeconds": 0.045,
+                        "goodWindowSeconds": 0.1,
+                        "orderIndex": 0,
+                        "isOptional": false,
+                        "exclusive": true,
+                        "holdEndTimeSeconds": 0.0,
+                        "earlyReleaseGraceSeconds": 0.0,
+                        "allowEarlyReleaseAsGood": false,
+                        "autoCompleteAtHoldEnd": true,
+                        "pairedRequirementId": "",
+                        "minimumHoldSeconds": 0.0,
+                        "maximumHoldSeconds": 0.0,
+                        "windowStartTimeSeconds": 0.0,
+                        "perfectDeadlineSeconds": 0.0,
+                        "goodDeadlineSeconds": 0.0,
+                        "requiredPressCount": 0,
+                        "minimumPressIntervalSeconds": 0.0
+                    }
+                ],
+                "targets": [
+                    {
+                        "targetId": "onset-00003-target-0",
+                        "requirementId": "onset-00003-input",
+                        "direction": 1,
+                        "archetype": 2
+                    }
+                ]
+            },
+            {
+                "eventId": "onset-00004",
+                "eventType": 0,
+                "intensity": 0.9111408591270447,
+                "telegraphLeadSeconds": 0.8146159052848816,
+                "perfectSpreadSeconds": 0.045,
+                "goodSpreadSeconds": 0.1,
+                "failureEffect": {
+                    "effectType": 0,
+                    "durationSeconds": 0.0,
+                    "revealLeadMultiplier": 1.0,
+                    "minimumVisibleLeadSeconds": 0.0
+                },
+                "requirements": [
+                    {
+                        "requirementId": "onset-00004-input",
+                        "acceptedActions": 2,
+                        "gestureType": 0,
+                        "phase": 0,
+                        "targetTimeSeconds": 4.263219954648526,
+                        "perfectWindowSeconds": 0.045,
+                        "goodWindowSeconds": 0.1,
+                        "orderIndex": 0,
+                        "isOptional": false,
+                        "exclusive": true,
+                        "holdEndTimeSeconds": 0.0,
+                        "earlyReleaseGraceSeconds": 0.0,
+                        "allowEarlyReleaseAsGood": false,
+                        "autoCompleteAtHoldEnd": true,
+                        "pairedRequirementId": "",
+                        "minimumHoldSeconds": 0.0,
+                        "maximumHoldSeconds": 0.0,
+                        "windowStartTimeSeconds": 0.0,
+                        "perfectDeadlineSeconds": 0.0,
+                        "goodDeadlineSeconds": 0.0,
+                        "requiredPressCount": 0,
+                        "minimumPressIntervalSeconds": 0.0
+                    }
+                ],
+                "targets": [
+                    {
+                        "targetId": "onset-00004-target-0",
+                        "requirementId": "onset-00004-input",
+                        "direction": 3,
+                        "archetype": 2
+                    }
+                ]
+            },
+            {
+                "eventId": "onset-00005",
+                "eventType": 0,
+                "intensity": 0.9111526608467102,
+                "telegraphLeadSeconds": 0.7729567140340805,
+                "perfectSpreadSeconds": 0.045,
+                "goodSpreadSeconds": 0.1,
+                "failureEffect": {
+                    "effectType": 0,
+                    "durationSeconds": 0.0,
+                    "revealLeadMultiplier": 1.0,
+                    "minimumVisibleLeadSeconds": 0.0
+                },
+                "requirements": [
+                    {
+                        "requirementId": "onset-00005-input",
+                        "acceptedActions": 2,
+                        "gestureType": 0,
+                        "phase": 0,
+                        "targetTimeSeconds": 4.763219954648526,
+                        "perfectWindowSeconds": 0.045,
+                        "goodWindowSeconds": 0.1,
+                        "orderIndex": 0,
+                        "isOptional": false,
+                        "exclusive": true,
+                        "holdEndTimeSeconds": 0.0,
+                        "earlyReleaseGraceSeconds": 0.0,
+                        "allowEarlyReleaseAsGood": false,
+                        "autoCompleteAtHoldEnd": true,
+                        "pairedRequirementId": "",
+                        "minimumHoldSeconds": 0.0,
+                        "maximumHoldSeconds": 0.0,
+                        "windowStartTimeSeconds": 0.0,
+                        "perfectDeadlineSeconds": 0.0,
+                        "goodDeadlineSeconds": 0.0,
+                        "requiredPressCount": 0,
+                        "minimumPressIntervalSeconds": 0.0
+                    }
+                ],
+                "targets": [
+                    {
+                        "targetId": "onset-00005-target-0",
+                        "requirementId": "onset-00005-input",
+                        "direction": 6,
+                        "archetype": 2
+                    }
+                ]
+            },
+            {
+                "eventId": "onset-00006",
+                "eventType": 0,
+                "intensity": 0.9111452102661133,
+                "telegraphLeadSeconds": 0.9438546448945999,
+                "perfectSpreadSeconds": 0.045,
+                "goodSpreadSeconds": 0.1,
+                "failureEffect": {
+                    "effectType": 0,
+                    "durationSeconds": 0.0,
+                    "revealLeadMultiplier": 1.0,
+                    "minimumVisibleLeadSeconds": 0.0
+                },
+                "requirements": [
+                    {
+                        "requirementId": "onset-00006-input",
+                        "acceptedActions": 2,
+                        "gestureType": 0,
+                        "phase": 0,
+                        "targetTimeSeconds": 5.263219954648526,
+                        "perfectWindowSeconds": 0.045,
+                        "goodWindowSeconds": 0.1,
+                        "orderIndex": 0,
+                        "isOptional": false,
+                        "exclusive": true,
+                        "holdEndTimeSeconds": 0.0,
+                        "earlyReleaseGraceSeconds": 0.0,
+                        "allowEarlyReleaseAsGood": false,
+                        "autoCompleteAtHoldEnd": true,
+                        "pairedRequirementId": "",
+                        "minimumHoldSeconds": 0.0,
+                        "maximumHoldSeconds": 0.0,
+                        "windowStartTimeSeconds": 0.0,
+                        "perfectDeadlineSeconds": 0.0,
+                        "goodDeadlineSeconds": 0.0,
+                        "requiredPressCount": 0,
+                        "minimumPressIntervalSeconds": 0.0
+                    }
+                ],
+                "targets": [
+                    {
+                        "targetId": "onset-00006-target-0",
+                        "requirementId": "onset-00006-input",
+                        "direction": 7,
+                        "archetype": 2
+                    }
+                ]
+            }
+        ]
+    },
+    "analyzerQuality": {
+        "frameCount": 621,
+        "candidateCount": 10,
+        "lowBandCandidateCount": 0,
+        "midBandCandidateCount": 10,
+        "highBandCandidateCount": 0,
+        "activeDurationSeconds": 4.357890499194847,
+        "silentDurationSeconds": 1.892109500805153,
+        "detectedBpm": 120.0,
+        "tempoConfidence": 0.6304122350704884,
+        "sectionCount": 1,
+        "lowConfidenceCandidateCount": 0,
+        "mediumConfidenceCandidateCount": 5,
+        "highConfidenceCandidateCount": 5,
+        "minimumCandidateConfidence": 0.663286741737374,
+        "averageCandidateConfidence": 0.7633038700553205,
+        "maximumCandidateConfidence": 0.8633131044050992,
+        "longestActiveCandidateGapSeconds": 1.013219954648526,
+        "adaptiveOnsetCandidateCount": 10,
+        "gridCandidateCount": 24,
+        "fftSize": 2048,
+        "hopSizeSamples": 441,
+        "warnings": []
+    },
+    "plannerQuality": {
+        "totalInputCost": 8,
+        "activeDurationSeconds": 6.25,
+        "overallDensity": 1.28,
+        "longestActiveGapSeconds": 1.2632199546485259,
+        "onsetInputCost": 7,
+        "gridFillInputCost": 1,
+        "onsetToGridFillRatio": 7.0,
+        "sectionDensities": [
+            {
+                "startTimeSeconds": 0.0,
+                "endTimeSeconds": 6.25,
+                "activityLevel": 1,
+                "inputCost": 8,
+                "density": 1.28,
+                "longestGapSeconds": 1.2632199546485259
+            }
+        ],
+        "actionCounts": [
+            {
+                "action": 0,
+                "count": 2
+            },
+            {
+                "action": 1,
+                "count": 6
+            },
+            {
+                "action": 2,
+                "count": 0
+            },
+            {
+                "action": 3,
+                "count": 0
+            }
+        ],
+        "eventTypeCounts": [
+            {
+                "eventType": 0,
+                "count": 8
+            },
+            {
+                "eventType": 1,
+                "count": 0
+            },
+            {
+                "eventType": 2,
+                "count": 0
+            },
+            {
+                "eventType": 3,
+                "count": 0
+            },
+            {
+                "eventType": 4,
+                "count": 0
+            },
+            {
+                "eventType": 5,
+                "count": 0
+            },
+            {
+                "eventType": 6,
+                "count": 0
+            },
+            {
+                "eventType": 7,
+                "count": 0
+            },
+            {
+                "eventType": 8,
+                "count": 0
+            },
+            {
+                "eventType": 9,
+                "count": 0
+            }
+        ],
+        "enemyArchetypeCounts": [
+            {
+                "archetype": 0,
+                "count": 2
+            },
+            {
+                "archetype": 1,
+                "count": 0
+            },
+            {
+                "archetype": 2,
+                "count": 6
+            },
+            {
+                "archetype": 3,
+                "count": 0
+            },
+            {
+                "archetype": 4,
+                "count": 0
+            },
+            {
+                "archetype": 5,
+                "count": 0
+            },
+            {
+                "archetype": 6,
+                "count": 0
+            },
+            {
+                "archetype": 7,
+                "count": 0
+            }
+        ],
+        "sweepCount": 0,
+        "compoundEventCount": 0,
+        "saboteurEncounterCount": 0,
+        "fogFailureEffectCount": 0,
+        "totalFogDurationSeconds": 0.0,
+        "minimumFogDurationSeconds": 0.0,
+        "maximumFogDurationSeconds": 0.0,
+        "repairReasons": [
+            "Active gap filled from beat grid."
+        ],
+        "dropReasons": [],
+        "result": 1
+    }
+}

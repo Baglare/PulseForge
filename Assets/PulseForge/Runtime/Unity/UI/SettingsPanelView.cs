@@ -193,6 +193,22 @@ namespace PulseForge.Runtime.Unity.UI
             }
         }
 
+        public void EnsureActionBindingControls(Action<GameObject> registerCreated = null)
+        {
+            Transform content = PanelRoot == null
+                ? null
+                : PanelRoot.transform.Find("Settings Card/Settings Scroll/Viewport/Content");
+            if (content == null) return;
+
+            List<Button> orderedButtons = new List<Button>(5);
+            EnsureBindingControl(content, "Guard", null, ref guardBinding, orderedButtons, registerCreated);
+            EnsureBindingControl(content, "Light Attack", "Strike", ref strikeBinding, orderedButtons, registerCreated);
+            EnsureBindingControl(content, "Dodge", null, ref dodgeBinding, orderedButtons, registerCreated);
+            EnsureBindingControl(content, "Heavy Attack", null, ref heavyAttackBinding, orderedButtons, registerCreated);
+            EnsureBindingControl(content, "Pause", null, ref pauseBinding, orderedButtons, registerCreated);
+            rebindButtons = orderedButtons.ToArray();
+        }
+
         public void Bind(DebugRhythmPrototypeController value)
         {
             if (controller == value) return;
@@ -206,11 +222,11 @@ namespace PulseForge.Runtime.Unity.UI
             beatmapOffset.onEndEdit.AddListener(controller.SetDraftBeatmapOffsetMilliseconds);
             inputOffset.onEndEdit.AddListener(controller.SetDraftInputOffsetMilliseconds);
             BindOptions();
-            PulseForgeUIFactory.BindButton(rebindButtons[0], () => controller.BeginDraftRebind(PulseForgeInputAction.Guard));
-            PulseForgeUIFactory.BindButton(rebindButtons[1], () => controller.BeginDraftRebind(PulseForgeInputAction.LightAttack));
-            PulseForgeUIFactory.BindButton(rebindButtons[2], () => controller.BeginDraftRebind(PulseForgeInputAction.Dodge));
-            PulseForgeUIFactory.BindButton(rebindButtons[3], () => controller.BeginDraftRebind(PulseForgeInputAction.HeavyAttack));
-            PulseForgeUIFactory.BindButton(rebindButtons[4], () => controller.BeginDraftRebind(PulseForgeInputAction.Pause));
+            PulseForgeUIFactory.BindButton(GetRebindButton(0), () => controller.BeginDraftRebind(PulseForgeInputAction.Guard));
+            PulseForgeUIFactory.BindButton(GetRebindButton(1), () => controller.BeginDraftRebind(PulseForgeInputAction.LightAttack));
+            PulseForgeUIFactory.BindButton(GetRebindButton(2), () => controller.BeginDraftRebind(PulseForgeInputAction.Dodge));
+            PulseForgeUIFactory.BindButton(GetRebindButton(3), () => controller.BeginDraftRebind(PulseForgeInputAction.HeavyAttack));
+            PulseForgeUIFactory.BindButton(GetRebindButton(4), () => controller.BeginDraftRebind(PulseForgeInputAction.Pause));
             PulseForgeUIFactory.BindButton(resetBindingsButton, controller.ResetDraftBindings);
             PulseForgeUIFactory.BindButton(cancelRebindButton, controller.CancelDraftRebind);
             PulseForgeUIFactory.BindButton(applyButton, controller.ApplySettingsDraft);
@@ -301,6 +317,77 @@ namespace PulseForge.Runtime.Unity.UI
                 if (added[i] != null && !combined.Contains(added[i])) combined.Add(added[i]);
             }
             return combined.ToArray();
+        }
+
+        private Button GetRebindButton(int index)
+        {
+            return rebindButtons == null || index < 0 || index >= rebindButtons.Length
+                ? null
+                : rebindButtons[index];
+        }
+
+        private static void EnsureBindingControl(
+            Transform content,
+            string label,
+            string legacyLabel,
+            ref Text binding,
+            List<Button> orderedButtons,
+            Action<GameObject> registerCreated)
+        {
+            Transform row = content.Find(label + " Row");
+            if (row == null && !string.IsNullOrEmpty(legacyLabel))
+            {
+                row = content.Find(legacyLabel + " Row");
+            }
+
+            if (row == null)
+            {
+                List<Button> addedButtons = new List<Button>(1);
+                binding = AddBindingRow(content, label, addedButtons);
+                row = content.Find(label + " Row");
+                Transform pauseRow = content.Find("Pause Row");
+                if (row != null && pauseRow != null && label != "Pause")
+                {
+                    row.SetSiblingIndex(pauseRow.GetSiblingIndex());
+                }
+                if (row != null) registerCreated?.Invoke(row.gameObject);
+            }
+
+            if (row == null)
+            {
+                orderedButtons.Add(null);
+                return;
+            }
+
+            Transform bindingTransform = row.Find("Binding");
+            binding = bindingTransform == null ? null : bindingTransform.GetComponent<Text>();
+            if (binding == null)
+            {
+                binding = PulseForgeUIFactory.CreateText(
+                    "Binding",
+                    row,
+                    string.Empty,
+                    16,
+                    PulseForgeUITheme.PrimaryText,
+                    TextAnchor.MiddleCenter,
+                    FontStyle.Bold);
+                registerCreated?.Invoke(binding.gameObject);
+            }
+
+            Transform buttonTransform = row.Find("Rebind");
+            Button button = buttonTransform == null ? null : buttonTransform.GetComponent<Button>();
+            if (button == null)
+            {
+                button = PulseForgeUIFactory.CreateButton(
+                    "Rebind",
+                    row,
+                    "Rebind",
+                    PulseForgeUITheme.SecondaryText,
+                    15);
+                PulseForgeUIFactory.SetLayoutWidth(button, 150f);
+                registerCreated?.Invoke(button.gameObject);
+            }
+            orderedButtons.Add(button);
         }
 
         private static void UnbindButtons(Button[] buttons)

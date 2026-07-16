@@ -57,6 +57,8 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgeGameplayFeedbackSetup.Apply(root);
             RadialSaboteurFogSetup.Apply(root);
             PulseForgeGameModesUISetup.Apply(root);
+            root.ProcessingPanel?.EnsureV2Stages();
+            root.ReadyPanel?.EnsureV2SummaryFields();
             root.SetEnableMotion(controller.MotionEnabledSetting);
             EventSystem eventSystem = EnsureEventSystem(root, UsedRuntimeFallback);
             root.AssignEventSystem(eventSystem);
