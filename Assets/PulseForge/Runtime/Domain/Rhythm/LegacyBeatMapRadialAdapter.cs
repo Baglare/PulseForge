@@ -16,7 +16,7 @@ namespace PulseForge.Domain.Rhythm
 
             RadialBeatMapData beatMap = new RadialBeatMapData
             {
-                schemaVersion = 3,
+                schemaVersion = 4,
                 displayName = displayName ?? string.Empty
             };
 

@@ -40,8 +40,9 @@ namespace PulseForge.Tests.EditMode
         {
             RadialBeatMapData beatMap = CreateBeatMap();
             object wrapper = CreateRuntimeObject("RadialBeatMapCacheData");
-            SetField(wrapper, "beatMapCacheVersion", 3);
+            SetField(wrapper, "beatMapCacheVersion", 4);
             SetField(wrapper, "analyzerVersion", 2);
+            SetField(wrapper, "plannerVersion", 4);
             SetField(wrapper, "trackId", "track");
             SetField(wrapper, "presetId", "preset");
             SetField(wrapper, "beatMapFingerprint", RadialBeatMapFingerprint.Compute(beatMap));
@@ -174,7 +175,7 @@ namespace PulseForge.Tests.EditMode
         {
             object store = CreateStore();
             object track = CreateTrack("track", 1);
-            object preset = CreatePreset("preset", 2, 2);
+            object preset = CreatePreset("preset", 2, 3, 3);
 
             Assert.That(GetCacheStatus(store, track, preset), Is.EqualTo("NeedsRebuild"));
         }
@@ -243,23 +244,28 @@ namespace PulseForge.Tests.EditMode
         }
 
         [Test]
-        public void PresetKeyIncludesAnalysisAxesButIgnoresGameMode()
+        public void PresetKeyIncludesCoverageAndVersionsButIgnoresGameMode()
         {
             Type normalizer = RuntimeType("SaveDataNormalizer");
             MethodInfo createKey = normalizer.GetMethod(
                 "PresetKey",
-                new[] { typeof(string), typeof(string), typeof(string), typeof(int), typeof(string) });
+                new[]
+                {
+                    typeof(string), typeof(string), typeof(string), typeof(string),
+                    typeof(int), typeof(int), typeof(string)
+                });
             string standard = (string)createKey.Invoke(
                 null,
-                new object[] { "Onset", "Hard", "Aggressive", 2, "Standard" });
+                new object[] { "Onset", "Hard", "Aggressive", "FullPulse", 2, 4, "Standard" });
             string oneLife = (string)createKey.Invoke(
                 null,
-                new object[] { "Onset", "Hard", "Aggressive", 2, "OneLife" });
+                new object[] { "Onset", "Hard", "Aggressive", "FullPulse", 2, 4, "OneLife" });
 
             Assert.That(standard, Does.Contain("ONSET"));
             Assert.That(standard, Does.Contain("HARD"));
             Assert.That(standard, Does.Contain("AGGRESSIVE"));
-            Assert.That(standard, Does.EndWith("A2"));
+            Assert.That(standard, Does.Contain("FULLPULSE"));
+            Assert.That(standard, Does.EndWith("A2|P4"));
             Assert.That(oneLife, Is.EqualTo(standard));
         }
 
@@ -309,12 +315,17 @@ namespace PulseForge.Tests.EditMode
             return track;
         }
 
-        private static object CreatePreset(string presetId, int analyzerVersion, int cacheVersion)
+        private static object CreatePreset(
+            string presetId,
+            int analyzerVersion,
+            int cacheVersion,
+            int plannerVersion = 0)
         {
             object preset = CreateRuntimeObject("SavedTrackPresetData");
             SetField(preset, "presetId", presetId);
             SetField(preset, "analyzerVersion", analyzerVersion);
             SetField(preset, "beatMapCacheVersion", cacheVersion);
+            SetField(preset, "plannerVersion", plannerVersion);
             return preset;
         }
 
@@ -325,7 +336,7 @@ namespace PulseForge.Tests.EditMode
         {
             track = CreateTrack("track", 1);
             SetField(track, "cachedAudioRelativePath", write.AudioRelativePath);
-            preset = CreatePreset("preset", 2, 3);
+            preset = CreatePreset("preset", 2, 4, 4);
             SetField(preset, "cachedBeatmapRelativePath", write.BeatMapRelativePath);
             SetField(preset, "beatMapFingerprint", write.Fingerprint);
             SetField(preset, "eventCount", 1);
@@ -342,7 +353,7 @@ namespace PulseForge.Tests.EditMode
         {
             return new RadialBeatMapData
             {
-                schemaVersion = 3,
+                schemaVersion = 4,
                 displayName = "Fixture",
                 encounters = new List<RadialEncounterEventData>
                 {

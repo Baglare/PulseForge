@@ -203,6 +203,49 @@ namespace PulseForge.Runtime.Unity.UI
             return Math.Max(0, requiredCount - Math.Max(0, acceptedCount));
         }
 
+        public static bool UsesGroupTiming(RadialEventType eventType)
+        {
+            return eventType == RadialEventType.Chord
+                || eventType == RadialEventType.Choice
+                || eventType == RadialEventType.OrderedSequence
+                || eventType == RadialEventType.TimedChain
+                || eventType == RadialEventType.SwarmChain
+                || eventType == RadialEventType.BreakTarget
+                || eventType == RadialEventType.Sweep;
+        }
+
+        public static bool ShouldShowIndividualTiming(
+            RadialEventType eventType,
+            InputGestureType gestureType,
+            RhythmInputPhase phase,
+            bool hasCapturedInput)
+        {
+            if (UsesGroupTiming(eventType) || gestureType == InputGestureType.RepeatedPress)
+            {
+                return false;
+            }
+            if (eventType == RadialEventType.GuardHold)
+            {
+                return !hasCapturedInput;
+            }
+            if (eventType == RadialEventType.HeavyChargeRelease)
+            {
+                return phase == RhythmInputPhase.Pressed && !hasCapturedInput;
+            }
+            return true;
+        }
+
+        public static float EvaluateGroupProgress(int completedCount, int totalCount)
+        {
+            if (totalCount <= 0)
+            {
+                return 0f;
+            }
+            return (float)Math.Min(
+                1d,
+                Math.Max(0d, (double)completedCount / totalCount));
+        }
+
         public static int CountDistinctRequirementGroups(
             IReadOnlyList<EncounterTargetRuntime> targets)
         {

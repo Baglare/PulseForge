@@ -406,8 +406,9 @@ namespace PulseForge.Runtime.Unity.UI
                 ? "Analyzer V2"
                 : "Legacy Analyzer";
             string qualityLabel = FormatPlannerResult(preset.plannerResult);
+            string coverage = preset.coverage == "FullPulse" ? "Full Pulse" : preset.coverage;
             string details = "[" + preset.difficulty + "]  [" + preset.combatStyle + "]  ["
-                + preset.detectionMode + "]\n"
+                + coverage + "]  [" + preset.detectionMode + "]\n"
                 + analyzerLabel + "  •  " + preset.eventCount + " encounters  •  "
                 + preset.inputCost + " inputs\n"
                 + qualityLabel + "  •  " + cacheLabel

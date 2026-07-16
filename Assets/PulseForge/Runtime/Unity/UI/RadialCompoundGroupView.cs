@@ -1,4 +1,5 @@
 using PulseForge.Domain.Rhythm;
+using PulseForge.Runtime.Unity.Persistence;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -9,6 +10,7 @@ namespace PulseForge.Runtime.Unity.UI
         private const int LinkCapacity = 8;
 
         [SerializeField] private RectTransform viewRoot;
+        [SerializeField] private CanvasGroup cueCanvasGroup;
         [SerializeField] private Image[] links;
         [SerializeField] private RectTransform indicatorRoot;
         [SerializeField] private Image indicatorBody;
@@ -38,6 +40,7 @@ namespace PulseForge.Runtime.Unity.UI
 
             RadialCompoundGroupView view = root.gameObject.AddComponent<RadialCompoundGroupView>();
             view.viewRoot = root;
+            view.cueCanvasGroup = root.gameObject.AddComponent<CanvasGroup>();
             view.links = new Image[LinkCapacity];
             for (int linkIndex = 0; linkIndex < LinkCapacity; linkIndex++)
             {
@@ -127,6 +130,23 @@ namespace PulseForge.Runtime.Unity.UI
             cachedFirstValue = int.MinValue;
             cachedSecondValue = int.MinValue;
             cachedState = (RadialCompoundLinkState)(-1);
+            cueCanvasGroup.alpha = 1f;
+        }
+
+        public void ApplyCuePriority(
+            RadialCuePriority priority,
+            RadialReadabilityMode readabilityMode)
+        {
+            bool focused = priority == RadialCuePriority.Focused;
+            cueCanvasGroup.alpha = focused
+                ? 1f
+                : readabilityMode == RadialReadabilityMode.Assisted
+                    ? 0.48f
+                    : readabilityMode == RadialReadabilityMode.HighClarity ? 0.62f : 0.76f;
+            float focusedScale = readabilityMode == RadialReadabilityMode.HighClarity
+                ? 1.16f
+                : readabilityMode == RadialReadabilityMode.Assisted ? 1.10f : 1.05f;
+            indicatorRoot.localScale = Vector3.one * (focused ? focusedScale : 1f);
         }
 
         public void SetLink(
@@ -276,6 +296,14 @@ namespace PulseForge.Runtime.Unity.UI
             {
                 viewRoot.anchoredPosition = Vector2.zero;
                 viewRoot.localRotation = Quaternion.identity;
+            }
+            if (cueCanvasGroup != null)
+            {
+                cueCanvasGroup.alpha = 1f;
+            }
+            if (indicatorRoot != null)
+            {
+                indicatorRoot.localScale = Vector3.one;
             }
             if (links != null)
             {

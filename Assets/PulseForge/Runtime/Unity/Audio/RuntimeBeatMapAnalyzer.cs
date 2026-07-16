@@ -445,10 +445,24 @@ namespace PulseForge.Runtime.Unity.Audio
             RuntimeDetectionMode detectionMode,
             RuntimeDifficulty difficulty,
             RuntimeCombatStyle combatStyle)
+            : this(
+                detectionMode,
+                difficulty,
+                combatStyle,
+                DefaultCoverageFor(difficulty))
+        {
+        }
+
+        public RuntimeAudioPipelineSettings(
+            RuntimeDetectionMode detectionMode,
+            RuntimeDifficulty difficulty,
+            RuntimeCombatStyle combatStyle,
+            RuntimeCoverage coverage)
         {
             DetectionMode = detectionMode;
             Difficulty = difficulty;
             CombatStyle = combatStyle;
+            Coverage = coverage;
         }
 
         public static RuntimeAudioPipelineSettings Default
@@ -458,7 +472,8 @@ namespace PulseForge.Runtime.Unity.Audio
                 return new RuntimeAudioPipelineSettings(
                     RuntimeDetectionMode.Onset,
                     RuntimeDifficulty.Normal,
-                    RuntimeCombatStyle.Legacy);
+                    RuntimeCombatStyle.Legacy,
+                    RuntimeCoverage.Standard);
             }
         }
 
@@ -467,6 +482,15 @@ namespace PulseForge.Runtime.Unity.Audio
         public RuntimeDifficulty Difficulty { get; }
 
         public RuntimeCombatStyle CombatStyle { get; }
+
+        public RuntimeCoverage Coverage { get; }
+
+        public static RuntimeCoverage DefaultCoverageFor(RuntimeDifficulty difficulty)
+        {
+            return difficulty == RuntimeDifficulty.Easy
+                ? RuntimeCoverage.Relaxed
+                : RuntimeCoverage.Standard;
+        }
     }
 
     public enum RuntimeDetectionMode
@@ -489,5 +513,12 @@ namespace PulseForge.Runtime.Unity.Audio
         Defensive,
         Aggressive,
         Bursty
+    }
+
+    public enum RuntimeCoverage
+    {
+        Relaxed,
+        Standard,
+        FullPulse
     }
 }

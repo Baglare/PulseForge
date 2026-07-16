@@ -14,17 +14,25 @@ namespace PulseForge.Domain.Rhythm
         private readonly HashSet<long> consumedSequenceIds = new HashSet<long>();
 
         public RadialRhythmSession(IEnumerable<RadialEncounterEventData> encounterData)
+            : this(encounterData, TimingAssistMode.Standard)
+        {
+        }
+
+        public RadialRhythmSession(
+            IEnumerable<RadialEncounterEventData> encounterData,
+            TimingAssistMode timingAssist)
         {
             if (encounterData == null)
             {
                 throw new ArgumentNullException(nameof(encounterData));
             }
 
+            TimingProfile = RadialTimingProfile.FromMode(timingAssist);
             encounters = new List<RadialEncounterRuntime>();
             HashSet<string> encounterIds = new HashSet<string>(StringComparer.Ordinal);
             foreach (RadialEncounterEventData data in encounterData)
             {
-                RadialEncounterRuntime runtime = new RadialEncounterRuntime(data);
+                RadialEncounterRuntime runtime = new RadialEncounterRuntime(data, TimingProfile);
                 if (!encounterIds.Add(runtime.Data.eventId))
                 {
                     throw new ArgumentException("Encounter event ids must be unique.", nameof(encounterData));
@@ -37,6 +45,8 @@ namespace PulseForge.Domain.Rhythm
         }
 
         public IReadOnlyList<RadialEncounterRuntime> Encounters => readOnlyEncounters;
+
+        public RadialTimingProfile TimingProfile { get; }
 
         public int TotalEncounterCount => encounters.Count;
 

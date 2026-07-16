@@ -22,6 +22,8 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private RectTransform healthFill;
         [SerializeField] private Text healthText;
         [SerializeField] private Text oneLifeText;
+        [SerializeField] private RadialUpcomingQueueView upcomingQueueView;
+        [SerializeField] private Text timingAssistText;
 
         private DebugRhythmPrototypeController boundController;
         private bool gameplayFeedbackManaged;
@@ -95,7 +97,50 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgeUIFactory.SetBottom(bottomHud, 270f, 24f, 24f, 20f);
             view.rhythmLaneView = RhythmLaneView.Create(bottomHud);
             view.EnsureGameModeHud();
+            view.EnsurePlayabilityAssistHud();
             return view;
+        }
+
+        public void EnsurePlayabilityAssistHud(Action<GameObject> registerCreated = null)
+        {
+            Transform root = PanelRoot == null ? null : PanelRoot.transform;
+            if (root == null)
+            {
+                return;
+            }
+
+            Transform existingQueue = root.Find("Upcoming Input Queue");
+            if (existingQueue != null)
+            {
+                upcomingQueueView = existingQueue.GetComponent<RadialUpcomingQueueView>();
+            }
+            else
+            {
+                upcomingQueueView = RadialUpcomingQueueView.Create(root);
+                registerCreated?.Invoke(upcomingQueueView.gameObject);
+            }
+
+            Transform existingAssist = root.Find("Timing Assist");
+            if (existingAssist != null)
+            {
+                timingAssistText = existingAssist.GetComponent<Text>();
+                return;
+            }
+
+            timingAssistText = PulseForgeUIFactory.CreateText(
+                "Timing Assist",
+                root,
+                "ASSIST",
+                15,
+                PulseForgeUITheme.Primary,
+                TextAnchor.MiddleCenter,
+                FontStyle.Bold);
+            timingAssistText.rectTransform.anchorMin = new Vector2(0.5f, 1f);
+            timingAssistText.rectTransform.anchorMax = new Vector2(0.5f, 1f);
+            timingAssistText.rectTransform.pivot = new Vector2(0.5f, 1f);
+            timingAssistText.rectTransform.sizeDelta = new Vector2(150f, 28f);
+            timingAssistText.rectTransform.anchoredPosition = new Vector2(0f, -244f);
+            registerCreated?.Invoke(timingAssistText.gameObject);
         }
 
         public void EnsureGameModeHud(Action<GameObject> registerCreated = null)
@@ -184,6 +229,7 @@ namespace PulseForge.Runtime.Unity.UI
         {
             PulseForgeUIFactory.UnbindButton(pauseButton);
             SetGameplayFeedbackManaged(false);
+            upcomingQueueView?.ResetView();
             boundController = null;
         }
 
@@ -217,6 +263,7 @@ namespace PulseForge.Runtime.Unity.UI
             progressFill.offsetMax = Vector2.zero;
             pauseButton.interactable = controller.CanPause;
             RefreshRunStatus(controller);
+            RefreshPlayabilityAssist(controller);
 
             if (!gameplayFeedbackManaged)
             {
@@ -253,6 +300,8 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgeUIValidation.AddMissing(errors, healthFill, "Gameplay HUD: health fill is missing.");
             PulseForgeUIValidation.AddMissing(errors, healthText, "Gameplay HUD: health value is missing.");
             PulseForgeUIValidation.AddMissing(errors, oneLifeText, "Gameplay HUD: One Life indicator is missing.");
+            PulseForgeUIValidation.AddMissing(errors, upcomingQueueView, "Gameplay HUD: upcoming input queue is missing.");
+            PulseForgeUIValidation.AddMissing(errors, timingAssistText, "Gameplay HUD: Timing Assist label is missing.");
             rhythmLaneView?.CollectValidationErrors(errors);
         }
 
@@ -303,6 +352,32 @@ namespace PulseForge.Runtime.Unity.UI
                 oneLifeText.color = controller.IsFailed
                     ? PulseForgeUITheme.Miss
                     : PulseForgeUITheme.Primary;
+            }
+        }
+
+        private void RefreshPlayabilityAssist(DebugRhythmPrototypeController controller)
+        {
+            upcomingQueueView?.Refresh(controller);
+            if (timingAssistText == null)
+            {
+                return;
+            }
+
+            switch (controller.SelectedTimingAssist)
+            {
+                case TimingAssistMode.Relaxed:
+                    timingAssistText.gameObject.SetActive(true);
+                    timingAssistText.text = "ASSIST";
+                    timingAssistText.color = PulseForgeUITheme.Primary;
+                    break;
+                case TimingAssistMode.Practice:
+                    timingAssistText.gameObject.SetActive(true);
+                    timingAssistText.text = "PRACTICE";
+                    timingAssistText.color = PulseForgeUITheme.Perfect;
+                    break;
+                default:
+                    timingAssistText.gameObject.SetActive(false);
+                    break;
             }
         }
 

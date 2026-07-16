@@ -15,6 +15,21 @@ namespace PulseForge.BeatMapGeneration
             BeatMapDifficulty difficulty,
             uint deterministicSeed = 1u)
         {
+            return ValidateAndRepair(
+                beatMap,
+                analysis,
+                difficulty,
+                PlannerRules.DefaultCoverage(difficulty),
+                deterministicSeed);
+        }
+
+        public BeatMapValidationReport ValidateAndRepair(
+            RadialBeatMapData beatMap,
+            RadialAudioAnalysisResult analysis,
+            BeatMapDifficulty difficulty,
+            CoverageMode coverage,
+            uint deterministicSeed = 1u)
+        {
             if (beatMap == null)
             {
                 throw new ArgumentNullException(nameof(beatMap));
@@ -42,13 +57,13 @@ namespace PulseForge.BeatMapGeneration
             ReserveHeavyIntervals(beatMap, report);
             EnforceHoldOverlapRules(beatMap, difficulty, report);
             EnforceTwoActionLimit(beatMap, report);
-            EnforceRecoveryAndWindowDensity(beatMap, difficulty, report);
+            EnforceRecoveryAndWindowDensity(beatMap, difficulty, coverage, report);
             RepairDirections(beatMap, deterministicSeed, report);
-            FillActiveGaps(beatMap, analysis, difficulty, deterministicSeed, report);
+            FillActiveGaps(beatMap, analysis, difficulty, coverage, deterministicSeed, report);
             RepairDirections(beatMap, deterministicSeed, report);
             EnsureUniqueIds(beatMap, report);
             beatMap.encounters.Sort(CompareEncounterTime);
-            EvaluateCoverage(beatMap, analysis, difficulty, report);
+            EvaluateCoverage(beatMap, analysis, coverage, report);
             return report;
         }
 
@@ -745,6 +760,7 @@ namespace PulseForge.BeatMapGeneration
         private static void EnforceRecoveryAndWindowDensity(
             RadialBeatMapData beatMap,
             BeatMapDifficulty difficulty,
+            CoverageMode coverage,
             BeatMapValidationReport report)
         {
             beatMap.encounters.Sort(CompareEncounterTime);
@@ -763,7 +779,7 @@ namespace PulseForge.BeatMapGeneration
                 report.dropReasons.Add("Encounter below the difficulty recovery interval dropped.");
             }
 
-            int maximumCost = (int)Math.Ceiling(PlannerRules.MaximumDensity(difficulty) * 5d);
+            int maximumCost = (int)Math.Ceiling(PlannerRules.MaximumDensity(coverage) * 5d);
             bool dropped;
             do
             {
@@ -843,6 +859,26 @@ namespace PulseForge.BeatMapGeneration
             for (int encounterIndex = 0; encounterIndex < beatMap.encounters.Count; encounterIndex++)
             {
                 RadialEncounterEventData encounter = beatMap.encounters[encounterIndex];
+                if (encounterIndex > 0 && encounter.targets.Count > 0)
+                {
+                    RadialEncounterEventData earlier = beatMap.encounters[encounterIndex - 1];
+                    double interval = RadialEncounterPlanner.FirstRequirementTime(encounter)
+                        - RadialEncounterPlanner.FirstRequirementTime(earlier);
+                    if (earlier.targets.Count > 0
+                        && interval >= 0d
+                        && interval < 0.60d
+                        && CircularDistance(
+                            (int)earlier.targets[0].direction,
+                            (int)encounter.targets[0].direction) > 3)
+                    {
+                        int offset = 1 + random.NextInt(3);
+                        int sign = random.NextInt(2) == 0 ? -1 : 1;
+                        int direction = ((int)earlier.targets[0].direction + (sign * offset) + 8) % 8;
+                        encounter.targets[0].direction = (RadialDirection)direction;
+                        report.angularRepairCount++;
+                        report.repairReasons.Add("Rapid angular jump reduced to 135 degrees or less.");
+                    }
+                }
                 HashSet<RadialDirection> occupied = new HashSet<RadialDirection>();
                 for (int targetIndex = 0; targetIndex < encounter.targets.Count; targetIndex++)
                 {
@@ -965,6 +1001,7 @@ namespace PulseForge.BeatMapGeneration
             RadialBeatMapData beatMap,
             RadialAudioAnalysisResult analysis,
             BeatMapDifficulty difficulty,
+            CoverageMode coverage,
             uint seed,
             BeatMapValidationReport report)
         {
@@ -987,7 +1024,7 @@ namespace PulseForge.BeatMapGeneration
                 {
                     List<double> times = GetInputTimes(beatMap, section);
                     FindLargestGap(times, section, out double gapStart, out double gapEnd);
-                    if (gapEnd - gapStart <= PlannerRules.MaximumGap(difficulty) + SimultaneousTolerance)
+                    if (gapEnd - gapStart <= PlannerRules.MaximumGap(coverage) + SimultaneousTolerance)
                     {
                         break;
                     }
@@ -999,7 +1036,8 @@ namespace PulseForge.BeatMapGeneration
                         gapEnd,
                         analysis,
                         beatMap,
-                        difficulty);
+                        difficulty,
+                        coverage);
                     added = !double.IsNaN(gridTime);
                     if (added)
                     {
@@ -1048,7 +1086,8 @@ namespace PulseForge.BeatMapGeneration
             double gapEnd,
             RadialAudioAnalysisResult analysis,
             RadialBeatMapData beatMap,
-            BeatMapDifficulty difficulty)
+            BeatMapDifficulty difficulty,
+            CoverageMode coverage)
         {
             double best = double.NaN;
             double bestDistance = double.MaxValue;
@@ -1058,7 +1097,7 @@ namespace PulseForge.BeatMapGeneration
                 if (time <= gapStart + PlannerRules.MinimumRecovery(difficulty)
                     || time >= gapEnd - PlannerRules.MinimumRecovery(difficulty)
                     || IsSilentTime(analysis, time)
-                    || !CanPlaceFillerAt(beatMap, time, difficulty))
+                    || !CanPlaceFillerAt(beatMap, time, difficulty, coverage))
                 {
                     continue;
                 }
@@ -1075,7 +1114,8 @@ namespace PulseForge.BeatMapGeneration
         private static bool CanPlaceFillerAt(
             RadialBeatMapData beatMap,
             double time,
-            BeatMapDifficulty difficulty)
+            BeatMapDifficulty difficulty,
+            CoverageMode coverage)
         {
             int cost = 1;
             double recovery = PlannerRules.MinimumRecovery(difficulty);
@@ -1091,13 +1131,13 @@ namespace PulseForge.BeatMapGeneration
                     cost += PlannerQualityReportBuilder.InputCost(beatMap.encounters[i]);
                 }
             }
-            return cost <= Math.Ceiling(PlannerRules.MaximumDensity(difficulty) * 5d);
+            return cost <= Math.Ceiling(PlannerRules.MaximumDensity(coverage) * 5d);
         }
 
         private static void EvaluateCoverage(
             RadialBeatMapData beatMap,
             RadialAudioAnalysisResult analysis,
-            BeatMapDifficulty difficulty,
+            CoverageMode coverage,
             BeatMapValidationReport report)
         {
             for (int i = 0; i < analysis.sections.Count; i++)
@@ -1112,8 +1152,8 @@ namespace PulseForge.BeatMapGeneration
                 double density = cost / (section.endTimeSeconds - section.startTimeSeconds);
                 List<double> times = GetInputTimes(beatMap, section);
                 FindLargestGap(times, section, out double gapStart, out double gapEnd);
-                if (density + SimultaneousTolerance < PlannerRules.MinimumDensity(difficulty) * 0.90d
-                    || gapEnd - gapStart > PlannerRules.MaximumGap(difficulty) + 0.05d)
+                if (density + SimultaneousTolerance < PlannerRules.MinimumDensity(coverage) * 0.90d
+                    || gapEnd - gapStart > PlannerRules.MaximumGap(coverage) + 0.05d)
                 {
                     report.underCovered = true;
                 }

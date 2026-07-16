@@ -9,6 +9,46 @@ namespace PulseForge.Domain.Rhythm
         public const double GoodWindowSeconds = 0.100d;
     }
 
+    public enum TimingAssistMode
+    {
+        Standard,
+        Relaxed,
+        Practice
+    }
+
+    public readonly struct RadialTimingProfile
+    {
+        private RadialTimingProfile(
+            TimingAssistMode mode,
+            double perfectWindowSeconds,
+            double goodWindowSeconds)
+        {
+            Mode = mode;
+            PerfectWindowSeconds = perfectWindowSeconds;
+            GoodWindowSeconds = goodWindowSeconds;
+        }
+
+        public TimingAssistMode Mode { get; }
+        public double PerfectWindowSeconds { get; }
+        public double GoodWindowSeconds { get; }
+
+        public static RadialTimingProfile FromMode(TimingAssistMode mode)
+        {
+            switch (mode)
+            {
+                case TimingAssistMode.Relaxed:
+                    return new RadialTimingProfile(mode, 0.065d, 0.140d);
+                case TimingAssistMode.Practice:
+                    return new RadialTimingProfile(mode, 0.090d, 0.200d);
+                default:
+                    return new RadialTimingProfile(
+                        TimingAssistMode.Standard,
+                        RadialTimingDefaults.PerfectWindowSeconds,
+                        RadialTimingDefaults.GoodWindowSeconds);
+            }
+        }
+    }
+
     public enum RadialEventType
     {
         Tap,
@@ -84,7 +124,7 @@ namespace PulseForge.Domain.Rhythm
     [Serializable]
     public sealed class RadialBeatMapData
     {
-        public int schemaVersion = 3;
+        public int schemaVersion = 4;
         public string displayName = string.Empty;
         public double globalOffsetSeconds;
         public List<RadialEncounterEventData> encounters = new List<RadialEncounterEventData>();

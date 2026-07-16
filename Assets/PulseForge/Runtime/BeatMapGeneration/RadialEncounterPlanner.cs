@@ -15,6 +15,21 @@ namespace PulseForge.BeatMapGeneration
             CombatStyle combatStyle,
             string deterministicSeed)
         {
+            return Plan(
+                analysis,
+                difficulty,
+                combatStyle,
+                PlannerRules.DefaultCoverage(difficulty),
+                deterministicSeed);
+        }
+
+        public RadialEncounterPlanResult Plan(
+            RadialAudioAnalysisResult analysis,
+            BeatMapDifficulty difficulty,
+            CombatStyle combatStyle,
+            CoverageMode coverage,
+            string deterministicSeed)
+        {
             if (analysis == null)
             {
                 throw new ArgumentNullException(nameof(analysis));
@@ -28,7 +43,7 @@ namespace PulseForge.BeatMapGeneration
             }
 
             string seed = deterministicSeed ?? string.Empty;
-            List<PlannedCue> cues = BuildCueBudget(analysis, difficulty, seed);
+            List<PlannedCue> cues = BuildCueBudget(analysis, difficulty, coverage, seed);
             StableRandom structureRandom = new StableRandom(StableHash(seed + "|structure"));
             StableRandom actionRandom = new StableRandom(StableHash(seed + "|actions"));
             List<RadialEncounterEventData> encounters = BuildEncounters(
@@ -36,6 +51,7 @@ namespace PulseForge.BeatMapGeneration
                 cues,
                 difficulty,
                 combatStyle,
+                coverage,
                 structureRandom,
                 actionRandom);
 
@@ -50,7 +66,7 @@ namespace PulseForge.BeatMapGeneration
 
             RadialBeatMapData beatMap = new RadialBeatMapData
             {
-                schemaVersion = 3,
+                schemaVersion = 4,
                 displayName = deterministicSeed ?? string.Empty,
                 encounters = encounters
             };
@@ -60,12 +76,14 @@ namespace PulseForge.BeatMapGeneration
                 beatMap,
                 analysis,
                 difficulty,
+                coverage,
                 StableHash(seed + "|repair"));
 
             PlannerQualityReport quality = PlannerQualityReportBuilder.Build(
                 beatMap,
                 analysis,
                 difficulty,
+                coverage,
                 validation);
             return new RadialEncounterPlanResult
             {
@@ -77,6 +95,7 @@ namespace PulseForge.BeatMapGeneration
         private static List<PlannedCue> BuildCueBudget(
             RadialAudioAnalysisResult analysis,
             BeatMapDifficulty difficulty,
+            CoverageMode coverage,
             string seed)
         {
             List<PlannedCue> result = new List<PlannedCue>();
@@ -99,29 +118,45 @@ namespace PulseForge.BeatMapGeneration
                 double duration = section.endTimeSeconds - section.startTimeSeconds;
                 double activity = Clamp01(section.activity);
                 double targetDensity = Lerp(
-                    PlannerRules.MinimumDensity(difficulty),
-                    PlannerRules.MaximumDensity(difficulty),
+                    PlannerRules.MinimumDensity(coverage),
+                    PlannerRules.MaximumDensity(coverage),
                     activity);
                 int targetCost = Math.Max(1, (int)Math.Round(duration * targetDensity));
                 List<OnsetCandidateData> candidates = GetSectionCandidates(analysis, section);
                 candidates.Sort(CompareCandidatePriority);
 
-                double confidenceFloor = difficulty == BeatMapDifficulty.Easy
-                    ? 0.55d
-                    : difficulty == BeatMapDifficulty.Hard ? 0.28d : 0.40d;
                 List<PlannedCue> selected = new List<PlannedCue>();
+                if (coverage == CoverageMode.FullPulse
+                    && (section.activityLevel == SongSectionActivityLevel.Active
+                        || section.activityLevel == SongSectionActivityLevel.Peak))
+                {
+                    AddFullPulseGrid(
+                        selected,
+                        analysis,
+                        section,
+                        sectionIndex,
+                        difficulty,
+                        coverage);
+                }
+
+                double confidenceFloor = coverage == CoverageMode.Relaxed
+                    ? 0.55d
+                    : coverage == CoverageMode.FullPulse ? 0.45d : 0.40d;
                 for (int i = 0; i < candidates.Count && selected.Count < targetCost; i++)
                 {
                     OnsetCandidateData candidate = candidates[i];
                     if (candidate.confidence + TimeTolerance < confidenceFloor
-                        || !CanAddCue(selected, candidate.timeSeconds, difficulty))
+                        || !TryLockCandidateTime(candidate, gridTimes, out double lockedTime)
+                        || lockedTime < section.startTimeSeconds
+                        || lockedTime >= section.endTimeSeconds
+                        || !CanAddCue(selected, lockedTime, difficulty, coverage))
                     {
                         continue;
                     }
 
                     selected.Add(new PlannedCue
                     {
-                        TimeSeconds = candidate.timeSeconds,
+                        TimeSeconds = lockedTime,
                         Confidence = Clamp01(candidate.confidence),
                         Bands = candidate.supportingBands,
                         IsGridFill = false,
@@ -139,6 +174,7 @@ namespace PulseForge.BeatMapGeneration
                         section,
                         sectionIndex,
                         difficulty,
+                        coverage,
                         targetCost);
                     FillBudget(
                         selected,
@@ -146,6 +182,7 @@ namespace PulseForge.BeatMapGeneration
                         section,
                         sectionIndex,
                         difficulty,
+                        coverage,
                         targetCost,
                         StableHash(seed + "|section|" + sectionIndex));
                 }
@@ -163,10 +200,17 @@ namespace PulseForge.BeatMapGeneration
             List<PlannedCue> cues,
             BeatMapDifficulty difficulty,
             CombatStyle style,
+            CoverageMode coverage,
             StableRandom structureRandom,
             StableRandom actionRandom)
         {
             List<RadialEncounterEventData> encounters = new List<RadialEncounterEventData>();
+            double compoundRatio = PlannerRules.MaximumCompoundRatio(difficulty, coverage);
+            int compoundBudget = coverage == CoverageMode.FullPulse
+                ? 0
+                : Math.Max(0, (int)Math.Floor(
+                    (cues.Count * compoundRatio) / (1d + (5d * compoundRatio))));
+            int compoundCount = 0;
             int eventIndex = 0;
             for (int i = 0; i < cues.Count;)
             {
@@ -176,19 +220,24 @@ namespace PulseForge.BeatMapGeneration
 
                 if (section.activityLevel == SongSectionActivityLevel.Peak
                     && clusterCount >= 4
+                    && compoundCount < compoundBudget
                     && structureRandom.NextDouble() < 0.42d)
                 {
                     int count = Math.Min(6, clusterCount);
                     encounters.Add(CreateBreakTarget(cues, i, count, eventIndex++, difficulty, actionRandom));
+                    compoundCount++;
                     i += count;
                     continue;
                 }
 
-                if (clusterCount >= 3 && structureRandom.NextDouble() < 0.42d)
+                if (clusterCount >= 3
+                    && compoundCount < compoundBudget
+                    && structureRandom.NextDouble() < 0.42d)
                 {
                     int count = Math.Min(4, clusterCount);
                     bool swarm = style == CombatStyle.Bursty || cue.Bands == AudioBandMask.High;
                     encounters.Add(CreateChain(cues, i, count, eventIndex++, swarm, difficulty, actionRandom));
+                    compoundCount++;
                     i += count;
                     continue;
                 }
@@ -197,6 +246,7 @@ namespace PulseForge.BeatMapGeneration
                     && cues[i + 1].TimeSeconds - cue.TimeSeconds >= 0.20d
                     && cues[i + 1].TimeSeconds - cue.TimeSeconds <= 0.55d
                     && IsLowOrMidEmphasis(cue)
+                    && compoundCount < compoundBudget
                     && structureRandom.NextDouble() < 0.24d)
                 {
                     bool useHeavy = HeavyWeight(style) > 0
@@ -204,30 +254,47 @@ namespace PulseForge.BeatMapGeneration
                     encounters.Add(useHeavy
                         ? CreateHeavy(cue, cues[i + 1], eventIndex++, difficulty, actionRandom)
                         : CreateOrderedSequence(cue, cues[i + 1], eventIndex++, style, difficulty, actionRandom));
+                    compoundCount++;
                     i += 2;
                     continue;
                 }
 
                 if (i + 1 < cues.Count
                     && cues[i + 1].TimeSeconds - cue.TimeSeconds <= 0.32d
+                    && compoundCount < compoundBudget
                     && structureRandom.NextDouble() < 0.30d)
                 {
                     bool chord = cues[i + 1].TimeSeconds - cue.TimeSeconds <= 0.16d;
                     encounters.Add(chord
                         ? CreateChord(cue, cues[i + 1], eventIndex++, style, difficulty, actionRandom)
                         : CreateOrderedSequence(cue, cues[i + 1], eventIndex++, style, difficulty, actionRandom));
+                    compoundCount++;
                     i += 2;
                     continue;
                 }
 
-                if (CanCreateHold(analysis, cues, i, difficulty) && structureRandom.NextDouble() < 0.20d)
+                if (compoundCount < compoundBudget
+                    && CanCreateHold(analysis, cues, i, difficulty)
+                    && structureRandom.NextDouble() < 0.20d)
                 {
                     encounters.Add(CreateHold(analysis, cues, i, eventIndex++, difficulty, actionRandom));
+                    compoundCount++;
                     i++;
                     continue;
                 }
 
-                encounters.Add(CreateSingle(cue, eventIndex++, style, difficulty, actionRandom));
+                RadialEncounterEventData single = CreateSingle(
+                    cue,
+                    eventIndex++,
+                    style,
+                    difficulty,
+                    actionRandom,
+                    coverage == CoverageMode.FullPulse || compoundCount >= compoundBudget);
+                encounters.Add(single);
+                if (single.eventType != RadialEventType.Tap)
+                {
+                    compoundCount++;
+                }
                 i++;
             }
 
@@ -240,11 +307,12 @@ namespace PulseForge.BeatMapGeneration
             int eventIndex,
             CombatStyle style,
             BeatMapDifficulty difficulty,
-            StableRandom random)
+            StableRandom random,
+            bool forceTap)
         {
             bool sharpHigh = (cue.Bands & AudioBandMask.High) != 0
                 && (cue.Bands & AudioBandMask.Low) == 0;
-            if (sharpHigh && style != CombatStyle.Legacy && random.NextDouble() < 0.55d)
+            if (!forceTap && sharpHigh && style != CombatStyle.Legacy && random.NextDouble() < 0.55d)
             {
                 RadialEncounterEventData choice = CreateEncounter(
                     EventId(cue, eventIndex),
@@ -266,7 +334,7 @@ namespace PulseForge.BeatMapGeneration
             }
 
             RhythmAction action = ChooseAction(style, cue, random, false);
-            bool sweep = action == RhythmAction.LightAttack
+            bool sweep = !forceTap && action == RhythmAction.LightAttack
                 && random.NextDouble() < SweepChance(style, cue);
             RadialEncounterEventData encounter = CreateEncounter(
                 EventId(cue, eventIndex),
@@ -385,7 +453,7 @@ namespace PulseForge.BeatMapGeneration
             RhythmAction support = style == CombatStyle.Defensive || random.NextDouble() < 0.55d
                 ? RhythmAction.Guard
                 : RhythmAction.Dodge;
-            double target = (firstCue.TimeSeconds + secondCue.TimeSeconds) * 0.5d;
+            double target = firstCue.TimeSeconds;
             encounter.requirements.Add(CreateRequirement(
                 encounter.eventId + "-support",
                 RhythmActionMaskUtility.ToMask(support),
@@ -700,6 +768,11 @@ namespace PulseForge.BeatMapGeneration
             int index,
             BeatMapDifficulty difficulty)
         {
+            if (difficulty == BeatMapDifficulty.Easy)
+            {
+                return false;
+            }
+
             PlannedCue cue = cues[index];
             SongSectionData section = analysis.sections[cue.SectionIndex];
             if (section.activityLevel != SongSectionActivityLevel.Active
@@ -773,6 +846,119 @@ namespace PulseForge.BeatMapGeneration
             return result;
         }
 
+        private static bool TryLockCandidateTime(
+            OnsetCandidateData candidate,
+            List<double> gridTimes,
+            out double lockedTime)
+        {
+            lockedTime = candidate.timeSeconds;
+            double nearest = FindNearestGridTime(gridTimes, candidate.timeSeconds);
+            double deviation = double.IsNaN(nearest)
+                ? double.MaxValue
+                : Math.Abs(nearest - candidate.timeSeconds);
+            if (candidate.confidence >= 0.75d)
+            {
+                if (deviation <= 0.09d + TimeTolerance)
+                {
+                    lockedTime = nearest;
+                }
+                return true;
+            }
+
+            if (candidate.confidence >= 0.45d)
+            {
+                if (deviation <= 0.13d + TimeTolerance)
+                {
+                    lockedTime = nearest;
+                    return true;
+                }
+                return false;
+            }
+
+            if (deviation <= 0.13d + TimeTolerance)
+            {
+                lockedTime = nearest;
+                return true;
+            }
+            return false;
+        }
+
+        private static double FindNearestGridTime(List<double> gridTimes, double time)
+        {
+            double best = double.NaN;
+            double bestDistance = double.MaxValue;
+            for (int i = 0; i < gridTimes.Count; i++)
+            {
+                double distance = Math.Abs(gridTimes[i] - time);
+                if (distance < bestDistance)
+                {
+                    best = gridTimes[i];
+                    bestDistance = distance;
+                }
+            }
+            return best;
+        }
+
+        private static void AddFullPulseGrid(
+            List<PlannedCue> selected,
+            RadialAudioAnalysisResult analysis,
+            SongSectionData section,
+            int sectionIndex,
+            BeatMapDifficulty difficulty,
+            CoverageMode coverage)
+        {
+            if (analysis.beatGrid == null)
+            {
+                return;
+            }
+
+            AddFullPulseGridRange(
+                selected,
+                analysis.beatGrid.beatTimesSeconds,
+                section,
+                sectionIndex,
+                difficulty,
+                coverage);
+            double bpm = analysis.beatGrid.bpm > 0d
+                ? analysis.beatGrid.bpm
+                : analysis.detectedBpm;
+            if (bpm < 90d && section.activity >= 0.65d)
+            {
+                AddFullPulseGridRange(
+                    selected,
+                    analysis.beatGrid.subdivisionTimesSeconds,
+                    section,
+                    sectionIndex,
+                    difficulty,
+                    coverage);
+            }
+        }
+
+        private static void AddFullPulseGridRange(
+            List<PlannedCue> selected,
+            List<double> gridTimes,
+            SongSectionData section,
+            int sectionIndex,
+            BeatMapDifficulty difficulty,
+            CoverageMode coverage)
+        {
+            if (gridTimes == null)
+            {
+                return;
+            }
+            for (int i = 0; i < gridTimes.Count; i++)
+            {
+                double time = gridTimes[i];
+                if (time < section.startTimeSeconds
+                    || time >= section.endTimeSeconds
+                    || !CanAddCue(selected, time, difficulty, coverage))
+                {
+                    continue;
+                }
+                selected.Add(CreateGridCue(time, sectionIndex));
+            }
+        }
+
         private static void AddGridTimes(List<double> destination, List<double> source)
         {
             if (source == null)
@@ -795,9 +981,10 @@ namespace PulseForge.BeatMapGeneration
             SongSectionData section,
             int sectionIndex,
             BeatMapDifficulty difficulty,
+            CoverageMode coverage,
             int targetCost)
         {
-            double maxGap = PlannerRules.MaximumGap(difficulty);
+            double maxGap = PlannerRules.MaximumGap(coverage);
             bool added;
             do
             {
@@ -824,7 +1011,8 @@ namespace PulseForge.BeatMapGeneration
                         desired,
                         section,
                         selected,
-                        difficulty);
+                        difficulty,
+                        coverage);
                     if (gridIndex >= 0)
                     {
                         selected.Add(CreateGridCue(gridTimes[gridIndex], sectionIndex));
@@ -841,6 +1029,7 @@ namespace PulseForge.BeatMapGeneration
             SongSectionData section,
             int sectionIndex,
             BeatMapDifficulty difficulty,
+            CoverageMode coverage,
             int targetCost,
             uint seed)
         {
@@ -863,7 +1052,7 @@ namespace PulseForge.BeatMapGeneration
             }
             for (int i = 0; i < candidates.Count && selected.Count < targetCost; i++)
             {
-                if (CanAddCue(selected, candidates[i], difficulty))
+                if (CanAddCue(selected, candidates[i], difficulty, coverage))
                 {
                     selected.Add(CreateGridCue(candidates[i], sectionIndex));
                 }
@@ -887,7 +1076,8 @@ namespace PulseForge.BeatMapGeneration
             double desired,
             SongSectionData section,
             List<PlannedCue> selected,
-            BeatMapDifficulty difficulty)
+            BeatMapDifficulty difficulty,
+            CoverageMode coverage)
         {
             int best = -1;
             double bestDistance = double.MaxValue;
@@ -896,7 +1086,7 @@ namespace PulseForge.BeatMapGeneration
                 double time = gridTimes[i];
                 if (time < section.startTimeSeconds
                     || time >= section.endTimeSeconds
-                    || !CanAddCue(selected, time, difficulty))
+                    || !CanAddCue(selected, time, difficulty, coverage))
                 {
                     continue;
                 }
@@ -913,10 +1103,11 @@ namespace PulseForge.BeatMapGeneration
         private static bool CanAddCue(
             List<PlannedCue> existing,
             double time,
-            BeatMapDifficulty difficulty)
+            BeatMapDifficulty difficulty,
+            CoverageMode coverage)
         {
             double recovery = PlannerRules.MinimumRecovery(difficulty);
-            double maximumCost = PlannerRules.MaximumDensity(difficulty) * 5d;
+            double maximumCost = PlannerRules.MaximumDensity(coverage) * 5d;
             int windowCost = 0;
             for (int i = 0; i < existing.Count; i++)
             {

@@ -36,6 +36,35 @@ namespace PulseForge.Runtime.Unity.Persistence
             out string beatMapFingerprint,
             out string errorMessage)
         {
+            return TryWriteRadialPresetCache(
+                trackId,
+                presetId,
+                convertedWavPath,
+                beatMap,
+                analyzerQuality,
+                plannerQuality,
+                null,
+                createdAtUtc,
+                out cachedAudioRelativePath,
+                out cachedBeatmapRelativePath,
+                out beatMapFingerprint,
+                out errorMessage);
+        }
+
+        public bool TryWriteRadialPresetCache(
+            string trackId,
+            string presetId,
+            string convertedWavPath,
+            RadialBeatMapData beatMap,
+            AnalyzerQualityReport analyzerQuality,
+            PlannerQualityReport plannerQuality,
+            BeatGridData beatGrid,
+            string createdAtUtc,
+            out string cachedAudioRelativePath,
+            out string cachedBeatmapRelativePath,
+            out string beatMapFingerprint,
+            out string errorMessage)
+        {
             cachedAudioRelativePath = string.Empty;
             cachedBeatmapRelativePath = string.Empty;
             beatMapFingerprint = string.Empty;
@@ -71,6 +100,7 @@ namespace PulseForge.Runtime.Unity.Persistence
                     beatMap,
                     analyzerQuality,
                     plannerQuality,
+                    beatGrid,
                     createdAtUtc);
                 beatMapFingerprint = data.beatMapFingerprint;
 
@@ -187,12 +217,14 @@ namespace PulseForge.Runtime.Unity.Persistence
             }
 
             if (preset.analyzerVersion < SaveDefaults.AnalyzerVersion
+                || preset.plannerVersion < SaveDefaults.PlannerVersion
                 || preset.beatMapCacheVersion < SaveDefaults.RadialBeatMapCacheVersion)
             {
                 return SavedTrackCacheStatus.NeedsRebuild;
             }
 
             if (preset.analyzerVersion != SaveDefaults.AnalyzerVersion
+                || preset.plannerVersion != SaveDefaults.PlannerVersion
                 || preset.beatMapCacheVersion != SaveDefaults.RadialBeatMapCacheVersion
                 || track.audioCacheVersion != SaveDefaults.AudioCacheVersion
                 || string.IsNullOrWhiteSpace(track.cachedAudioRelativePath)

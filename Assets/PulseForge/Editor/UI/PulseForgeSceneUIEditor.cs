@@ -24,7 +24,15 @@ namespace PulseForge.Editor.UI
         private const string ApplyM9D2CompoundVisualMenu = "Tools/PulseForge/UI/Apply M9D.2 Compound Visual Setup";
         private const string ApplyM9E1GameModesMenu = "Tools/PulseForge/UI/Apply M9E.1 Game Modes Setup";
         private const string ApplyM9E2SaboteurFogMenu = "Tools/PulseForge/UI/Apply M9E.2 Saboteur & Fog Setup";
+        private const string ApplyM9F1ForecastMenu = "Tools/PulseForge/UI/Apply M9F.1 Forecast Setup";
+        private const string ApplyM9F2GroupTimingMenu = "Tools/PulseForge/UI/Apply M9F.2 Group Timing Setup";
+        private const string ApplyM9G1CoverageMenu = "Tools/PulseForge/UI/Apply M9G.1 Coverage Setup";
+        private const string ApplyM9G2PlayabilityAssistMenu = "Tools/PulseForge/UI/Apply M9G.2 Playability Assist Setup";
         private const string ValidateMenu = "Tools/PulseForge/UI/Validate Scene UI";
+        private const string ButtonMotionClassIdentifier =
+            "Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion";
+        private const string ButtonMotionScriptPath =
+            "Assets/PulseForge/Runtime/Unity/UI/PulseForgeUIButtonMotion.cs";
 
         [MenuItem(MaterializeMenu)]
         private static void Materialize()
@@ -277,6 +285,9 @@ namespace PulseForge.Editor.UI
             Undo.RegisterFullObjectHierarchyUndo(root.gameObject, "Apply PulseForge M8B.1 Motion Setup");
             Undo.RecordObject(root, "Configure PulseForge M8B.1 Motion");
 
+            int removedInvalidButtonMotionComponents = RemoveInvalidButtonMotionComponents(root);
+            int removedButtonMotionComponents = RemoveButtonMotionComponents(root);
+            int removedMissingScripts = RemoveMissingMonoBehaviours(root.gameObject);
             PulseForgeUIMotionSetup.Apply(
                 root,
                 (gameObject, componentType) => Undo.AddComponent(gameObject, componentType));
@@ -295,8 +306,110 @@ namespace PulseForge.Editor.UI
             EditorGUIUtility.PingObject(root);
             Undo.CollapseUndoOperations(undoGroup);
             Debug.Log(
-                "PulseForge M8B.1 motion setup was applied. The scene is dirty and has not been saved automatically.",
+                "PulseForge M8B.1 motion setup was applied. Removed "
+                    + removedInvalidButtonMotionComponents
+                    + " invalid button motion component(s), "
+                    + removedButtonMotionComponents
+                    + " stale valid button motion component(s), and "
+                    + removedMissingScripts
+                    + " missing script component(s). The scene is dirty and has not been saved automatically.",
                 root);
+        }
+
+        private static int RemoveInvalidButtonMotionComponents(PulseForgeSceneUIRoot root)
+        {
+            if (root == null)
+            {
+                return 0;
+            }
+
+            List<Component> invalidComponents = new List<Component>();
+            Transform[] transforms = root.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < transforms.Length; i++)
+            {
+                SerializedObject gameObjectData = new SerializedObject(transforms[i].gameObject);
+                SerializedProperty components = gameObjectData.FindProperty("m_Component");
+                for (int componentIndex = 0; componentIndex < components.arraySize; componentIndex++)
+                {
+                    SerializedProperty componentReference = components
+                        .GetArrayElementAtIndex(componentIndex)
+                        .FindPropertyRelative("component");
+                    Component component = componentReference.objectReferenceValue as Component;
+                    if (component == null)
+                    {
+                        continue;
+                    }
+
+                    SerializedObject componentData = new SerializedObject(component);
+                    SerializedProperty classIdentifier = componentData.FindProperty("m_EditorClassIdentifier");
+                    if (classIdentifier == null
+                        || classIdentifier.stringValue != ButtonMotionClassIdentifier)
+                    {
+                        continue;
+                    }
+
+                    SerializedProperty script = componentData.FindProperty("m_Script");
+                    string scriptPath = script == null
+                        ? string.Empty
+                        : AssetDatabase.GetAssetPath(script.objectReferenceValue);
+                    if (scriptPath == ButtonMotionScriptPath)
+                    {
+                        continue;
+                    }
+
+                    invalidComponents.Add(component);
+                }
+            }
+
+            for (int i = 0; i < invalidComponents.Count; i++)
+            {
+                Undo.DestroyObjectImmediate(invalidComponents[i]);
+            }
+
+            return invalidComponents.Count;
+        }
+
+        private static int RemoveButtonMotionComponents(PulseForgeSceneUIRoot root)
+        {
+            if (root == null)
+            {
+                return 0;
+            }
+
+            PulseForgeUIButtonMotion[] components =
+                root.GetComponentsInChildren<PulseForgeUIButtonMotion>(true);
+            for (int i = 0; i < components.Length; i++)
+            {
+                Undo.DestroyObjectImmediate(components[i]);
+            }
+
+            return components.Length;
+        }
+
+        private static int RemoveMissingMonoBehaviours(GameObject root)
+        {
+            if (root == null)
+            {
+                return 0;
+            }
+
+            int removedCount = 0;
+            Transform[] transforms = root.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < transforms.Length; i++)
+            {
+                GameObject target = transforms[i].gameObject;
+                int missingCount = GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(target);
+                if (missingCount == 0)
+                {
+                    continue;
+                }
+
+                GameObjectUtility.RemoveMonoBehavioursWithMissingScript(target);
+                EditorUtility.SetDirty(target);
+                removedCount += missingCount;
+            }
+
+            return removedCount;
         }
 
         [MenuItem(ApplyM8B2FeedbackMenu)]
@@ -686,6 +799,242 @@ namespace PulseForge.Editor.UI
             Undo.CollapseUndoOperations(undoGroup);
             Debug.Log(
                 "PulseForge M9E.2 Saboteur & Fog setup was applied. The scene is dirty and has not been saved automatically.",
+                root);
+        }
+
+        [MenuItem(ApplyM9F1ForecastMenu)]
+        private static void ApplyM9F1ForecastSetup()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                EditorUtility.DisplayDialog(
+                    "PulseForge UI",
+                    "M9F.1 Forecast setup can only be applied in Edit Mode.",
+                    "OK");
+                return;
+            }
+
+            Scene activeScene = SceneManager.GetActiveScene();
+            PulseForgeSceneUIRoot[] roots = FindInActiveScene<PulseForgeSceneUIRoot>(activeScene);
+            if (roots.Length != 1)
+            {
+                Debug.LogError(
+                    roots.Length == 0
+                        ? "Apply M9F.1 Forecast Setup requires one PulseForgeSceneUIRoot in the active scene. None was found."
+                        : "Apply M9F.1 Forecast Setup requires exactly one PulseForgeSceneUIRoot in the active scene. "
+                            + roots.Length + " were found.");
+                return;
+            }
+
+            PulseForgeSceneUIRoot root = roots[0];
+            int undoGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName("Apply PulseForge M9F.1 Forecast Setup");
+            Undo.RegisterFullObjectHierarchyUndo(
+                root.gameObject,
+                "Apply PulseForge M9F.1 Forecast Setup");
+            Undo.RecordObject(root, "Configure PulseForge M9F.1 Forecast UI");
+
+            RadialCombatStageView stage = RadialForecastSetup.Apply(
+                root,
+                gameObject => Undo.RegisterCreatedObjectUndo(
+                    gameObject,
+                    "Create PulseForge M9F.1 Forecast UI"),
+                (gameObject, componentType) => Undo.AddComponent(gameObject, componentType));
+
+            Component[] components = root.GetComponentsInChildren<Component>(true);
+            for (int i = 0; i < components.Length; i++)
+            {
+                if (components[i] != null)
+                {
+                    EditorUtility.SetDirty(components[i]);
+                }
+            }
+
+            EditorSceneManager.MarkSceneDirty(activeScene);
+            Selection.activeGameObject = stage == null ? root.gameObject : stage.gameObject;
+            EditorGUIUtility.PingObject(stage == null ? (Object)root : stage);
+            Undo.CollapseUndoOperations(undoGroup);
+            Debug.Log(
+                "PulseForge M9F.1 Forecast setup was applied. The scene is dirty and has not been saved automatically.",
+                root);
+        }
+
+        [MenuItem(ApplyM9F2GroupTimingMenu)]
+        private static void ApplyM9F2GroupTimingSetup()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                EditorUtility.DisplayDialog(
+                    "PulseForge UI",
+                    "M9F.2 Group Timing setup can only be applied in Edit Mode.",
+                    "OK");
+                return;
+            }
+
+            Scene activeScene = SceneManager.GetActiveScene();
+            PulseForgeSceneUIRoot[] roots = FindInActiveScene<PulseForgeSceneUIRoot>(activeScene);
+            if (roots.Length != 1)
+            {
+                Debug.LogError(
+                    roots.Length == 0
+                        ? "Apply M9F.2 Group Timing Setup requires one PulseForgeSceneUIRoot in the active scene. None was found."
+                        : "Apply M9F.2 Group Timing Setup requires exactly one PulseForgeSceneUIRoot in the active scene. "
+                            + roots.Length + " were found.");
+                return;
+            }
+
+            PulseForgeSceneUIRoot root = roots[0];
+            int undoGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName("Apply PulseForge M9F.2 Group Timing Setup");
+            Undo.RegisterFullObjectHierarchyUndo(
+                root.gameObject,
+                "Apply PulseForge M9F.2 Group Timing Setup");
+            Undo.RecordObject(root, "Configure PulseForge M9F.2 Group Timing UI");
+
+            RadialCombatStageView stage = RadialGroupTimingSetup.Apply(
+                root,
+                gameObject => Undo.RegisterCreatedObjectUndo(
+                    gameObject,
+                    "Create PulseForge M9F.2 Group Timing UI"),
+                (gameObject, componentType) => Undo.AddComponent(gameObject, componentType));
+
+            Component[] components = root.GetComponentsInChildren<Component>(true);
+            for (int i = 0; i < components.Length; i++)
+            {
+                if (components[i] != null)
+                {
+                    EditorUtility.SetDirty(components[i]);
+                }
+            }
+
+            EditorSceneManager.MarkSceneDirty(activeScene);
+            Selection.activeGameObject = stage == null ? root.gameObject : stage.gameObject;
+            EditorGUIUtility.PingObject(stage == null ? (Object)root : stage);
+            Undo.CollapseUndoOperations(undoGroup);
+            Debug.Log(
+                "PulseForge M9F.2 Group Timing setup was applied. The scene is dirty and has not been saved automatically.",
+                root);
+        }
+
+        [MenuItem(ApplyM9G1CoverageMenu)]
+        private static void ApplyM9G1CoverageSetup()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                EditorUtility.DisplayDialog(
+                    "PulseForge UI",
+                    "M9G.1 Coverage setup can only be applied in Edit Mode.",
+                    "OK");
+                return;
+            }
+
+            Scene activeScene = SceneManager.GetActiveScene();
+            PulseForgeSceneUIRoot[] roots = FindInActiveScene<PulseForgeSceneUIRoot>(activeScene);
+            if (roots.Length != 1)
+            {
+                Debug.LogError(
+                    roots.Length == 0
+                        ? "Apply M9G.1 Coverage Setup requires one PulseForgeSceneUIRoot in the active scene. None was found."
+                        : "Apply M9G.1 Coverage Setup requires exactly one PulseForgeSceneUIRoot in the active scene. "
+                            + roots.Length + " were found.");
+                return;
+            }
+
+            PulseForgeSceneUIRoot root = roots[0];
+            int undoGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName("Apply PulseForge M9G.1 Coverage Setup");
+            Undo.RegisterFullObjectHierarchyUndo(
+                root.gameObject,
+                "Apply PulseForge M9G.1 Coverage Setup");
+            Undo.RecordObject(root, "Configure PulseForge M9G.1 Coverage UI");
+            PulseForgeCoverageUISetup.Apply(
+                root,
+                gameObject =>
+                {
+                    if (gameObject != null)
+                    {
+                        Undo.RegisterCreatedObjectUndo(
+                            gameObject,
+                            "Create PulseForge M9G.1 Coverage UI");
+                    }
+                });
+
+            Component[] components = root.GetComponentsInChildren<Component>(true);
+            for (int i = 0; i < components.Length; i++)
+            {
+                if (components[i] != null)
+                {
+                    EditorUtility.SetDirty(components[i]);
+                }
+            }
+
+            EditorSceneManager.MarkSceneDirty(activeScene);
+            Selection.activeGameObject = root.gameObject;
+            EditorGUIUtility.PingObject(root);
+            Undo.CollapseUndoOperations(undoGroup);
+            Debug.Log(
+                "PulseForge M9G.1 Coverage setup was applied. The scene is dirty and has not been saved automatically.",
+                root);
+        }
+
+        [MenuItem(ApplyM9G2PlayabilityAssistMenu)]
+        private static void ApplyM9G2PlayabilityAssistSetup()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                EditorUtility.DisplayDialog(
+                    "PulseForge UI",
+                    "M9G.2 Playability Assist setup can only be applied in Edit Mode.",
+                    "OK");
+                return;
+            }
+
+            Scene activeScene = SceneManager.GetActiveScene();
+            PulseForgeSceneUIRoot[] roots = FindInActiveScene<PulseForgeSceneUIRoot>(activeScene);
+            if (roots.Length != 1)
+            {
+                Debug.LogError(
+                    roots.Length == 0
+                        ? "Apply M9G.2 Playability Assist Setup requires one PulseForgeSceneUIRoot in the active scene. None was found."
+                        : "Apply M9G.2 Playability Assist Setup requires exactly one PulseForgeSceneUIRoot in the active scene. "
+                            + roots.Length + " were found.");
+                return;
+            }
+
+            PulseForgeSceneUIRoot root = roots[0];
+            int undoGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName("Apply PulseForge M9G.2 Playability Assist Setup");
+            Undo.RegisterFullObjectHierarchyUndo(
+                root.gameObject,
+                "Apply PulseForge M9G.2 Playability Assist Setup");
+            Undo.RecordObject(root, "Configure PulseForge M9G.2 Playability Assist UI");
+            PulseForgePlayabilityAssistUISetup.Apply(
+                root,
+                gameObject =>
+                {
+                    if (gameObject != null)
+                    {
+                        Undo.RegisterCreatedObjectUndo(
+                            gameObject,
+                            "Create PulseForge M9G.2 Playability Assist UI");
+                    }
+                });
+
+            Component[] components = root.GetComponentsInChildren<Component>(true);
+            for (int i = 0; i < components.Length; i++)
+            {
+                if (components[i] != null)
+                {
+                    EditorUtility.SetDirty(components[i]);
+                }
+            }
+
+            EditorSceneManager.MarkSceneDirty(activeScene);
+            Selection.activeGameObject = root.gameObject;
+            EditorGUIUtility.PingObject(root);
+            Undo.CollapseUndoOperations(undoGroup);
+            Debug.Log(
+                "PulseForge M9G.2 Playability Assist setup was applied. The scene is dirty and has not been saved automatically.",
                 root);
         }
 

@@ -23,6 +23,41 @@ namespace PulseForge.Tests.EditMode
             Assert.That(session.Encounters[0].Result.Grade, Is.EqualTo(expected));
         }
 
+        [TestCase(TimingAssistMode.Relaxed, 0.065d, HitGrade.Perfect)]
+        [TestCase(TimingAssistMode.Relaxed, 0.140d, HitGrade.Good)]
+        [TestCase(TimingAssistMode.Practice, 0.090d, HitGrade.Perfect)]
+        [TestCase(TimingAssistMode.Practice, 0.200d, HitGrade.Good)]
+        public void TimingAssistProfilesUseInclusiveConfiguredBoundaries(
+            TimingAssistMode mode,
+            double offset,
+            HitGrade expected)
+        {
+            RadialRhythmSession session = new RadialRhythmSession(
+                new[] { CreateTap("assist", RhythmAction.Guard, 2d) },
+                mode);
+
+            RadialInputResolveResult result = session.Press(RhythmAction.Guard, 2d + offset);
+
+            Assert.That(result.Consumed, Is.True);
+            Assert.That(result.RequirementResults.Single().Grade, Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void RelaxedChordUsesRelaxedSpreadWithoutChangingChargeIdentity()
+        {
+            RadialEncounterEventData chord = CreateEncounter("assist-chord", RadialEventType.Chord);
+            chord.requirements.Add(CreateRequirement("guard", RhythmAction.Guard, 1d, InputGestureType.Chord));
+            chord.requirements.Add(CreateRequirement("light", RhythmAction.LightAttack, 1d, InputGestureType.Chord));
+            RadialRhythmSession session = new RadialRhythmSession(
+                new[] { chord },
+                TimingAssistMode.Relaxed);
+
+            session.Press(RhythmAction.Guard, 1d);
+            RadialInputResolveResult result = session.Press(RhythmAction.LightAttack, 1.13d);
+
+            Assert.That(result.RequirementResults.All(item => item.Grade == HitGrade.Good), Is.True);
+        }
+
         [Test]
         public void GuardHoldEarlyReleaseIsMissWhenOutsideConfiguredGrace()
         {
@@ -297,6 +332,39 @@ namespace PulseForge.Tests.EditMode
             session.Press(RhythmAction.Dodge, 1d);
 
             Assert.That(session.Encounters.All(encounter => encounter.IsResolved), Is.True);
+        }
+
+        [Test]
+        public void UpcomingQueueSortsAndDeduplicatesCompoundEncounters()
+        {
+            RadialEncounterEventData chord = CreateEncounter("chord", RadialEventType.Chord);
+            chord.requirements.Add(CreateRequirement("chord-guard", RhythmAction.Guard, 2d, InputGestureType.Chord));
+            chord.requirements.Add(CreateRequirement("chord-light", RhythmAction.LightAttack, 2d, InputGestureType.Chord));
+            chord.targets.Add(new EncounterTargetData
+            {
+                targetId = "guard-target",
+                requirementId = "chord-guard",
+                direction = RadialDirection.West
+            });
+            chord.targets.Add(new EncounterTargetData
+            {
+                targetId = "light-target",
+                requirementId = "chord-light",
+                direction = RadialDirection.East
+            });
+            RadialRhythmSession session = CreateSession(
+                chord,
+                CreateTap("earlier", RhythmAction.Dodge, 1d));
+            List<RadialUpcomingCue> queue = new List<RadialUpcomingCue>();
+
+            RadialUpcomingQueueBuilder.Fill(session.Encounters, 4, queue);
+
+            Assert.That(queue, Has.Count.EqualTo(2));
+            Assert.That(queue[0].EventId, Is.EqualTo("earlier"));
+            Assert.That(queue[1].EventId, Is.EqualTo("chord"));
+            Assert.That(
+                queue[1].PrimaryActions,
+                Is.EqualTo(RhythmActionMask.Guard | RhythmActionMask.LightAttack));
         }
 
         private static RadialRhythmSession CreateSession(params RadialEncounterEventData[] encounters)

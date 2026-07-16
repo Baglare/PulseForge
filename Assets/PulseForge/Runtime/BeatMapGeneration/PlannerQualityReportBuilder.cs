@@ -13,8 +13,25 @@ namespace PulseForge.BeatMapGeneration
             BeatMapDifficulty difficulty,
             BeatMapValidationReport validation)
         {
+            return Build(
+                beatMap,
+                analysis,
+                difficulty,
+                PlannerRules.DefaultCoverage(difficulty),
+                validation);
+        }
+
+        public static PlannerQualityReport Build(
+            RadialBeatMapData beatMap,
+            RadialAudioAnalysisResult analysis,
+            BeatMapDifficulty difficulty,
+            CoverageMode coverage,
+            BeatMapValidationReport validation)
+        {
             PlannerQualityReport report = new PlannerQualityReport
             {
+                coverageMode = coverage,
+                angularRepairCount = validation.angularRepairCount,
                 activeDurationSeconds = ActiveDuration(analysis),
                 repairReasons = new List<string>(validation.repairReasons),
                 dropReasons = new List<string>(validation.dropReasons)
@@ -60,15 +77,159 @@ namespace PulseForge.BeatMapGeneration
             report.onsetToGridFillRatio = report.gridFillInputCost > 0
                 ? (double)report.onsetInputCost / report.gridFillInputCost
                 : report.onsetInputCost;
+            report.compoundEventRatio = beatMap.encounters.Count > 0
+                ? (double)report.compoundEventCount / beatMap.encounters.Count
+                : 0d;
 
             BuildSectionReports(report, beatMap, analysis);
             BuildCountLists(report, actionCounts, eventCounts, archetypeCounts);
-            report.result = validation.underCovered
+            BuildRhythmAlignment(report, beatMap, analysis);
+            report.coverageResult = validation.underCovered
                 ? PlannerQualityResult.UnderCovered
                 : validation.repairReasons.Count > 0 || validation.dropReasons.Count > 0
                     ? PlannerQualityResult.PassWithRepairs
                     : PlannerQualityResult.Pass;
+            if (!validation.underCovered
+                && report.beatAlignedRequirementRatio < 0.85d
+                && report.totalInputCost > 0)
+            {
+                report.coverageResult = PlannerQualityResult.RhythmAlignmentLow;
+                report.warnings.Add("Rhythm alignment is below the 85 percent target.");
+            }
+            report.result = report.coverageResult;
             return report;
+        }
+
+        private static void BuildRhythmAlignment(
+            PlannerQualityReport report,
+            RadialBeatMapData beatMap,
+            RadialAudioAnalysisResult analysis)
+        {
+            List<double> grid = new List<double>();
+            if (analysis.beatGrid != null)
+            {
+                AddGridRange(grid, analysis.beatGrid.beatTimesSeconds);
+                AddGridRange(grid, analysis.beatGrid.subdivisionTimesSeconds);
+            }
+            grid.Sort();
+            for (int i = grid.Count - 1; i > 0; i--)
+            {
+                if (Math.Abs(grid[i] - grid[i - 1]) <= 0.0001d)
+                {
+                    grid.RemoveAt(i);
+                }
+            }
+
+            List<double> activeGrid = new List<double>();
+            for (int i = 0; i < grid.Count; i++)
+            {
+                if (IsActiveTime(analysis, grid[i]))
+                {
+                    activeGrid.Add(grid[i]);
+                }
+            }
+            report.activeGridPointCount = activeGrid.Count;
+
+            int requirementCount = 0;
+            int alignedCount = 0;
+            double totalDeviation = 0d;
+            HashSet<int> usedGridIndices = new HashSet<int>();
+            for (int encounterIndex = 0; encounterIndex < beatMap.encounters.Count; encounterIndex++)
+            {
+                RadialEncounterEventData encounter = beatMap.encounters[encounterIndex];
+                for (int requirementIndex = 0; requirementIndex < encounter.requirements.Count; requirementIndex++)
+                {
+                    InputRequirementData requirement = encounter.requirements[requirementIndex];
+                    if (requirement == null || requirement.isOptional)
+                    {
+                        continue;
+                    }
+                    requirementCount++;
+                    int nearest = FindNearestGridIndex(activeGrid, requirement.targetTimeSeconds);
+                    if (nearest < 0)
+                    {
+                        report.offGridRequirementCount++;
+                        continue;
+                    }
+                    double deviation = Math.Abs(activeGrid[nearest] - requirement.targetTimeSeconds);
+                    totalDeviation += deviation;
+                    report.maximumGridDeviationSeconds = Math.Max(
+                        report.maximumGridDeviationSeconds,
+                        deviation);
+                    if (deviation <= 0.13d)
+                    {
+                        alignedCount++;
+                        usedGridIndices.Add(nearest);
+                    }
+                    else
+                    {
+                        report.offGridRequirementCount++;
+                    }
+                }
+            }
+
+            report.beatAlignedRequirementRatio = requirementCount > 0
+                ? (double)alignedCount / requirementCount
+                : 0d;
+            report.averageGridDeviationSeconds = requirementCount > 0
+                ? totalDeviation / requirementCount
+                : 0d;
+            report.usedGridPointCount = usedGridIndices.Count;
+            report.usedGridPointRatio = report.activeGridPointCount > 0
+                ? (double)report.usedGridPointCount / report.activeGridPointCount
+                : 0d;
+        }
+
+        private static void AddGridRange(List<double> destination, List<double> source)
+        {
+            if (source == null)
+            {
+                return;
+            }
+            for (int i = 0; i < source.Count; i++)
+            {
+                double value = source[i];
+                if (!double.IsNaN(value) && !double.IsInfinity(value))
+                {
+                    destination.Add(value);
+                }
+            }
+        }
+
+        private static int FindNearestGridIndex(List<double> grid, double time)
+        {
+            int best = -1;
+            double bestDistance = double.MaxValue;
+            for (int i = 0; i < grid.Count; i++)
+            {
+                double distance = Math.Abs(grid[i] - time);
+                if (distance < bestDistance)
+                {
+                    best = i;
+                    bestDistance = distance;
+                }
+            }
+            return best;
+        }
+
+        private static bool IsActiveTime(RadialAudioAnalysisResult analysis, double time)
+        {
+            if (analysis.sections == null)
+            {
+                return false;
+            }
+            for (int i = 0; i < analysis.sections.Count; i++)
+            {
+                SongSectionData section = analysis.sections[i];
+                if (section != null
+                    && section.activityLevel != SongSectionActivityLevel.Silent
+                    && time >= section.startTimeSeconds
+                    && time < section.endTimeSeconds)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private static void CountFailureEffects(
@@ -259,12 +420,7 @@ namespace PulseForge.BeatMapGeneration
 
         private static bool IsCompound(RadialEventType type)
         {
-            return type == RadialEventType.HeavyChargeRelease
-                || type == RadialEventType.Chord
-                || type == RadialEventType.OrderedSequence
-                || type == RadialEventType.TimedChain
-                || type == RadialEventType.SwarmChain
-                || type == RadialEventType.BreakTarget;
+            return type != RadialEventType.Tap;
         }
 
         private static double ActiveDuration(RadialAudioAnalysisResult analysis)

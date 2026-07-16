@@ -16,6 +16,25 @@ namespace PulseForge.Runtime.Unity.Persistence
             PlannerQualityReport plannerQuality,
             string createdAtUtc = null)
         {
+            return Create(
+                trackId,
+                presetId,
+                beatMap,
+                analyzerQuality,
+                plannerQuality,
+                null,
+                createdAtUtc);
+        }
+
+        public static RadialBeatMapCacheData Create(
+            string trackId,
+            string presetId,
+            RadialBeatMapData beatMap,
+            AnalyzerQualityReport analyzerQuality,
+            PlannerQualityReport plannerQuality,
+            BeatGridData beatGrid,
+            string createdAtUtc = null)
+        {
             if (!HasPlayableRequirement(beatMap))
             {
                 throw new ArgumentException(
@@ -28,12 +47,14 @@ namespace PulseForge.Runtime.Unity.Persistence
             {
                 beatMapCacheVersion = SaveDefaults.RadialBeatMapCacheVersion,
                 analyzerVersion = SaveDefaults.AnalyzerVersion,
+                plannerVersion = SaveDefaults.PlannerVersion,
                 trackId = trackId ?? string.Empty,
                 presetId = presetId ?? string.Empty,
                 beatMapFingerprint = RadialBeatMapFingerprint.Compute(beatMap),
                 createdAtUtc = string.IsNullOrWhiteSpace(createdAtUtc) ? now : createdAtUtc,
                 updatedAtUtc = now,
                 radialBeatMap = beatMap,
+                beatGrid = beatGrid,
                 analyzerQuality = analyzerQuality ?? new AnalyzerQualityReport(),
                 plannerQuality = plannerQuality ?? new PlannerQualityReport()
             };
@@ -87,8 +108,9 @@ namespace PulseForge.Runtime.Unity.Persistence
             if (data == null
                 || data.beatMapCacheVersion != SaveDefaults.RadialBeatMapCacheVersion
                 || data.analyzerVersion != SaveDefaults.AnalyzerVersion
+                || data.plannerVersion != SaveDefaults.PlannerVersion
                 || data.radialBeatMap == null
-                || data.radialBeatMap.schemaVersion != 3
+                || data.radialBeatMap.schemaVersion != 4
                 || !HasPlayableRequirement(data.radialBeatMap))
             {
                 errorMessage = "Radial beatmap artifact header is invalid.";

@@ -1,4 +1,5 @@
 using PulseForge.Domain.Rhythm;
+using PulseForge.Runtime.Unity.Persistence;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -7,6 +8,7 @@ namespace PulseForge.Runtime.Unity.UI
     public sealed class RadialProjectileView : MonoBehaviour
     {
         [SerializeField] private RectTransform viewRoot;
+        [SerializeField] private CanvasGroup cueCanvasGroup;
         [SerializeField] private Image projectileImage;
         [SerializeField] private Outline projectileOutline;
         [SerializeField] private Image actionBadge;
@@ -32,6 +34,7 @@ namespace PulseForge.Runtime.Unity.UI
 
             RadialProjectileView view = root.gameObject.AddComponent<RadialProjectileView>();
             view.viewRoot = root;
+            view.cueCanvasGroup = root.gameObject.AddComponent<CanvasGroup>();
             Image image = root.gameObject.AddComponent<Image>();
             image.sprite = PulseForgeUIFactory.RoundedSprite;
             image.color = PulseForgeUITheme.Perfect;
@@ -80,6 +83,24 @@ namespace PulseForge.Runtime.Unity.UI
             cachedChoiceActions = RhythmActionMask.None;
             cachedSelectedAction = null;
             cachedChoiceFailure = false;
+            cueCanvasGroup.alpha = 1f;
+        }
+
+        public void ApplyCuePriority(
+            RadialCuePriority priority,
+            RadialReadabilityMode readabilityMode)
+        {
+            bool focused = priority == RadialCuePriority.Focused;
+            cueCanvasGroup.alpha = focused
+                ? 1f
+                : readabilityMode == RadialReadabilityMode.Assisted
+                    ? 0.48f
+                    : readabilityMode == RadialReadabilityMode.HighClarity ? 0.62f : 0.76f;
+            viewRoot.localScale = Vector3.one * (focused ? 1.08f : 1f);
+            float iconScale = readabilityMode == RadialReadabilityMode.HighClarity
+                ? 1.30f
+                : readabilityMode == RadialReadabilityMode.Assisted ? 1.16f : 1f;
+            actionBadge.rectTransform.localScale = Vector3.one * iconScale;
         }
 
         public void Render(
@@ -151,6 +172,15 @@ namespace PulseForge.Runtime.Unity.UI
             {
                 viewRoot.anchoredPosition = Vector2.zero;
                 viewRoot.localRotation = Quaternion.identity;
+                viewRoot.localScale = Vector3.one;
+            }
+            if (cueCanvasGroup != null)
+            {
+                cueCanvasGroup.alpha = 1f;
+            }
+            if (actionBadge != null)
+            {
+                actionBadge.rectTransform.localScale = Vector3.one;
             }
             if (actionLabel != null)
             {

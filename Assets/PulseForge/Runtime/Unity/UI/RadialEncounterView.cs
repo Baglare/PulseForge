@@ -1,4 +1,5 @@
 using PulseForge.Domain.Rhythm;
+using PulseForge.Runtime.Unity.Persistence;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -9,6 +10,7 @@ namespace PulseForge.Runtime.Unity.UI
         private const float TimingTrackWidth = 104f;
 
         [SerializeField] private RectTransform viewRoot;
+        [SerializeField] private CanvasGroup cueCanvasGroup;
         [SerializeField] private Image bodyImage;
         [SerializeField] private Outline bodyOutline;
         [SerializeField] private Text archetypeGlyph;
@@ -43,6 +45,7 @@ namespace PulseForge.Runtime.Unity.UI
         private int cachedRepeatCount = int.MinValue;
         private int cachedRequiredRepeatCount = int.MinValue;
         private int cachedFlags = int.MinValue;
+        private RadialTimingWindowState lastTimingState = RadialTimingWindowState.Waiting;
 
         public RadialPresentationKey Key { get; private set; }
         public bool IsInUse { get; private set; }
@@ -59,6 +62,7 @@ namespace PulseForge.Runtime.Unity.UI
 
             RadialEncounterView view = root.gameObject.AddComponent<RadialEncounterView>();
             view.viewRoot = root;
+            view.cueCanvasGroup = root.gameObject.AddComponent<CanvasGroup>();
 
             RectTransform timingHalo = PulseForgeUIFactory.CreateRect("Perfect Timing Halo", root);
             timingHalo.anchorMin = new Vector2(0.5f, 0.5f);
@@ -351,6 +355,7 @@ namespace PulseForge.Runtime.Unity.UI
             saboteurFuseLabel.gameObject.SetActive(archetype == EnemyArchetype.Saboteur);
             saboteurPreparation.gameObject.SetActive(archetype == EnemyArchetype.Saboteur);
             ResetCompoundVisuals();
+            cueCanvasGroup.alpha = 1f;
         }
 
         public void Render(
@@ -384,6 +389,7 @@ namespace PulseForge.Runtime.Unity.UI
             perfectTimingHalo.gameObject.SetActive(false);
             if (!visible)
             {
+                lastTimingState = RadialTimingWindowState.Waiting;
                 return;
             }
 
@@ -392,6 +398,7 @@ namespace PulseForge.Runtime.Unity.UI
                 targetTimeSeconds,
                 perfectWindowSeconds,
                 goodWindowSeconds);
+            lastTimingState = timing.State;
             timingRoot.anchoredPosition = ResolveTimingOffset(direction);
             timingRoot.localScale = timing.State == RadialTimingWindowState.Perfect
                 ? Vector3.one * 1.12f
@@ -435,6 +442,46 @@ namespace PulseForge.Runtime.Unity.UI
                     timingNeedleImage.color = PulseForgeUITheme.SecondaryText;
                     break;
             }
+        }
+
+        public void ApplyCuePriority(
+            RadialCuePriority priority,
+            RadialReadabilityMode readabilityMode,
+            float actionEntryProgress)
+        {
+            bool focused = priority == RadialCuePriority.Focused;
+            float upcomingAlpha = readabilityMode == RadialReadabilityMode.Assisted
+                ? 0.48f
+                : readabilityMode == RadialReadabilityMode.HighClarity ? 0.62f : 0.76f;
+            float targetAlpha = focused ? 1f : upcomingAlpha;
+            cueCanvasGroup.alpha = Mathf.Lerp(
+                0.34f,
+                targetAlpha,
+                Mathf.Clamp01(actionEntryProgress));
+
+            float focusScale = readabilityMode == RadialReadabilityMode.HighClarity
+                ? 1.16f
+                : readabilityMode == RadialReadabilityMode.Assisted ? 1.10f : 1.05f;
+            if (focused)
+            {
+                viewRoot.localScale *= focusScale;
+            }
+
+            float iconScale = readabilityMode == RadialReadabilityMode.HighClarity
+                ? 1.30f
+                : readabilityMode == RadialReadabilityMode.Assisted ? 1.16f : 1f;
+            actionBadge.rectTransform.localScale = Vector3.one * iconScale;
+            bool timingVisible = timingRoot.gameObject.activeSelf;
+            timingLabel.gameObject.SetActive(
+                timingVisible && readabilityMode != RadialReadabilityMode.Standard);
+            float timingScale = readabilityMode == RadialReadabilityMode.HighClarity
+                ? 1.22f
+                : readabilityMode == RadialReadabilityMode.Assisted ? 1.08f : 1f;
+            if (lastTimingState == RadialTimingWindowState.Perfect)
+            {
+                timingScale *= 1.12f;
+            }
+            timingRoot.localScale = Vector3.one * timingScale;
         }
 
         public void RenderSaboteur(float preparationProgress, bool failed)
@@ -606,6 +653,10 @@ namespace PulseForge.Runtime.Unity.UI
                 viewRoot.localScale = Vector3.one;
                 viewRoot.localRotation = Quaternion.identity;
             }
+            if (cueCanvasGroup != null)
+            {
+                cueCanvasGroup.alpha = 1f;
+            }
             if (resultLabel != null)
             {
                 resultLabel.text = string.Empty;
@@ -633,6 +684,15 @@ namespace PulseForge.Runtime.Unity.UI
                 timingRoot.localScale = Vector3.one;
                 timingRoot.gameObject.SetActive(false);
             }
+            if (actionBadge != null)
+            {
+                actionBadge.rectTransform.localScale = Vector3.one;
+            }
+            if (timingLabel != null)
+            {
+                timingLabel.gameObject.SetActive(true);
+            }
+            lastTimingState = RadialTimingWindowState.Waiting;
             ResetCompoundVisuals();
             gameObject.SetActive(false);
         }

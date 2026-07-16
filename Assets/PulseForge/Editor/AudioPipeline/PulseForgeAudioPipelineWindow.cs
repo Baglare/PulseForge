@@ -38,6 +38,7 @@ namespace PulseForge.Editor.AudioPipeline
         private string pattern = DefaultPattern;
         private DetectionMode detectionMode = DetectionMode.Amplitude;
         private Difficulty difficulty = Difficulty.Normal;
+        private CoverageMode coverageMode = CoverageMode.Standard;
         private ActionMode actionMode = ActionMode.Pattern;
         private CombatStyle combatStyle = CombatStyle.Legacy;
         private float burstWindowSeconds = DefaultBurstWindowSeconds;
@@ -98,6 +99,10 @@ namespace PulseForge.Editor.AudioPipeline
             DrawCombatStyleControls();
             detectionMode = (DetectionMode)EditorGUILayout.EnumPopup("Detection Mode", detectionMode);
             difficulty = (Difficulty)EditorGUILayout.EnumPopup("Difficulty", difficulty);
+            if (pipelineMode == PipelineMode.RadialV2)
+            {
+                coverageMode = (CoverageMode)EditorGUILayout.EnumPopup("Coverage", coverageMode);
+            }
             if (pipelineMode == PipelineMode.LegacyPythonV1)
             {
                 writeDebugCsv = EditorGUILayout.Toggle("Write Debug CSV", writeDebugCsv);
@@ -228,6 +233,7 @@ namespace PulseForge.Editor.AudioPipeline
                     radialAnalysisResult,
                     ToPlannerDifficulty(difficulty),
                     ToPlannerCombatStyle(combatStyle),
+                    coverageMode,
                     seed);
                 radialPlanResult.beatMap.displayName = GetSafeOutputName();
 
@@ -238,7 +244,8 @@ namespace PulseForge.Editor.AudioPipeline
                     BuildRadialPresetId(combatStyle),
                     radialPlanResult.beatMap,
                     radialAnalysisResult.qualityReport,
-                    radialPlanResult.qualityReport);
+                    radialPlanResult.qualityReport,
+                    radialAnalysisResult.beatGrid);
                 WriteProjectJson(
                     generatedPlayableJsonPath,
                     RadialBeatMapArtifactSerializer.Serialize(artifact, true));
@@ -303,6 +310,7 @@ namespace PulseForge.Editor.AudioPipeline
                         radialAnalysisResult,
                         ToPlannerDifficulty(difficulty),
                         ToPlannerCombatStyle(style),
+                        coverageMode,
                         seed);
                     variant.beatMap.displayName = GetSafeOutputName() + " " + StyleVariantLabels[i];
                     radialVariantResults[i] = variant;
@@ -311,7 +319,8 @@ namespace PulseForge.Editor.AudioPipeline
                         BuildRadialPresetId(style),
                         variant.beatMap,
                         radialAnalysisResult.qualityReport,
-                        variant.qualityReport);
+                        variant.qualityReport,
+                        radialAnalysisResult.beatGrid);
                     WriteProjectJson(
                         generatedVariantJsonPaths[i],
                         RadialBeatMapArtifactSerializer.Serialize(artifact, true));
@@ -816,6 +825,22 @@ namespace PulseForge.Editor.AudioPipeline
             EditorGUILayout.LabelField(
                 "Onset / grid-fill ratio",
                 planner.onsetToGridFillRatio.ToString("0.###", CultureInfo.InvariantCulture));
+            EditorGUILayout.LabelField("Coverage", FormatCoverage(planner.coverageMode));
+            EditorGUILayout.LabelField(
+                "Beat alignment / grid use",
+                FormatPercent(planner.beatAlignedRequirementRatio)
+                + " / "
+                + FormatPercent(planner.usedGridPointRatio));
+            EditorGUILayout.LabelField(
+                "Grid deviation avg / max",
+                FormatMilliseconds(planner.averageGridDeviationSeconds)
+                + " / "
+                + FormatMilliseconds(planner.maximumGridDeviationSeconds));
+            EditorGUILayout.LabelField(
+                "Compound / angular repairs",
+                FormatPercent(planner.compoundEventRatio)
+                + " / "
+                + FormatInt(planner.angularRepairCount));
             EditorGUILayout.LabelField("Result", planner.result.ToString());
             EditorGUILayout.LabelField(
                 "Repairs",
@@ -1659,7 +1684,24 @@ namespace PulseForge.Editor.AudioPipeline
                 + "-"
                 + ToCliValue(difficulty)
                 + "-"
-                + ToCliValue(style);
+                + ToCliValue(style)
+                + "-"
+                + coverageMode.ToString().ToLowerInvariant();
+        }
+
+        private static string FormatCoverage(CoverageMode coverage)
+        {
+            return coverage == CoverageMode.FullPulse ? "Full Pulse" : coverage.ToString();
+        }
+
+        private static string FormatPercent(double value)
+        {
+            return (value * 100d).ToString("0.#", CultureInfo.InvariantCulture) + "%";
+        }
+
+        private static string FormatMilliseconds(double seconds)
+        {
+            return (seconds * 1000d).ToString("0.#", CultureInfo.InvariantCulture) + " ms";
         }
 
         private static string FormatActionDistribution(IReadOnlyList<ActionCountData> counts)

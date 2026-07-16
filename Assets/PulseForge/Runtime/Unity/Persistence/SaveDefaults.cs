@@ -10,13 +10,14 @@ namespace PulseForge.Runtime.Unity.Persistence
 {
     public static class SaveDefaults
     {
-        public const int SettingsSchemaVersion = 3;
+        public const int SettingsSchemaVersion = 6;
         public const int ProfileSchemaVersion = 1;
-        public const int LibrarySchemaVersion = 4;
+        public const int LibrarySchemaVersion = 6;
         public const int LibraryCacheVersion = 1;
         public const int AudioCacheVersion = 1;
-        public const int RadialBeatMapCacheVersion = 3;
+        public const int RadialBeatMapCacheVersion = 4;
         public const int AnalyzerVersion = 2;
+        public const int PlannerVersion = 4;
 
         public static PulseForgeSettingsData CreateSettings()
         {
@@ -32,7 +33,13 @@ namespace PulseForge.Runtime.Unity.Persistence
                 defaultDetection = pipeline.DetectionMode.ToString(),
                 defaultDifficulty = pipeline.Difficulty.ToString(),
                 defaultCombatStyle = pipeline.CombatStyle.ToString(),
+                defaultCoverage = pipeline.Coverage.ToString(),
                 defaultGameMode = RadialGameMode.Standard.ToString(),
+                defaultTimingAssist = TimingAssistMode.Relaxed.ToString(),
+                showUpcomingInputs = true,
+                beatPulseEnabled = true,
+                forecastLeadMultiplier = 1.25f,
+                readabilityMode = RadialReadabilityMode.Assisted.ToString(),
                 beatmapOffsetSeconds = 0f,
                 inputTimingOffsetSeconds = 0f,
                 audio = new PulseForgeAudioSettingsData
@@ -123,11 +130,37 @@ namespace PulseForge.Runtime.Unity.Persistence
             data.defaultCombatStyle = NormalizeEnum(
                 data.defaultCombatStyle,
                 RuntimeCombatStyle.Legacy).ToString();
+            data.defaultCoverage = sourceSchemaVersion < 5
+                ? RuntimeAudioPipelineSettings.DefaultCoverageFor(
+                    NormalizeEnum(data.defaultDifficulty, RuntimeDifficulty.Normal)).ToString()
+                : NormalizeEnum(
+                    data.defaultCoverage,
+                    RuntimeCoverage.Standard).ToString();
             data.defaultGameMode = sourceSchemaVersion < 3
                 ? RadialGameMode.Standard.ToString()
                 : NormalizeEnum(
                     data.defaultGameMode,
                     RadialGameMode.Standard).ToString();
+            if (sourceSchemaVersion < 6)
+            {
+                data.defaultTimingAssist = defaults.defaultTimingAssist;
+                data.showUpcomingInputs = defaults.showUpcomingInputs;
+                data.beatPulseEnabled = defaults.beatPulseEnabled;
+            }
+            data.defaultTimingAssist = NormalizeEnum(
+                data.defaultTimingAssist,
+                TimingAssistMode.Relaxed).ToString();
+            if (sourceSchemaVersion < 4)
+            {
+                data.forecastLeadMultiplier = defaults.forecastLeadMultiplier;
+                data.readabilityMode = defaults.readabilityMode;
+            }
+            data.forecastLeadMultiplier = NormalizeForecastLeadMultiplier(
+                data.forecastLeadMultiplier,
+                defaults.forecastLeadMultiplier);
+            data.readabilityMode = NormalizeEnum(
+                data.readabilityMode,
+                RadialReadabilityMode.Assisted).ToString();
             data.beatmapOffsetSeconds = NormalizeFinite(
                 data.beatmapOffsetSeconds,
                 defaults.beatmapOffsetSeconds,
@@ -177,6 +210,23 @@ namespace PulseForge.Runtime.Unity.Persistence
             }
 
             return data;
+        }
+
+        private static float NormalizeForecastLeadMultiplier(float value, float fallback)
+        {
+            float[] supported = { 1f, 1.25f, 1.5f, 1.75f };
+            if (!IsFinite(value))
+            {
+                return fallback;
+            }
+            for (int i = 0; i < supported.Length; i++)
+            {
+                if (Math.Abs(value - supported[i]) < 0.001f)
+                {
+                    return supported[i];
+                }
+            }
+            return fallback;
         }
 
         private static void NormalizeResolution(
@@ -283,9 +333,28 @@ namespace PulseForge.Runtime.Unity.Persistence
             string combatStyle,
             out RuntimeAudioPipelineSettings settings)
         {
+            RuntimeDifficulty fallbackDifficulty = NormalizeEnum(
+                difficulty,
+                RuntimeDifficulty.Normal);
+            return TryGetPipelineSettings(
+                detection,
+                difficulty,
+                combatStyle,
+                RuntimeAudioPipelineSettings.DefaultCoverageFor(fallbackDifficulty).ToString(),
+                out settings);
+        }
+
+        public static bool TryGetPipelineSettings(
+            string detection,
+            string difficulty,
+            string combatStyle,
+            string coverage,
+            out RuntimeAudioPipelineSettings settings)
+        {
             if (!Enum.TryParse(detection, true, out RuntimeDetectionMode detectionMode)
                 || !Enum.TryParse(difficulty, true, out RuntimeDifficulty difficultyMode)
-                || !Enum.TryParse(combatStyle, true, out RuntimeCombatStyle combatStyleMode))
+                || !Enum.TryParse(combatStyle, true, out RuntimeCombatStyle combatStyleMode)
+                || !Enum.TryParse(coverage, true, out RuntimeCoverage coverageMode))
             {
                 settings = RuntimeAudioPipelineSettings.Default;
                 return false;
@@ -294,7 +363,8 @@ namespace PulseForge.Runtime.Unity.Persistence
             settings = new RuntimeAudioPipelineSettings(
                 detectionMode,
                 difficultyMode,
-                combatStyleMode);
+                combatStyleMode,
+                coverageMode);
             return true;
         }
 
@@ -312,10 +382,32 @@ namespace PulseForge.Runtime.Unity.Persistence
             string combatStyle,
             int analyzerVersion)
         {
+            RuntimeDifficulty parsedDifficulty = NormalizeEnum(
+                difficulty,
+                RuntimeDifficulty.Normal);
+            return PresetKey(
+                detection,
+                difficulty,
+                combatStyle,
+                RuntimeAudioPipelineSettings.DefaultCoverageFor(parsedDifficulty).ToString(),
+                analyzerVersion,
+                0);
+        }
+
+        public static string PresetKey(
+            string detection,
+            string difficulty,
+            string combatStyle,
+            string coverage,
+            int analyzerVersion,
+            int plannerVersion)
+        {
             return (detection ?? string.Empty).Trim().ToUpperInvariant() + "|"
                 + (difficulty ?? string.Empty).Trim().ToUpperInvariant() + "|"
-                + (combatStyle ?? string.Empty).Trim().ToUpperInvariant() + "|A"
-                + Math.Max(0, analyzerVersion).ToString(CultureInfo.InvariantCulture);
+                + (combatStyle ?? string.Empty).Trim().ToUpperInvariant() + "|"
+                + (coverage ?? string.Empty).Trim().ToUpperInvariant() + "|A"
+                + Math.Max(0, analyzerVersion).ToString(CultureInfo.InvariantCulture) + "|P"
+                + Math.Max(0, plannerVersion).ToString(CultureInfo.InvariantCulture);
         }
 
         public static string PresetKey(
@@ -328,11 +420,50 @@ namespace PulseForge.Runtime.Unity.Persistence
             return PresetKey(detection, difficulty, combatStyle, analyzerVersion);
         }
 
+        public static string PresetKey(
+            string detection,
+            string difficulty,
+            string combatStyle,
+            string coverage,
+            int analyzerVersion,
+            int plannerVersion,
+            string gameMode)
+        {
+            return PresetKey(
+                detection,
+                difficulty,
+                combatStyle,
+                coverage,
+                analyzerVersion,
+                plannerVersion);
+        }
+
         public static bool CanComparePerformance(
             string leftGameMode,
             string leftScoreSchema,
             string leftBeatMapFingerprint,
             string rightGameMode,
+            string rightScoreSchema,
+            string rightBeatMapFingerprint)
+        {
+            return CanComparePerformance(
+                leftGameMode,
+                TimingAssistMode.Standard.ToString(),
+                leftScoreSchema,
+                leftBeatMapFingerprint,
+                rightGameMode,
+                TimingAssistMode.Standard.ToString(),
+                rightScoreSchema,
+                rightBeatMapFingerprint);
+        }
+
+        public static bool CanComparePerformance(
+            string leftGameMode,
+            string leftTimingAssist,
+            string leftScoreSchema,
+            string leftBeatMapFingerprint,
+            string rightGameMode,
+            string rightTimingAssist,
             string rightScoreSchema,
             string rightBeatMapFingerprint)
         {
@@ -342,7 +473,15 @@ namespace PulseForge.Runtime.Unity.Persistence
             RadialGameMode rightMode = NormalizeEnum(
                 rightGameMode,
                 RadialGameMode.Standard);
-            return leftMode == rightMode && ScoreSchema.CanCompare(
+            TimingAssistMode leftAssist = NormalizeEnum(
+                leftTimingAssist,
+                TimingAssistMode.Standard);
+            TimingAssistMode rightAssist = NormalizeEnum(
+                rightTimingAssist,
+                TimingAssistMode.Standard);
+            return leftMode == rightMode
+                && leftAssist == rightAssist
+                && ScoreSchema.CanCompare(
                 leftScoreSchema,
                 leftBeatMapFingerprint,
                 rightScoreSchema,
@@ -402,7 +541,9 @@ namespace PulseForge.Runtime.Unity.Persistence
                     preset.detectionMode,
                     preset.difficulty,
                     preset.combatStyle,
-                    preset.analyzerVersion);
+                    preset.coverage,
+                    preset.analyzerVersion,
+                    preset.plannerVersion);
                 if (presets.TryGetValue(key, out SavedTrackPresetData existing))
                 {
                     MergePreset(existing, preset);
@@ -432,6 +573,10 @@ namespace PulseForge.Runtime.Unity.Persistence
             preset.combatStyle = NormalizeEnum(
                 preset.combatStyle,
                 RuntimeCombatStyle.Legacy).ToString();
+            preset.coverage = sourceSchemaVersion < 5
+                ? RuntimeAudioPipelineSettings.DefaultCoverageFor(
+                    NormalizeEnum(preset.difficulty, RuntimeDifficulty.Normal)).ToString()
+                : NormalizeEnum(preset.coverage, RuntimeCoverage.Standard).ToString();
             preset.eventCount = Math.Max(0, preset.eventCount);
             preset.createdAtUtc = NormalizeRequiredUtc(preset.createdAtUtc, fallbackUtc);
             preset.updatedAtUtc = NormalizeRequiredUtc(preset.updatedAtUtc, preset.createdAtUtc);
@@ -447,6 +592,7 @@ namespace PulseForge.Runtime.Unity.Persistence
             preset.cacheVersion = Math.Max(0, preset.cacheVersion);
             preset.beatMapCacheVersion = Math.Max(0, preset.beatMapCacheVersion);
             preset.analyzerVersion = Math.Max(0, preset.analyzerVersion);
+            preset.plannerVersion = Math.Max(0, preset.plannerVersion);
             preset.beatMapFingerprint = (preset.beatMapFingerprint ?? string.Empty)
                 .Trim()
                 .ToLowerInvariant();
@@ -475,6 +621,11 @@ namespace PulseForge.Runtime.Unity.Persistence
                     : NormalizeEnum(
                         performance.gameMode,
                         RadialGameMode.Standard).ToString();
+                performance.timingAssist = sourceSchemaVersion < 6
+                    ? TimingAssistMode.Standard.ToString()
+                    : NormalizeEnum(
+                        performance.timingAssist,
+                        TimingAssistMode.Standard).ToString();
                 performance.beatMapFingerprint = (performance.beatMapFingerprint ?? string.Empty)
                     .Trim()
                     .ToLowerInvariant();
@@ -521,6 +672,7 @@ namespace PulseForge.Runtime.Unity.Persistence
                 preset.performances.Add(new SavedTrackPerformanceData
                 {
                     gameMode = RadialGameMode.Standard.ToString(),
+                    timingAssist = TimingAssistMode.Standard.ToString(),
                     scoreSchema = ScoreSchema.LegacyV1,
                     beatMapFingerprint = string.Empty,
                     playCount = preset.playCount,
@@ -587,6 +739,7 @@ namespace PulseForge.Runtime.Unity.Persistence
                 target.beatMapCacheVersion,
                 source.beatMapCacheVersion);
             target.analyzerVersion = Math.Max(target.analyzerVersion, source.analyzerVersion);
+            target.plannerVersion = Math.Max(target.plannerVersion, source.plannerVersion);
             if (!string.IsNullOrWhiteSpace(source.beatMapFingerprint))
             {
                 target.beatMapFingerprint = source.beatMapFingerprint;
@@ -631,9 +784,11 @@ namespace PulseForge.Runtime.Unity.Persistence
                     SavedTrackPerformanceData candidate = target.performances[targetIndex];
                     if (candidate != null && CanComparePerformance(
                         candidate.gameMode,
+                        candidate.timingAssist,
                         candidate.scoreSchema,
                         candidate.beatMapFingerprint,
                         incoming.gameMode,
+                        incoming.timingAssist,
                         incoming.scoreSchema,
                         incoming.beatMapFingerprint))
                     {
@@ -735,6 +890,7 @@ namespace PulseForge.Runtime.Unity.Persistence
         private static string NormalizeCacheStatus(SavedTrackPresetData preset)
         {
             if (preset.analyzerVersion < SaveDefaults.AnalyzerVersion
+                || preset.plannerVersion < SaveDefaults.PlannerVersion
                 || preset.beatMapCacheVersion < SaveDefaults.RadialBeatMapCacheVersion)
             {
                 return SavedTrackCacheStatus.NeedsRebuild.ToString();

@@ -14,12 +14,25 @@ namespace PulseForge.Runtime.Unity.Persistence
         public string defaultDetection;
         public string defaultDifficulty;
         public string defaultCombatStyle;
+        public string defaultCoverage;
         public string defaultGameMode;
+        public string defaultTimingAssist;
+        public bool showUpcomingInputs;
+        public bool beatPulseEnabled;
+        public float forecastLeadMultiplier;
+        public string readabilityMode;
         public float beatmapOffsetSeconds;
         public float inputTimingOffsetSeconds;
         public PulseForgeAudioSettingsData audio;
         public PulseForgeDisplaySettingsData display;
         public PulseForgeInputSettingsData input;
+    }
+
+    public enum RadialReadabilityMode
+    {
+        Standard,
+        Assisted,
+        HighClarity
     }
 
     [Serializable]
@@ -103,6 +116,7 @@ namespace PulseForge.Runtime.Unity.Persistence
         public string detectionMode;
         public string difficulty;
         public string combatStyle;
+        public string coverage;
         public int eventCount;
         public string createdAtUtc;
         public string updatedAtUtc;
@@ -117,6 +131,7 @@ namespace PulseForge.Runtime.Unity.Persistence
         public int cacheVersion;
         public int beatMapCacheVersion;
         public int analyzerVersion;
+        public int plannerVersion;
         public string beatMapFingerprint;
         public int inputCost;
         public string plannerResult;
@@ -156,12 +171,14 @@ namespace PulseForge.Runtime.Unity.Persistence
     {
         public int beatMapCacheVersion;
         public int analyzerVersion;
+        public int plannerVersion;
         public string trackId;
         public string presetId;
         public string beatMapFingerprint;
         public string createdAtUtc;
         public string updatedAtUtc;
         public RadialBeatMapData radialBeatMap;
+        public BeatGridData beatGrid;
         public AnalyzerQualityReport analyzerQuality;
         public PlannerQualityReport plannerQuality;
     }
@@ -170,6 +187,7 @@ namespace PulseForge.Runtime.Unity.Persistence
     public sealed class SavedTrackPerformanceData
     {
         public string gameMode;
+        public string timingAssist;
         public string scoreSchema;
         public string beatMapFingerprint;
         public int playCount;

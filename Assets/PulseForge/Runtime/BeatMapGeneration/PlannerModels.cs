@@ -21,11 +21,19 @@ namespace PulseForge.BeatMapGeneration
         Bursty
     }
 
+    public enum CoverageMode
+    {
+        Relaxed,
+        Standard,
+        FullPulse
+    }
+
     public enum PlannerQualityResult
     {
         Pass,
         PassWithRepairs,
-        UnderCovered
+        UnderCovered,
+        RhythmAlignmentLow
     }
 
     [Serializable]
@@ -56,6 +64,18 @@ namespace PulseForge.BeatMapGeneration
         public double totalFogDurationSeconds;
         public double minimumFogDurationSeconds;
         public double maximumFogDurationSeconds;
+        public CoverageMode coverageMode;
+        public double beatAlignedRequirementRatio;
+        public double averageGridDeviationSeconds;
+        public double maximumGridDeviationSeconds;
+        public int offGridRequirementCount;
+        public int activeGridPointCount;
+        public int usedGridPointCount;
+        public double usedGridPointRatio;
+        public double compoundEventRatio;
+        public int angularRepairCount;
+        public PlannerQualityResult coverageResult;
+        public List<string> warnings = new List<string>();
         public List<string> repairReasons = new List<string>();
         public List<string> dropReasons = new List<string>();
         public PlannerQualityResult result;
@@ -99,6 +119,7 @@ namespace PulseForge.BeatMapGeneration
         public List<string> repairReasons = new List<string>();
         public List<string> dropReasons = new List<string>();
         public bool underCovered;
+        public int angularRepairCount;
     }
 
     internal sealed class PlannedCue
@@ -112,43 +133,84 @@ namespace PulseForge.BeatMapGeneration
 
     internal static class PlannerRules
     {
-        public static double MinimumDensity(BeatMapDifficulty difficulty)
+        public static CoverageMode DefaultCoverage(BeatMapDifficulty difficulty)
         {
-            switch (difficulty)
+            return difficulty == BeatMapDifficulty.Easy
+                ? CoverageMode.Relaxed
+                : CoverageMode.Standard;
+        }
+
+        public static double MinimumDensity(CoverageMode coverage)
+        {
+            switch (coverage)
             {
-                case BeatMapDifficulty.Easy:
+                case CoverageMode.Relaxed:
                     return 0.6d;
-                case BeatMapDifficulty.Hard:
+                case CoverageMode.FullPulse:
                     return 1.2d;
                 default:
                     return 0.9d;
             }
         }
 
-        public static double MaximumDensity(BeatMapDifficulty difficulty)
+        public static double MaximumDensity(CoverageMode coverage)
         {
-            switch (difficulty)
+            switch (coverage)
             {
-                case BeatMapDifficulty.Easy:
+                case CoverageMode.Relaxed:
                     return 1d;
-                case BeatMapDifficulty.Hard:
-                    return 2d;
+                case CoverageMode.FullPulse:
+                    return 2.2d;
                 default:
                     return 1.5d;
             }
         }
 
-        public static double MaximumGap(BeatMapDifficulty difficulty)
+        public static double MaximumGap(CoverageMode coverage)
         {
-            switch (difficulty)
+            switch (coverage)
             {
-                case BeatMapDifficulty.Easy:
+                case CoverageMode.Relaxed:
                     return 3d;
-                case BeatMapDifficulty.Hard:
-                    return 1.5d;
+                case CoverageMode.FullPulse:
+                    return 1d;
                 default:
                     return 2.2d;
             }
+        }
+
+        public static double MaximumCompoundRatio(
+            BeatMapDifficulty difficulty,
+            CoverageMode coverage)
+        {
+            if (coverage == CoverageMode.FullPulse)
+            {
+                return 0.10d;
+            }
+            switch (difficulty)
+            {
+                case BeatMapDifficulty.Easy:
+                    return 0.05d;
+                case BeatMapDifficulty.Hard:
+                    return 0.22d;
+                default:
+                    return 0.12d;
+            }
+        }
+
+        public static double MinimumDensity(BeatMapDifficulty difficulty)
+        {
+            return MinimumDensity(DefaultCoverage(difficulty));
+        }
+
+        public static double MaximumDensity(BeatMapDifficulty difficulty)
+        {
+            return MaximumDensity(DefaultCoverage(difficulty));
+        }
+
+        public static double MaximumGap(BeatMapDifficulty difficulty)
+        {
+            return MaximumGap(DefaultCoverage(difficulty));
         }
 
         public static double MinimumRecovery(BeatMapDifficulty difficulty)

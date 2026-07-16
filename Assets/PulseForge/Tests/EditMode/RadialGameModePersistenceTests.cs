@@ -19,7 +19,13 @@ namespace PulseForge.Tests.EditMode
             object normalized = InvokeNormalizer("NormalizeSettings", settings);
 
             Assert.That(GetField<string>(normalized, "defaultGameMode"), Is.EqualTo("Standard"));
-            Assert.That(GetField<int>(normalized, "schemaVersion"), Is.EqualTo(3));
+            Assert.That(GetField<string>(normalized, "defaultCoverage"), Is.EqualTo("Standard"));
+            Assert.That(GetField<float>(normalized, "forecastLeadMultiplier"), Is.EqualTo(1.25f));
+            Assert.That(GetField<string>(normalized, "readabilityMode"), Is.EqualTo("Assisted"));
+            Assert.That(GetField<string>(normalized, "defaultTimingAssist"), Is.EqualTo("Relaxed"));
+            Assert.That(GetField<bool>(normalized, "showUpcomingInputs"), Is.True);
+            Assert.That(GetField<bool>(normalized, "beatPulseEnabled"), Is.True);
+            Assert.That(GetField<int>(normalized, "schemaVersion"), Is.EqualTo(6));
         }
 
         [Test]
@@ -49,7 +55,14 @@ namespace PulseForge.Tests.EditMode
             Type normalizer = RuntimeType("SaveDataNormalizer");
             MethodInfo compare = normalizer.GetMethod(
                 "CanComparePerformance",
-                BindingFlags.Static | BindingFlags.Public);
+                BindingFlags.Static | BindingFlags.Public,
+                null,
+                new[]
+                {
+                    typeof(string), typeof(string), typeof(string),
+                    typeof(string), typeof(string), typeof(string)
+                },
+                null);
 
             bool sameMode = (bool)compare.Invoke(
                 null,
@@ -60,6 +73,35 @@ namespace PulseForge.Tests.EditMode
 
             Assert.That(sameMode, Is.True);
             Assert.That(differentMode, Is.False);
+        }
+
+        [Test]
+        public void PerformanceComparisonIsSeparatedByTimingAssist()
+        {
+            MethodInfo compare = RuntimeType("SaveDataNormalizer").GetMethod(
+                "CanComparePerformance",
+                BindingFlags.Static | BindingFlags.Public,
+                null,
+                new[]
+                {
+                    typeof(string), typeof(string), typeof(string), typeof(string),
+                    typeof(string), typeof(string), typeof(string), typeof(string)
+                },
+                null);
+
+            bool same = (bool)compare.Invoke(null, new object[]
+            {
+                "Standard", "Practice", "radial-v2", "abc",
+                "Standard", "Practice", "radial-v2", "abc"
+            });
+            bool different = (bool)compare.Invoke(null, new object[]
+            {
+                "Standard", "Standard", "radial-v2", "abc",
+                "Standard", "Practice", "radial-v2", "abc"
+            });
+
+            Assert.That(same, Is.True);
+            Assert.That(different, Is.False);
         }
 
         private static object InvokeNormalizer(string methodName, object argument)

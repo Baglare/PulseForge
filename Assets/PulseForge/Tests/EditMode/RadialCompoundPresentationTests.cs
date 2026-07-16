@@ -123,6 +123,74 @@ namespace PulseForge.Tests.EditMode
         }
 
         [Test]
+        public void CompoundEventsUseOneSharedTimingCue()
+        {
+            MethodInfo usesGroupTiming = CompoundMathType().GetMethod("UsesGroupTiming");
+            RadialEventType[] grouped =
+            {
+                RadialEventType.Chord,
+                RadialEventType.Choice,
+                RadialEventType.OrderedSequence,
+                RadialEventType.TimedChain,
+                RadialEventType.SwarmChain,
+                RadialEventType.BreakTarget,
+                RadialEventType.Sweep
+            };
+
+            for (int i = 0; i < grouped.Length; i++)
+            {
+                Assert.That(
+                    (bool)usesGroupTiming.Invoke(null, new object[] { grouped[i] }),
+                    Is.True,
+                    grouped[i].ToString());
+            }
+            Assert.That(
+                (bool)usesGroupTiming.Invoke(null, new object[] { RadialEventType.Tap }),
+                Is.False);
+            Assert.That(
+                (bool)usesGroupTiming.Invoke(null, new object[] { RadialEventType.GuardHold }),
+                Is.False);
+            Assert.That(
+                (bool)usesGroupTiming.Invoke(
+                    null,
+                    new object[] { RadialEventType.HeavyChargeRelease }),
+                Is.False);
+        }
+
+        [Test]
+        public void IndividualTimingPreservesTapHoldAndHeavyTransitions()
+        {
+            MethodInfo show = CompoundMathType().GetMethod("ShouldShowIndividualTiming");
+
+            Assert.That(ShowIndividual(show, RadialEventType.Tap, InputGestureType.Tap, RhythmInputPhase.Pressed, false), Is.True);
+            Assert.That(ShowIndividual(show, RadialEventType.GuardHold, InputGestureType.Hold, RhythmInputPhase.Pressed, false), Is.True);
+            Assert.That(ShowIndividual(show, RadialEventType.GuardHold, InputGestureType.Hold, RhythmInputPhase.Pressed, true), Is.False);
+            Assert.That(ShowIndividual(show, RadialEventType.HeavyChargeRelease, InputGestureType.Charge, RhythmInputPhase.Pressed, false), Is.True);
+            Assert.That(ShowIndividual(show, RadialEventType.HeavyChargeRelease, InputGestureType.Charge, RhythmInputPhase.Pressed, true), Is.False);
+            Assert.That(ShowIndividual(show, RadialEventType.HeavyChargeRelease, InputGestureType.Charge, RhythmInputPhase.Released, false), Is.False);
+            Assert.That(ShowIndividual(show, RadialEventType.Chord, InputGestureType.Chord, RhythmInputPhase.Pressed, false), Is.False);
+        }
+
+        [Test]
+        public void GroupProgressAndBreakDeadlineTimingUseAuthoredBounds()
+        {
+            MethodInfo progress = CompoundMathType().GetMethod("EvaluateGroupProgress");
+            MethodInfo deadline = RuntimeType("RadialPresentationMath")
+                .GetMethod("EvaluateDeadlineTimingWindow");
+
+            Assert.That((float)progress.Invoke(null, new object[] { 3, 6 }), Is.EqualTo(0.5f));
+            Assert.That((float)progress.Invoke(null, new object[] { 8, 6 }), Is.EqualTo(1f));
+            object perfect = deadline.Invoke(null, new object[] { 0.4d, 0d, 0.6d, 1d });
+            object good = deadline.Invoke(null, new object[] { 0.8d, 0d, 0.6d, 1d });
+
+            Assert.That(perfect.GetType().GetProperty("State").GetValue(perfect).ToString(), Is.EqualTo("Perfect"));
+            Assert.That(good.GetType().GetProperty("State").GetValue(good).ToString(), Is.EqualTo("Good"));
+            Assert.That((float)perfect.GetType().GetProperty("Position01").GetValue(perfect), Is.EqualTo(0.4f).Within(0.0001f));
+            Assert.That((float)perfect.GetType().GetProperty("PerfectWidth01").GetValue(perfect), Is.EqualTo(0.6f).Within(0.0001f));
+            Assert.That((float)perfect.GetType().GetProperty("PerfectCenter01").GetValue(perfect), Is.EqualTo(0.3f).Within(0.0001f));
+        }
+
+        [Test]
         public void RestartResetClearsCompoundVisualRegistry()
         {
             object registry = Activator.CreateInstance(RuntimeType("RadialPresentationPoolRegistry"));
@@ -133,6 +201,18 @@ namespace PulseForge.Tests.EditMode
             registry.GetType().GetMethod("Clear").Invoke(registry, null);
 
             Assert.That((int)registry.GetType().GetProperty("Count").GetValue(registry), Is.Zero);
+        }
+
+        private static bool ShowIndividual(
+            MethodInfo method,
+            RadialEventType eventType,
+            InputGestureType gestureType,
+            RhythmInputPhase phase,
+            bool captured)
+        {
+            return (bool)method.Invoke(
+                null,
+                new object[] { eventType, gestureType, phase, captured });
         }
 
         private static RadialEncounterEventData Encounter(string id, RadialEventType type)

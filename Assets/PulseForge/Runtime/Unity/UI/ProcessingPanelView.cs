@@ -32,6 +32,18 @@ namespace PulseForge.Runtime.Unity.UI
             "Ready to play"
         };
 
+        private static readonly string[] LegacyStageNames =
+        {
+            "Audio selected",
+            "Converting to WAV",
+            "Loading converted audio",
+            "Detecting rhythm",
+            "Building combat sequence",
+            null,
+            null,
+            "Ready"
+        };
+
         [SerializeField] private Text songText;
         [SerializeField] private Text statusText;
         [SerializeField] private Text[] stageTexts;
@@ -66,6 +78,8 @@ namespace PulseForge.Runtime.Unity.UI
                     54f);
             }
 
+            ApplyCompactLayout(card, view.songText, view.statusText, view.stageTexts);
+
             return view;
         }
 
@@ -83,6 +97,18 @@ namespace PulseForge.Runtime.Unity.UI
                 {
                     orderedStages[i] = existing.GetComponent<Text>();
                     firstStageIndex = Math.Min(firstStageIndex, existing.GetSiblingIndex());
+                    continue;
+                }
+
+                string legacyName = LegacyStageNames[i];
+                if (!string.IsNullOrEmpty(legacyName))
+                {
+                    existing = card.Find(legacyName);
+                    if (existing != null)
+                    {
+                        orderedStages[i] = existing.GetComponent<Text>();
+                        firstStageIndex = Math.Min(firstStageIndex, existing.GetSiblingIndex());
+                    }
                 }
             }
 
@@ -107,6 +133,53 @@ namespace PulseForge.Runtime.Unity.UI
                 orderedStages[i].transform.SetSiblingIndex(firstStageIndex + i);
             }
             stageTexts = orderedStages;
+            ApplyCompactLayout(cardRect, songText, statusText, stageTexts);
+        }
+
+        private static void ApplyCompactLayout(
+            RectTransform card,
+            Text song,
+            Text status,
+            Text[] stages)
+        {
+            if (card == null)
+            {
+                return;
+            }
+
+            VerticalLayoutGroup layout = card.GetComponent<VerticalLayoutGroup>();
+            if (layout != null)
+            {
+                layout.padding = new RectOffset(52, 52, 28, 28);
+                layout.spacing = 6f;
+            }
+
+            Transform heading = card.Find("Heading");
+            if (heading != null)
+            {
+                PulseForgeUIFactory.SetLayoutHeight(heading, 58f);
+            }
+
+            if (song != null)
+            {
+                PulseForgeUIFactory.SetLayoutHeight(song, 38f);
+            }
+
+            if (status != null)
+            {
+                PulseForgeUIFactory.SetLayoutHeight(status, 42f);
+            }
+
+            for (int i = 0; i < stages.Length; i++)
+            {
+                if (stages[i] == null)
+                {
+                    continue;
+                }
+
+                stages[i].fontSize = 20;
+                PulseForgeUIFactory.SetLayoutHeight(stages[i], 38f);
+            }
         }
 
         public void Refresh(DebugRhythmPrototypeController controller)

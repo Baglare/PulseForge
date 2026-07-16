@@ -81,6 +81,8 @@ namespace PulseForge.Runtime.Unity.Prototype
         private AudioClip runtimeAudioClip;
         private IReadOnlyList<BeatEventData> runtimeBeatEvents;
         private RadialBeatMapData runtimeRadialBeatMap;
+        private BeatGridData runtimeBeatGrid;
+        private BeatGridData activeBeatGrid;
         private AnalyzerQualityReport runtimeAnalyzerQuality;
         private PlannerQualityReport runtimePlannerQuality;
         private string runtimeBeatMapFingerprint = string.Empty;
@@ -93,7 +95,13 @@ namespace PulseForge.Runtime.Unity.Prototype
         private RuntimeDetectionMode runtimeDetectionMode = RuntimeDetectionMode.Onset;
         private RuntimeDifficulty runtimeDifficulty = RuntimeDifficulty.Normal;
         private RuntimeCombatStyle runtimeCombatStyle = RuntimeCombatStyle.Legacy;
+        private RuntimeCoverage runtimeCoverage = RuntimeCoverage.Standard;
         private RadialGameMode selectedGameMode = RadialGameMode.Standard;
+        private TimingAssistMode selectedTimingAssist = TimingAssistMode.Relaxed;
+        private bool showUpcomingInputs = true;
+        private bool beatPulseEnabled = true;
+        private float forecastLeadMultiplier = 1.25f;
+        private RadialReadabilityMode readabilityMode = RadialReadabilityMode.Assisted;
         private readonly RadialGameModePolicy radialRunPolicy = new RadialGameModePolicy();
         private readonly RadialRunStatusController radialStatusEffects =
             new RadialRunStatusController();
@@ -187,7 +195,14 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         public RuntimeAudioPipelineSettings SelectedPipelineSettings
         {
-            get { return new RuntimeAudioPipelineSettings(runtimeDetectionMode, runtimeDifficulty, runtimeCombatStyle); }
+            get
+            {
+                return new RuntimeAudioPipelineSettings(
+                    runtimeDetectionMode,
+                    runtimeDifficulty,
+                    runtimeCombatStyle,
+                    runtimeCoverage);
+            }
         }
 
         public RuntimeAudioPipelineSettings AppliedPipelineSettings
@@ -238,6 +253,26 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         internal RadialStatusEffectSnapshot RadialStatusForPresentation =>
             radialStatusEffects.GetSnapshot(CurrentSongTimeSeconds);
+
+        internal int RadialPresentationDifficultyLevel => (int)(useRuntimeSessionSource
+            ? appliedRuntimePipelineSettings.Difficulty
+            : runtimeDifficulty);
+
+        internal float ForecastLeadMultiplierForPresentation => forecastLeadMultiplier;
+
+        internal RadialReadabilityMode ReadabilityModeForPresentation => readabilityMode;
+
+        internal bool ShowUpcomingInputsForPresentation => showUpcomingInputs;
+
+        internal bool BeatPulseEnabledForPresentation => beatPulseEnabled;
+
+        internal BeatGridData ActiveBeatGridForPresentation => activeBeatGrid;
+
+        internal RadialTimingProfile ActiveTimingProfileForPresentation => radialSession == null
+            ? RadialTimingProfile.FromMode(selectedTimingAssist)
+            : radialSession.TimingProfile;
+
+        public TimingAssistMode SelectedTimingAssist => selectedTimingAssist;
 
         internal bool IsRadialActionHeldForPresentation(RhythmAction action)
         {
@@ -323,6 +358,16 @@ namespace PulseForge.Runtime.Unity.Prototype
                 return useRuntimeSessionSource
                     ? appliedRuntimePipelineSettings.CombatStyle.ToString()
                     : ResolveBuiltInCombatStyleLabel();
+            }
+        }
+
+        public string AppliedCoverageLabel
+        {
+            get
+            {
+                return useRuntimeSessionSource
+                    ? FormatCoverage(appliedRuntimePipelineSettings.Coverage)
+                    : FormatCoverage(runtimeCoverage);
             }
         }
 
@@ -654,6 +699,11 @@ namespace PulseForge.Runtime.Unity.Prototype
                     SetCombatStyle(GetNextCombatStyle(runtimeCombatStyle));
                 }
 
+                if (GUILayout.Button("Coverage: " + FormatCoverage(runtimeCoverage)))
+                {
+                    SetCoverage(GetNextCoverage(runtimeCoverage));
+                }
+
                 if (GUILayout.Button(isRuntimeAudioImportBusy ? "Running Pipeline..." : "Choose Audio & Run Pipeline"))
                 {
                     BeginRuntimeAudioImport();
@@ -696,6 +746,24 @@ namespace PulseForge.Runtime.Unity.Prototype
             }
         }
 
+        private static RuntimeCoverage GetNextCoverage(RuntimeCoverage current)
+        {
+            switch (current)
+            {
+                case RuntimeCoverage.Relaxed:
+                    return RuntimeCoverage.Standard;
+                case RuntimeCoverage.Standard:
+                    return RuntimeCoverage.FullPulse;
+                default:
+                    return RuntimeCoverage.Relaxed;
+            }
+        }
+
+        private static string FormatCoverage(RuntimeCoverage coverage)
+        {
+            return coverage == RuntimeCoverage.FullPulse ? "Full Pulse" : coverage.ToString();
+        }
+
         public void SetDetectionMode(RuntimeDetectionMode detectionMode)
         {
             if (UIState == PulseForgeUIState.Setup && !isRuntimeAudioImportBusy)
@@ -735,6 +803,41 @@ namespace PulseForge.Runtime.Unity.Prototype
 
                 runtimeCombatStyle = combatStyle;
                 SaveCurrentSettings();
+            }
+        }
+
+        public void SetCoverage(RuntimeCoverage coverage)
+        {
+            if ((UIState != PulseForgeUIState.Setup && UIState != PulseForgeUIState.Ready)
+                || isRuntimeAudioImportBusy
+                || runtimeCoverage == coverage)
+            {
+                return;
+            }
+
+            runtimeCoverage = coverage;
+            ClearActiveSavedPreset();
+            SaveCurrentSettings();
+            if (UIState == PulseForgeUIState.Ready)
+            {
+                setupStatusMessage = "Coverage changed. Analyze the track again to prepare this preset.";
+                ReturnToSetup(false);
+            }
+        }
+
+        public void SetTimingAssist(TimingAssistMode timingAssist)
+        {
+            if ((UIState != PulseForgeUIState.Setup && UIState != PulseForgeUIState.Ready)
+                || selectedTimingAssist == timingAssist)
+            {
+                return;
+            }
+
+            selectedTimingAssist = timingAssist;
+            SaveCurrentSettings();
+            if (UIState == PulseForgeUIState.Ready)
+            {
+                PrepareSession(false);
             }
         }
 
@@ -958,6 +1061,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             runtimeDetectionMode = settings.DetectionMode;
             runtimeDifficulty = settings.Difficulty;
             runtimeCombatStyle = settings.CombatStyle;
+            runtimeCoverage = settings.Coverage;
             activeSavedTrackId = track.trackId;
             activeSavedPresetId = preset.presetId;
 
@@ -1072,6 +1176,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             runtimeAudioClip = loadedClip;
             runtimeBeatEvents = null;
             runtimeRadialBeatMap = rebuildResult.RadialBeatMap;
+            runtimeBeatGrid = rebuildResult.BeatGrid;
             runtimeAnalyzerQuality = rebuildResult.AnalyzerQuality;
             runtimePlannerQuality = rebuildResult.PlannerQuality;
             runtimeAudioDisplayName = track.displayName;
@@ -1086,6 +1191,7 @@ namespace PulseForge.Runtime.Unity.Prototype
                     runtimeRadialBeatMap,
                     runtimeAnalyzerQuality,
                     runtimePlannerQuality,
+                    runtimeBeatGrid,
                     out runtimeBeatMapFingerprint))
             {
                 isRuntimeAudioImportBusy = false;
@@ -1436,16 +1542,23 @@ namespace PulseForge.Runtime.Unity.Prototype
                 if (useRuntimeSessionSource && runtimeRadialBeatMap != null)
                 {
                     activeSessionUsesRadialV2ScoreSchema = true;
-                    radialSession = new RadialRhythmSession(runtimeRadialBeatMap.encounters);
+                    activeBeatGrid = runtimeBeatGrid;
+                    radialSession = new RadialRhythmSession(
+                        runtimeRadialBeatMap.encounters,
+                        selectedTimingAssist);
                     session = null;
                 }
                 else
                 {
-                    RadialBeatMapData radialBeatMap = CreateConfiguredRadialBeatMap();
+                    RadialBeatMapData radialBeatMap = CreateConfiguredRadialBeatMap(
+                        out BeatGridData configuredBeatGrid);
                     if (radialBeatMap != null && radialBeatMap.encounters.Count > 0)
                     {
                         activeSessionUsesRadialV2ScoreSchema = debugRadialBeatMapJson != null;
-                        radialSession = new RadialRhythmSession(radialBeatMap.encounters);
+                        activeBeatGrid = configuredBeatGrid;
+                        radialSession = new RadialRhythmSession(
+                            radialBeatMap.encounters,
+                            selectedTimingAssist);
                         session = null;
                     }
                     else
@@ -1457,6 +1570,7 @@ namespace PulseForge.Runtime.Unity.Prototype
                             new RhythmInputResolver(new BeatEventMatcher(), new HitJudge()),
                             new BeatEventTimeoutProcessor(new HitJudge()));
                         radialSession = null;
+                        activeBeatGrid = null;
                     }
                 }
                 scoreTracker = new ScoreTracker();
@@ -1491,6 +1605,7 @@ namespace PulseForge.Runtime.Unity.Prototype
                 ClearPendingInput();
                 session = null;
                 radialSession = null;
+                activeBeatGrid = null;
                 radialStatusEffects.Reset();
                 activeSessionUsesRadialV2ScoreSchema = false;
                 scoreTracker = new ScoreTracker();
@@ -1527,9 +1642,23 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private RadialBeatMapData CreateConfiguredRadialBeatMap()
         {
+            return CreateConfiguredRadialBeatMap(out _);
+        }
+
+        private RadialBeatMapData CreateConfiguredRadialBeatMap(out BeatGridData beatGrid)
+        {
+            beatGrid = null;
             if (debugRadialBeatMapJson != null)
             {
-                return ParseRadialBeatMapJson(debugRadialBeatMapJson.text);
+                if (!RadialBeatMapArtifactSerializer.TryDeserialize(
+                    debugRadialBeatMapJson.text,
+                    out RadialBeatMapCacheData artifact,
+                    out string errorMessage))
+                {
+                    throw new FormatException(errorMessage);
+                }
+                beatGrid = artifact.beatGrid;
+                return artifact.radialBeatMap;
             }
 
             IReadOnlyList<BeatEventData> legacyEvents = CreateSessionBeatEvents();
@@ -1772,6 +1901,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             AudioClip previousRuntimeAudioClip = runtimeAudioClip;
             IReadOnlyList<BeatEventData> previousRuntimeBeatEvents = runtimeBeatEvents;
             RadialBeatMapData previousRuntimeRadialBeatMap = runtimeRadialBeatMap;
+            BeatGridData previousRuntimeBeatGrid = runtimeBeatGrid;
             AnalyzerQualityReport previousAnalyzerQuality = runtimeAnalyzerQuality;
             PlannerQualityReport previousPlannerQuality = runtimePlannerQuality;
             string previousFingerprint = runtimeBeatMapFingerprint;
@@ -1781,6 +1911,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             runtimeAudioClip = importResult.AudioClip;
             runtimeBeatEvents = null;
             runtimeRadialBeatMap = importResult.RadialBeatMap;
+            runtimeBeatGrid = importResult.BeatGrid;
             runtimeAnalyzerQuality = importResult.AnalyzerQuality;
             runtimePlannerQuality = importResult.PlannerQuality;
             runtimeBeatMapFingerprint = RadialBeatMapFingerprint.Compute(runtimeRadialBeatMap);
@@ -1794,6 +1925,7 @@ namespace PulseForge.Runtime.Unity.Prototype
                 runtimeAudioClip = previousRuntimeAudioClip;
                 runtimeBeatEvents = previousRuntimeBeatEvents;
                 runtimeRadialBeatMap = previousRuntimeRadialBeatMap;
+                runtimeBeatGrid = previousRuntimeBeatGrid;
                 runtimeAnalyzerQuality = previousAnalyzerQuality;
                 runtimePlannerQuality = previousPlannerQuality;
                 runtimeBeatMapFingerprint = previousFingerprint;
@@ -1864,6 +1996,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             AudioClip previousRuntimeAudioClip = runtimeAudioClip;
             IReadOnlyList<BeatEventData> previousRuntimeBeatEvents = runtimeBeatEvents;
             RadialBeatMapData previousRuntimeRadialBeatMap = runtimeRadialBeatMap;
+            BeatGridData previousRuntimeBeatGrid = runtimeBeatGrid;
             AnalyzerQualityReport previousAnalyzerQuality = runtimeAnalyzerQuality;
             PlannerQualityReport previousPlannerQuality = runtimePlannerQuality;
             string previousFingerprint = runtimeBeatMapFingerprint;
@@ -1873,6 +2006,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             runtimeAudioClip = loadedClip;
             runtimeBeatEvents = null;
             runtimeRadialBeatMap = loadData.RadialBeatMap;
+            runtimeBeatGrid = loadData.BeatGrid;
             runtimeAnalyzerQuality = loadData.AnalyzerQuality;
             runtimePlannerQuality = loadData.PlannerQuality;
             runtimeBeatMapFingerprint = loadData.BeatMapFingerprint;
@@ -1886,6 +2020,7 @@ namespace PulseForge.Runtime.Unity.Prototype
                 runtimeAudioClip = previousRuntimeAudioClip;
                 runtimeBeatEvents = previousRuntimeBeatEvents;
                 runtimeRadialBeatMap = previousRuntimeRadialBeatMap;
+                runtimeBeatGrid = previousRuntimeBeatGrid;
                 runtimeAnalyzerQuality = previousAnalyzerQuality;
                 runtimePlannerQuality = previousPlannerQuality;
                 runtimeBeatMapFingerprint = previousFingerprint;
@@ -1919,6 +2054,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             runtimeDetectionMode = loadData.Settings.DetectionMode;
             runtimeDifficulty = loadData.Settings.Difficulty;
             runtimeCombatStyle = loadData.Settings.CombatStyle;
+            runtimeCoverage = loadData.Settings.Coverage;
             activeSavedTrackId = loadData.Track.trackId;
             activeSavedPresetId = loadData.Preset.presetId;
             saveSetupToLibrary = false;
@@ -2579,6 +2715,7 @@ namespace PulseForge.Runtime.Unity.Prototype
                 runtimeRadialBeatMap,
                 runtimeAnalyzerQuality,
                 runtimePlannerQuality,
+                runtimeBeatGrid,
                 out SavedTrackPresetReference reference))
             {
                 activeSavedTrackId = reference.TrackId;
@@ -2610,6 +2747,7 @@ namespace PulseForge.Runtime.Unity.Prototype
                 activeSessionUsesRadialV2ScoreSchema ? ScoreSchema.RadialV2 : ScoreSchema.LegacyV1,
                 activeSessionUsesRadialV2ScoreSchema ? runtimeBeatMapFingerprint : string.Empty,
                 radialRunPolicy.Mode,
+                selectedTimingAssist,
                 radialRunPolicy.Outcome);
             savedTrackLibraryRevision++;
         }
@@ -2632,15 +2770,28 @@ namespace PulseForge.Runtime.Unity.Prototype
                 settings.defaultDetection,
                 settings.defaultDifficulty,
                 settings.defaultCombatStyle,
+                settings.defaultCoverage,
                 out RuntimeAudioPipelineSettings pipeline))
             {
                 runtimeDetectionMode = pipeline.DetectionMode;
                 runtimeDifficulty = pipeline.Difficulty;
                 runtimeCombatStyle = pipeline.CombatStyle;
+                runtimeCoverage = pipeline.Coverage;
             }
             if (!Enum.TryParse(settings.defaultGameMode, true, out selectedGameMode))
             {
                 selectedGameMode = RadialGameMode.Standard;
+            }
+            if (!Enum.TryParse(settings.defaultTimingAssist, true, out selectedTimingAssist))
+            {
+                selectedTimingAssist = TimingAssistMode.Relaxed;
+            }
+            showUpcomingInputs = settings.showUpcomingInputs;
+            beatPulseEnabled = settings.beatPulseEnabled;
+            forecastLeadMultiplier = settings.forecastLeadMultiplier;
+            if (!Enum.TryParse(settings.readabilityMode, true, out readabilityMode))
+            {
+                readabilityMode = RadialReadabilityMode.Assisted;
             }
 
             debugBeatMapOffsetSeconds = settings.beatmapOffsetSeconds;
@@ -2686,7 +2837,13 @@ namespace PulseForge.Runtime.Unity.Prototype
             data.defaultDetection = runtimeDetectionMode.ToString();
             data.defaultDifficulty = runtimeDifficulty.ToString();
             data.defaultCombatStyle = runtimeCombatStyle.ToString();
+            data.defaultCoverage = runtimeCoverage.ToString();
             data.defaultGameMode = selectedGameMode.ToString();
+            data.defaultTimingAssist = selectedTimingAssist.ToString();
+            data.showUpcomingInputs = showUpcomingInputs;
+            data.beatPulseEnabled = beatPulseEnabled;
+            data.forecastLeadMultiplier = forecastLeadMultiplier;
+            data.readabilityMode = readabilityMode.ToString();
             data.beatmapOffsetSeconds = debugBeatMapOffsetSeconds;
             data.inputTimingOffsetSeconds = inputTimingOffsetSeconds;
             if (inputService != null && data.input != null)
@@ -2885,6 +3042,16 @@ namespace PulseForge.Runtime.Unity.Prototype
             settingsDraftRevision++;
         }
 
+        public void CycleDraftCoverage(int direction)
+        {
+            if (!TryGetSettingsDraft(out PulseForgeSettingsData draft)) return;
+            RuntimeCoverage current;
+            if (!Enum.TryParse(draft.defaultCoverage, true, out current)) current = RuntimeCoverage.Standard;
+            RuntimeCoverage[] values = (RuntimeCoverage[])Enum.GetValues(typeof(RuntimeCoverage));
+            draft.defaultCoverage = values[WrapIndex((int)current + direction, values.Length)].ToString();
+            settingsDraftRevision++;
+        }
+
         public void CycleDraftGameMode(int direction)
         {
             if (!TryGetSettingsDraft(out PulseForgeSettingsData draft)) return;
@@ -2892,6 +3059,67 @@ namespace PulseForge.Runtime.Unity.Prototype
             if (!Enum.TryParse(draft.defaultGameMode, true, out current)) current = RadialGameMode.Standard;
             RadialGameMode[] values = (RadialGameMode[])Enum.GetValues(typeof(RadialGameMode));
             draft.defaultGameMode = values[WrapIndex((int)current + direction, values.Length)].ToString();
+            settingsDraftRevision++;
+        }
+
+        public void CycleDraftTimingAssist(int direction)
+        {
+            if (!TryGetSettingsDraft(out PulseForgeSettingsData draft)) return;
+            if (!Enum.TryParse(draft.defaultTimingAssist, true, out TimingAssistMode current))
+            {
+                current = TimingAssistMode.Relaxed;
+            }
+            TimingAssistMode[] values = (TimingAssistMode[])Enum.GetValues(typeof(TimingAssistMode));
+            draft.defaultTimingAssist = values[
+                WrapIndex((int)current + direction, values.Length)].ToString();
+            settingsDraftRevision++;
+        }
+
+        public void SetDraftShowUpcomingInputs(bool value)
+        {
+            if (!TryGetSettingsDraft(out PulseForgeSettingsData draft)) return;
+            draft.showUpcomingInputs = value;
+            settingsDraftRevision++;
+        }
+
+        public void SetDraftBeatPulseEnabled(bool value)
+        {
+            if (!TryGetSettingsDraft(out PulseForgeSettingsData draft)) return;
+            draft.beatPulseEnabled = value;
+            settingsDraftRevision++;
+        }
+
+        public void CycleDraftForecastLeadMultiplier(int direction)
+        {
+            if (!TryGetSettingsDraft(out PulseForgeSettingsData draft)) return;
+            float[] values = { 1f, 1.25f, 1.5f, 1.75f };
+            int current = 0;
+            for (int i = 0; i < values.Length; i++)
+            {
+                if (Mathf.Abs(values[i] - draft.forecastLeadMultiplier) < 0.001f)
+                {
+                    current = i;
+                    break;
+                }
+            }
+            draft.forecastLeadMultiplier = values[WrapIndex(current + direction, values.Length)];
+            settingsDraftRevision++;
+        }
+
+        public void CycleDraftReadabilityMode(int direction)
+        {
+            if (!TryGetSettingsDraft(out PulseForgeSettingsData draft)) return;
+            if (!Enum.TryParse(
+                draft.readabilityMode,
+                true,
+                out RadialReadabilityMode current))
+            {
+                current = RadialReadabilityMode.Assisted;
+            }
+            RadialReadabilityMode[] values =
+                (RadialReadabilityMode[])Enum.GetValues(typeof(RadialReadabilityMode));
+            draft.readabilityMode = values[
+                WrapIndex((int)current + direction, values.Length)].ToString();
             settingsDraftRevision++;
         }
 
@@ -2937,13 +3165,25 @@ namespace PulseForge.Runtime.Unity.Prototype
         {
             PulseForgeSettingsData normalized = SaveDataNormalizer.NormalizeSettings(settings);
             SaveDataNormalizer.TryGetPipelineSettings(normalized.defaultDetection, normalized.defaultDifficulty,
-                normalized.defaultCombatStyle, out RuntimeAudioPipelineSettings pipeline);
+                normalized.defaultCombatStyle, normalized.defaultCoverage, out RuntimeAudioPipelineSettings pipeline);
             runtimeDetectionMode = pipeline.DetectionMode;
             runtimeDifficulty = pipeline.Difficulty;
             runtimeCombatStyle = pipeline.CombatStyle;
+            runtimeCoverage = pipeline.Coverage;
             if (Enum.TryParse(normalized.defaultGameMode, true, out RadialGameMode gameMode))
             {
                 selectedGameMode = gameMode;
+            }
+            if (!Enum.TryParse(normalized.defaultTimingAssist, true, out selectedTimingAssist))
+            {
+                selectedTimingAssist = TimingAssistMode.Relaxed;
+            }
+            showUpcomingInputs = normalized.showUpcomingInputs;
+            beatPulseEnabled = normalized.beatPulseEnabled;
+            forecastLeadMultiplier = normalized.forecastLeadMultiplier;
+            if (!Enum.TryParse(normalized.readabilityMode, true, out readabilityMode))
+            {
+                readabilityMode = RadialReadabilityMode.Assisted;
             }
             debugBeatMapOffsetSeconds = normalized.beatmapOffsetSeconds;
             inputTimingOffsetSeconds = normalized.inputTimingOffsetSeconds;

@@ -12,10 +12,19 @@ namespace PulseForge.Domain.Rhythm
         private readonly ReadOnlyCollection<InputRequirementRuntime> readOnlyRequirements;
         private readonly List<EncounterTargetRuntime> targets;
         private readonly ReadOnlyCollection<EncounterTargetRuntime> readOnlyTargets;
+        private readonly RadialTimingProfile timingProfile;
 
         public RadialEncounterRuntime(RadialEncounterEventData data)
+            : this(data, RadialTimingProfile.FromMode(TimingAssistMode.Standard))
+        {
+        }
+
+        public RadialEncounterRuntime(
+            RadialEncounterEventData data,
+            RadialTimingProfile timingProfile)
         {
             Data = data ?? throw new ArgumentNullException(nameof(data));
+            this.timingProfile = timingProfile;
             Validate(data);
 
             requirements = new List<InputRequirementRuntime>(data.requirements.Count);
@@ -545,9 +554,9 @@ namespace PulseForge.Domain.Rhythm
             }
 
             double spread = latest - earliest;
-            HitGrade spreadGrade = spread <= Data.perfectSpreadSeconds + BoundaryTolerance
+            HitGrade spreadGrade = spread <= timingProfile.PerfectWindowSeconds + BoundaryTolerance
                 ? HitGrade.Perfect
-                : spread <= Data.goodSpreadSeconds + BoundaryTolerance
+                : spread <= timingProfile.GoodWindowSeconds + BoundaryTolerance
                     ? HitGrade.Good
                     : HitGrade.Miss;
             grade = Worst(grade, spreadGrade);
@@ -617,7 +626,7 @@ namespace PulseForge.Domain.Rhythm
             for (int i = 0; i < requirements.Count; i++)
             {
                 InputRequirementData data = requirements[i].Data;
-                deadline = Math.Max(deadline, data.targetTimeSeconds + data.goodWindowSeconds);
+                deadline = Math.Max(deadline, data.targetTimeSeconds + timingProfile.GoodWindowSeconds);
             }
 
             if (songTimeSeconds <= deadline + BoundaryTolerance)
@@ -689,7 +698,7 @@ namespace PulseForge.Domain.Rhythm
                 return;
             }
 
-            if (!held || songTimeSeconds > data.holdEndTimeSeconds + data.goodWindowSeconds + BoundaryTolerance)
+            if (!held || songTimeSeconds > data.holdEndTimeSeconds + timingProfile.GoodWindowSeconds + BoundaryTolerance)
             {
                 ResolveRequirement(
                     requirement,
@@ -883,29 +892,29 @@ namespace PulseForge.Domain.Rhythm
             return Math.Abs(input.SongTimeSeconds - requirement.Data.targetTimeSeconds);
         }
 
-        private static HitGrade GradeTiming(InputRequirementData data, double inputTimeSeconds)
+        private HitGrade GradeTiming(InputRequirementData data, double inputTimeSeconds)
         {
             double absoluteError = Math.Abs(inputTimeSeconds - data.targetTimeSeconds);
-            if (absoluteError <= data.perfectWindowSeconds + BoundaryTolerance)
+            if (absoluteError <= timingProfile.PerfectWindowSeconds + BoundaryTolerance)
             {
                 return HitGrade.Perfect;
             }
 
-            return absoluteError <= data.goodWindowSeconds + BoundaryTolerance
+            return absoluteError <= timingProfile.GoodWindowSeconds + BoundaryTolerance
                 ? HitGrade.Good
                 : HitGrade.Miss;
         }
 
-        private static bool IsWithinGoodWindow(InputRequirementData data, double songTimeSeconds)
+        private bool IsWithinGoodWindow(InputRequirementData data, double songTimeSeconds)
         {
             return Math.Abs(songTimeSeconds - data.targetTimeSeconds)
-                <= data.goodWindowSeconds + BoundaryTolerance;
+                <= timingProfile.GoodWindowSeconds + BoundaryTolerance;
         }
 
-        private static bool IsPastGoodWindow(InputRequirementData data, double songTimeSeconds)
+        private bool IsPastGoodWindow(InputRequirementData data, double songTimeSeconds)
         {
             return songTimeSeconds
-                > data.targetTimeSeconds + data.goodWindowSeconds + BoundaryTolerance;
+                > data.targetTimeSeconds + timingProfile.GoodWindowSeconds + BoundaryTolerance;
         }
 
         private static bool IsAtOrBefore(double value, double boundary)

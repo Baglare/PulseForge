@@ -23,17 +23,131 @@ namespace PulseForge.Tests.EditMode
         }
 
         [Test]
-        public void DifficultyChangesInputDensityInOrder()
+        public void CoverageChangesInputDensityInOrder()
         {
             RadialAudioAnalysisResult analysis = CreateAnalysis(30d, SongSectionActivityLevel.Active, 0.75d, 0.25d);
             RadialEncounterPlanner planner = new RadialEncounterPlanner();
 
-            int easy = planner.Plan(analysis, BeatMapDifficulty.Easy, CombatStyle.Balanced, "density").qualityReport.totalInputCost;
-            int normal = planner.Plan(analysis, BeatMapDifficulty.Normal, CombatStyle.Balanced, "density").qualityReport.totalInputCost;
-            int hard = planner.Plan(analysis, BeatMapDifficulty.Hard, CombatStyle.Balanced, "density").qualityReport.totalInputCost;
+            int relaxed = planner.Plan(analysis, BeatMapDifficulty.Normal, CombatStyle.Balanced,
+                CoverageMode.Relaxed, "density").qualityReport.totalInputCost;
+            int standard = planner.Plan(analysis, BeatMapDifficulty.Normal, CombatStyle.Balanced,
+                CoverageMode.Standard, "density").qualityReport.totalInputCost;
+            int fullPulse = planner.Plan(analysis, BeatMapDifficulty.Normal, CombatStyle.Balanced,
+                CoverageMode.FullPulse, "density").qualityReport.totalInputCost;
 
-            Assert.That(easy, Is.LessThan(normal));
-            Assert.That(normal, Is.LessThan(hard));
+            Assert.That(relaxed, Is.LessThan(standard));
+            Assert.That(standard, Is.LessThan(fullPulse));
+        }
+
+        [Test]
+        public void FullPulseCoversActiveBeatsButNotSilentSection()
+        {
+            RadialAudioAnalysisResult analysis = CreateTwoSectionAnalysis();
+            RadialEncounterPlanResult result = new RadialEncounterPlanner().Plan(
+                analysis,
+                BeatMapDifficulty.Normal,
+                CombatStyle.Balanced,
+                CoverageMode.FullPulse,
+                "full-pulse");
+
+            List<double> times = result.beatMap.encounters.Select(FirstTime).ToList();
+            Assert.That(times.All(time => time >= 5d), Is.True);
+            Assert.That(analysis.beatGrid.beatTimesSeconds
+                .Where(time => time >= 5d && time < 10d)
+                .All(beat => times.Any(time => Math.Abs(time - beat) < 0.001d)), Is.True);
+        }
+
+        [Test]
+        public void RhythmLockSnapsMediumOnsetAndPreservesStrongOffGridAccent()
+        {
+            RadialAudioAnalysisResult snappedAnalysis = CreateAnalysis(
+                4d, SongSectionActivityLevel.Active, 0.5d, 10d);
+            snappedAnalysis.onsetCandidates.Clear();
+            snappedAnalysis.onsetCandidates.Add(CreateOnset(1.10d, 0.6d, AudioBandMask.Mid));
+            RadialEncounterPlanResult snapped = new RadialEncounterPlanner().Plan(
+                snappedAnalysis, BeatMapDifficulty.Normal, CombatStyle.Balanced,
+                CoverageMode.Relaxed, "snap");
+
+            RadialAudioAnalysisResult accentAnalysis = CreateAnalysis(
+                4d, SongSectionActivityLevel.Active, 0.5d, 10d);
+            accentAnalysis.onsetCandidates.Clear();
+            accentAnalysis.beatGrid.subdivisionTimesSeconds.Clear();
+            accentAnalysis.onsetCandidates.Add(CreateOnset(1.25d, 0.95d, AudioBandMask.High));
+            RadialEncounterPlanResult accent = new RadialEncounterPlanner().Plan(
+                accentAnalysis, BeatMapDifficulty.Normal, CombatStyle.Balanced,
+                CoverageMode.Relaxed, "accent");
+
+            Assert.That(snapped.beatMap.encounters.Any(item =>
+                item.eventId.StartsWith("onset-", StringComparison.Ordinal)
+                && Math.Abs(FirstTime(item) - 1d) < 0.001d), Is.True);
+            Assert.That(accent.beatMap.encounters.Any(item =>
+                item.eventId.StartsWith("onset-", StringComparison.Ordinal)
+                && Math.Abs(FirstTime(item) - 1.25d) < 0.001d), Is.True);
+        }
+
+        [Test]
+        public void QualityReportIncludesBeatAlignmentAndCoverageMetrics()
+        {
+            RadialEncounterPlanResult result = new RadialEncounterPlanner().Plan(
+                CreateAnalysis(12d, SongSectionActivityLevel.Active, 0.8d, 0.5d),
+                BeatMapDifficulty.Normal,
+                CombatStyle.Balanced,
+                CoverageMode.Standard,
+                "quality");
+
+            Assert.That(result.qualityReport.coverageMode, Is.EqualTo(CoverageMode.Standard));
+            Assert.That(result.qualityReport.beatAlignedRequirementRatio, Is.GreaterThanOrEqualTo(0.85d));
+            Assert.That(result.qualityReport.activeGridPointCount, Is.GreaterThan(0));
+            Assert.That(result.qualityReport.maximumGridDeviationSeconds, Is.LessThanOrEqualTo(0.13d));
+        }
+
+        [Test]
+        public void FullPulseKeepsCompoundRatioWithinLimit()
+        {
+            RadialEncounterPlanResult result = new RadialEncounterPlanner().Plan(
+                CreateAnalysis(30d, SongSectionActivityLevel.Peak, 1d, 0.15d),
+                BeatMapDifficulty.Hard,
+                CombatStyle.Bursty,
+                CoverageMode.FullPulse,
+                "compound-limit");
+
+            Assert.That(result.qualityReport.compoundEventRatio, Is.LessThanOrEqualTo(0.10d));
+        }
+
+        [Test]
+        public void ValidatorRepairsRapidOppositeDirections()
+        {
+            RadialBeatMapData map = new RadialBeatMapData();
+            map.encounters.Add(CreateTap("first", RhythmAction.LightAttack, 1d, RadialDirection.North));
+            map.encounters.Add(CreateTap("second", RhythmAction.LightAttack, 1.4d, RadialDirection.South));
+
+            BeatMapValidationReport report = new RadialBeatMapValidator().ValidateAndRepair(
+                map,
+                CreateAnalysis(4d, SongSectionActivityLevel.Active, 0.6d, 0.5d),
+                BeatMapDifficulty.Normal,
+                CoverageMode.Standard,
+                19u);
+
+            Assert.That(report.angularRepairCount, Is.GreaterThanOrEqualTo(1));
+            Assert.That(DirectionDistance(
+                map.encounters[0].targets[0].direction,
+                map.encounters[1].targets[0].direction), Is.LessThanOrEqualTo(3));
+        }
+
+        [Test]
+        public void CoveragePlanIsDeterministic()
+        {
+            RadialAudioAnalysisResult analysis = CreateAnalysis(
+                18d, SongSectionActivityLevel.Active, 0.75d, 0.4d);
+            RadialEncounterPlanner planner = new RadialEncounterPlanner();
+            RadialEncounterPlanResult first = planner.Plan(
+                analysis, BeatMapDifficulty.Hard, CombatStyle.Aggressive,
+                CoverageMode.FullPulse, "coverage-deterministic");
+            RadialEncounterPlanResult second = planner.Plan(
+                analysis, BeatMapDifficulty.Hard, CombatStyle.Aggressive,
+                CoverageMode.FullPulse, "coverage-deterministic");
+
+            Assert.That(Fingerprint(first.beatMap), Is.EqualTo(Fingerprint(second.beatMap)));
         }
 
         [Test]
@@ -85,6 +199,22 @@ namespace PulseForge.Tests.EditMode
             Assert.That(
                 ActionCount(defensive, RhythmAction.Guard) + ActionCount(defensive, RhythmAction.Dodge),
                 Is.GreaterThan(ActionCount(aggressive, RhythmAction.Guard) + ActionCount(aggressive, RhythmAction.Dodge)));
+        }
+
+        [Test]
+        public void CombatStyleDoesNotChangeRequirementTimes()
+        {
+            RadialAudioAnalysisResult analysis = CreateAnalysis(
+                36d, SongSectionActivityLevel.Active, 0.8d, 0.25d);
+            RadialEncounterPlanner planner = new RadialEncounterPlanner();
+            RadialBeatMapData balanced = planner.Plan(
+                analysis, BeatMapDifficulty.Hard, CombatStyle.Balanced,
+                CoverageMode.Standard, "style-times").beatMap;
+            RadialBeatMapData aggressive = planner.Plan(
+                analysis, BeatMapDifficulty.Hard, CombatStyle.Aggressive,
+                CoverageMode.Standard, "style-times").beatMap;
+
+            Assert.That(RequirementTimes(aggressive), Is.EqualTo(RequirementTimes(balanced)));
         }
 
         [Test]
@@ -505,6 +635,16 @@ namespace PulseForge.Tests.EditMode
         private static double FirstTime(RadialEncounterEventData encounter)
         {
             return encounter.requirements.Min(item => item.targetTimeSeconds);
+        }
+
+        private static List<double> RequirementTimes(RadialBeatMapData map)
+        {
+            return map.encounters
+                .SelectMany(encounter => encounter.requirements)
+                .Where(requirement => requirement != null && !requirement.isOptional)
+                .Select(requirement => requirement.targetTimeSeconds)
+                .OrderBy(time => time)
+                .ToList();
         }
 
         private static string Fingerprint(RadialBeatMapData map)

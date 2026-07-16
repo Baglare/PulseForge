@@ -201,6 +201,31 @@ namespace PulseForge.Runtime.Unity.Persistence
             PlannerQualityReport plannerQuality,
             out SavedTrackPresetReference reference)
         {
+            return TrySaveTrackSetup(
+                sourcePath,
+                displayName,
+                durationSeconds,
+                pipelineSettings,
+                convertedWavPath,
+                beatMap,
+                analyzerQuality,
+                plannerQuality,
+                null,
+                out reference);
+        }
+
+        public bool TrySaveTrackSetup(
+            string sourcePath,
+            string displayName,
+            double durationSeconds,
+            RuntimeAudioPipelineSettings pipelineSettings,
+            string convertedWavPath,
+            RadialBeatMapData beatMap,
+            AnalyzerQualityReport analyzerQuality,
+            PlannerQualityReport plannerQuality,
+            BeatGridData beatGrid,
+            out SavedTrackPresetReference reference)
+        {
             EnsureInitialized();
             reference = default;
             if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath))
@@ -234,6 +259,7 @@ namespace PulseForge.Runtime.Unity.Persistence
                     beatMap,
                     analyzerQuality,
                     plannerQuality,
+                    beatGrid,
                     createdAtUtc,
                     out string cachedAudioRelativePath,
                     out string cachedBeatmapRelativePath,
@@ -312,6 +338,7 @@ namespace PulseForge.Runtime.Unity.Persistence
                 preset.detectionMode,
                 preset.difficulty,
                 preset.combatStyle,
+                preset.coverage,
                 out settings);
         }
 
@@ -382,6 +409,29 @@ namespace PulseForge.Runtime.Unity.Persistence
             PlannerQualityReport plannerQuality,
             out string beatMapFingerprint)
         {
+            return TrySaveRebuiltPreset(
+                trackId,
+                presetId,
+                settings,
+                cachedWavPath,
+                beatMap,
+                analyzerQuality,
+                plannerQuality,
+                null,
+                out beatMapFingerprint);
+        }
+
+        public bool TrySaveRebuiltPreset(
+            string trackId,
+            string presetId,
+            RuntimeAudioPipelineSettings settings,
+            string cachedWavPath,
+            RadialBeatMapData beatMap,
+            AnalyzerQualityReport analyzerQuality,
+            PlannerQualityReport plannerQuality,
+            BeatGridData beatGrid,
+            out string beatMapFingerprint)
+        {
             EnsureInitialized();
             beatMapFingerprint = string.Empty;
             SavedTrackData track = libraryRepository.FindTrack(trackId);
@@ -398,6 +448,7 @@ namespace PulseForge.Runtime.Unity.Persistence
                 beatMap,
                 analyzerQuality,
                 plannerQuality,
+                beatGrid,
                 preset.createdAtUtc,
                 out string cachedAudioRelativePath,
                 out string cachedBeatmapRelativePath,
@@ -573,6 +624,27 @@ namespace PulseForge.Runtime.Unity.Persistence
             RadialGameMode gameMode,
             RadialRunOutcome outcome)
         {
+            RecordCompletedSession(
+                snapshot,
+                trackId,
+                presetId,
+                scoreSchema,
+                beatMapFingerprint,
+                gameMode,
+                TimingAssistMode.Standard,
+                outcome);
+        }
+
+        public void RecordCompletedSession(
+            ScoreSnapshot snapshot,
+            string trackId,
+            string presetId,
+            string scoreSchema,
+            string beatMapFingerprint,
+            RadialGameMode gameMode,
+            TimingAssistMode timingAssist,
+            RadialRunOutcome outcome)
+        {
             EnsureInitialized();
             bool legacyScore = string.Equals(
                 scoreSchema,
@@ -590,6 +662,7 @@ namespace PulseForge.Runtime.Unity.Persistence
                     scoreSchema,
                     beatMapFingerprint,
                     gameMode,
+                    timingAssist,
                     outcome);
                 Library = libraryRepository.Current;
             }
@@ -671,6 +744,7 @@ namespace PulseForge.Runtime.Unity.Persistence
         public string CachedAudioPath { get; }
         public RadialBeatMapCacheData CacheData { get; }
         public RadialBeatMapData RadialBeatMap => CacheData == null ? null : CacheData.radialBeatMap;
+        public BeatGridData BeatGrid => CacheData == null ? null : CacheData.beatGrid;
         public AnalyzerQualityReport AnalyzerQuality => CacheData == null
             ? null
             : CacheData.analyzerQuality;

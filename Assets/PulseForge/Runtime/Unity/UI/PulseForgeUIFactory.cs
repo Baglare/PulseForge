@@ -73,6 +73,10 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgeGameplayFeedbackSetup.Apply(root);
             RadialSaboteurFogSetup.Apply(root);
             PulseForgeGameModesUISetup.Apply(root);
+            PulseForgeCoverageUISetup.Apply(root);
+            PulseForgePlayabilityAssistUISetup.Apply(root);
+            RadialForecastSetup.Apply(root);
+            RadialGroupTimingSetup.Apply(root);
             root.ApplyVisibility(PulseForgeUIState.Setup);
             return root;
         }

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using PulseForge.Runtime.Unity.Persistence;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace PulseForge.Runtime.Unity.UI
 {
@@ -35,6 +37,8 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private RectTransform judgementRing;
         [SerializeField] private RectTransform playerCore;
         [SerializeField] private RectTransform compoundContainer;
+        [SerializeField] private RectTransform forecastContainer;
+        [SerializeField] private RectTransform groupTimingContainer;
         [SerializeField] private RectTransform encounterContainer;
         [SerializeField] private RectTransform projectileContainer;
         [SerializeField] private RadialFogPresentationView fogPresentation;
@@ -43,6 +47,8 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private int baseEncounterPoolCapacity = 12;
         [SerializeField] private int baseProjectilePoolCapacity = 6;
         [SerializeField] private int baseCompoundPoolCapacity = 8;
+        [SerializeField] private int baseForecastPoolCapacity = 12;
+        [SerializeField] private int baseGroupTimingPoolCapacity = 8;
         [SerializeField] private int poolSafetyMargin = 4;
 
         private readonly List<RadialEncounterView> encounterPool =
@@ -51,12 +57,20 @@ namespace PulseForge.Runtime.Unity.UI
             new List<RadialProjectileView>();
         private readonly List<RadialCompoundGroupView> compoundPool =
             new List<RadialCompoundGroupView>();
+        private readonly List<RadialForecastView> forecastPool =
+            new List<RadialForecastView>();
+        private readonly List<RadialGroupTimingView> groupTimingPool =
+            new List<RadialGroupTimingView>();
         private readonly Dictionary<RadialPresentationKey, RadialEncounterView> activeEncounters =
             new Dictionary<RadialPresentationKey, RadialEncounterView>();
         private readonly Dictionary<RadialPresentationKey, RadialProjectileView> activeProjectiles =
             new Dictionary<RadialPresentationKey, RadialProjectileView>();
         private readonly Dictionary<RadialPresentationKey, RadialCompoundGroupView> activeCompounds =
             new Dictionary<RadialPresentationKey, RadialCompoundGroupView>();
+        private readonly Dictionary<RadialPresentationKey, RadialForecastView> activeForecasts =
+            new Dictionary<RadialPresentationKey, RadialForecastView>();
+        private readonly Dictionary<RadialPresentationKey, RadialGroupTimingView> activeGroupTimings =
+            new Dictionary<RadialPresentationKey, RadialGroupTimingView>();
         private readonly List<RadialPresentationKey> releaseScratch =
             new List<RadialPresentationKey>();
         private readonly RadialPresentationPoolRegistry encounterRegistry =
@@ -65,12 +79,19 @@ namespace PulseForge.Runtime.Unity.UI
             new RadialPresentationPoolRegistry();
         private readonly RadialPresentationPoolRegistry compoundRegistry =
             new RadialPresentationPoolRegistry();
+        private readonly RadialPresentationPoolRegistry forecastRegistry =
+            new RadialPresentationPoolRegistry();
+        private readonly RadialPresentationPoolRegistry groupTimingRegistry =
+            new RadialPresentationPoolRegistry();
 
         private bool uiStateVisible;
         private bool radialSessionVisible;
         private bool encounterPoolWarningLogged;
         private bool projectilePoolWarningLogged;
         private bool compoundPoolWarningLogged;
+        private bool forecastPoolWarningLogged;
+        private bool groupTimingPoolWarningLogged;
+        private RadialReadabilityMode appliedReadabilityMode = (RadialReadabilityMode)(-1);
 
         public GameObject StageBackground => stageBackground;
         public RectTransform DirectionGuidesRoot => directionGuidesRoot;
@@ -78,6 +99,8 @@ namespace PulseForge.Runtime.Unity.UI
         public RectTransform JudgementRing => judgementRing;
         public RectTransform PlayerCore => playerCore;
         public RectTransform CompoundContainer => compoundContainer;
+        public RectTransform ForecastContainer => forecastContainer;
+        public RectTransform GroupTimingContainer => groupTimingContainer;
         public RectTransform EncounterContainer => encounterContainer;
         public RectTransform ProjectileContainer => projectileContainer;
         public RadialFogPresentationView FogPresentation => fogPresentation;
@@ -87,9 +110,13 @@ namespace PulseForge.Runtime.Unity.UI
         public int ActiveEncounterCount => activeEncounters.Count;
         public int ActiveProjectileCount => activeProjectiles.Count;
         public int ActiveCompoundCount => activeCompounds.Count;
+        public int ActiveForecastCount => activeForecasts.Count;
+        public int ActiveGroupTimingCount => activeGroupTimings.Count;
         public int EncounterPoolCount => encounterPool.Count;
         public int ProjectilePoolCount => projectilePool.Count;
         public int CompoundPoolCount => compoundPool.Count;
+        public int ForecastPoolCount => forecastPool.Count;
+        public int GroupTimingPoolCount => groupTimingPool.Count;
 
         public void Configure(
             GameObject background,
@@ -112,6 +139,16 @@ namespace PulseForge.Runtime.Unity.UI
         public void ConfigureCompoundContainer(RectTransform compounds)
         {
             compoundContainer = compounds;
+        }
+
+        public void ConfigureForecastContainer(RectTransform forecasts)
+        {
+            forecastContainer = forecasts;
+        }
+
+        public void ConfigureGroupTimingContainer(RectTransform groupTimings)
+        {
+            groupTimingContainer = groupTimings;
         }
 
         public void ConfigureFogPresentation(RadialFogPresentationView value)
@@ -158,13 +195,37 @@ namespace PulseForge.Runtime.Unity.UI
 
         public void InitializePools(int requiredEncounterCount, int requiredProjectileCount)
         {
-            InitializePools(requiredEncounterCount, requiredProjectileCount, 0);
+            InitializePools(requiredEncounterCount, requiredProjectileCount, 0, 0, 0);
         }
 
         public void InitializePools(
             int requiredEncounterCount,
             int requiredProjectileCount,
             int requiredCompoundCount)
+        {
+            InitializePools(requiredEncounterCount, requiredProjectileCount, requiredCompoundCount, 0, 0);
+        }
+
+        public void InitializePools(
+            int requiredEncounterCount,
+            int requiredProjectileCount,
+            int requiredCompoundCount,
+            int requiredForecastCount)
+        {
+            InitializePools(
+                requiredEncounterCount,
+                requiredProjectileCount,
+                requiredCompoundCount,
+                requiredForecastCount,
+                0);
+        }
+
+        public void InitializePools(
+            int requiredEncounterCount,
+            int requiredProjectileCount,
+            int requiredCompoundCount,
+            int requiredForecastCount,
+            int requiredGroupTimingCount)
         {
             int encounterCapacity = Mathf.Max(
                 baseEncounterPoolCapacity,
@@ -175,6 +236,12 @@ namespace PulseForge.Runtime.Unity.UI
             int compoundCapacity = Mathf.Max(
                 baseCompoundPoolCapacity,
                 requiredCompoundCount + PoolSafetyMargin);
+            int forecastCapacity = Mathf.Max(
+                baseForecastPoolCapacity,
+                requiredForecastCount + PoolSafetyMargin);
+            int groupTimingCapacity = Mathf.Max(
+                baseGroupTimingPoolCapacity,
+                requiredGroupTimingCount + PoolSafetyMargin);
             while (encounterPool.Count < encounterCapacity)
             {
                 encounterPool.Add(RadialEncounterView.Create(
@@ -193,9 +260,83 @@ namespace PulseForge.Runtime.Unity.UI
                     compoundContainer,
                     compoundPool.Count));
             }
+            while (forecastContainer != null && forecastPool.Count < forecastCapacity)
+            {
+                forecastPool.Add(RadialForecastView.Create(
+                    forecastContainer,
+                    forecastPool.Count));
+            }
+            while (groupTimingContainer != null && groupTimingPool.Count < groupTimingCapacity)
+            {
+                groupTimingPool.Add(RadialGroupTimingView.Create(
+                    groupTimingContainer,
+                    groupTimingPool.Count));
+            }
             encounterPoolWarningLogged = false;
             projectilePoolWarningLogged = false;
             compoundPoolWarningLogged = false;
+            forecastPoolWarningLogged = false;
+            groupTimingPoolWarningLogged = false;
+        }
+
+        public bool TryAcquireGroupTiming(
+            RadialPresentationKey key,
+            out RadialGroupTimingView view)
+        {
+            if (activeGroupTimings.TryGetValue(key, out view))
+            {
+                return true;
+            }
+            if (!groupTimingRegistry.TryActivate(key))
+            {
+                view = null;
+                return false;
+            }
+
+            view = FindFreeGroupTimingView();
+            if (view == null)
+            {
+                groupTimingRegistry.Release(key);
+                if (!groupTimingPoolWarningLogged)
+                {
+                    groupTimingPoolWarningLogged = true;
+                    Debug.LogWarning("Radial group timing pool capacity was exhausted.", this);
+                }
+                return false;
+            }
+
+            activeGroupTimings.Add(key, view);
+            return true;
+        }
+
+        public bool TryAcquireForecast(
+            RadialPresentationKey key,
+            out RadialForecastView view)
+        {
+            if (activeForecasts.TryGetValue(key, out view))
+            {
+                return true;
+            }
+            if (!forecastRegistry.TryActivate(key))
+            {
+                view = null;
+                return false;
+            }
+
+            view = FindFreeForecastView();
+            if (view == null)
+            {
+                forecastRegistry.Release(key);
+                if (!forecastPoolWarningLogged)
+                {
+                    forecastPoolWarningLogged = true;
+                    Debug.LogWarning("Radial forecast pool capacity was exhausted.", this);
+                }
+                return false;
+            }
+
+            activeForecasts.Add(key, view);
+            return true;
         }
 
         public bool TryAcquireEncounter(
@@ -336,8 +477,44 @@ namespace PulseForge.Runtime.Unity.UI
             }
         }
 
+        public void ReleaseForecastsExcept(ISet<RadialPresentationKey> desiredKeys)
+        {
+            releaseScratch.Clear();
+            foreach (KeyValuePair<RadialPresentationKey, RadialForecastView> pair in activeForecasts)
+            {
+                if (desiredKeys == null || !desiredKeys.Contains(pair.Key))
+                {
+                    releaseScratch.Add(pair.Key);
+                }
+            }
+            for (int i = 0; i < releaseScratch.Count; i++)
+            {
+                ReleaseForecast(releaseScratch[i]);
+            }
+        }
+
+        public void ReleaseGroupTimingsExcept(ISet<RadialPresentationKey> desiredKeys)
+        {
+            releaseScratch.Clear();
+            foreach (KeyValuePair<RadialPresentationKey, RadialGroupTimingView> pair in activeGroupTimings)
+            {
+                if (desiredKeys == null || !desiredKeys.Contains(pair.Key))
+                {
+                    releaseScratch.Add(pair.Key);
+                }
+            }
+            for (int i = 0; i < releaseScratch.Count; i++)
+            {
+                ReleaseGroupTiming(releaseScratch[i]);
+            }
+        }
+
         public void ResetPresentation()
         {
+            if (judgementRing != null)
+            {
+                judgementRing.localScale = Vector3.one;
+            }
             for (int i = 0; i < encounterPool.Count; i++)
             {
                 encounterPool[i].ResetView();
@@ -350,13 +527,34 @@ namespace PulseForge.Runtime.Unity.UI
             {
                 compoundPool[i].ResetView();
             }
+            for (int i = 0; i < forecastPool.Count; i++)
+            {
+                forecastPool[i].ResetView();
+            }
+            for (int i = 0; i < groupTimingPool.Count; i++)
+            {
+                groupTimingPool[i].ResetView();
+            }
             activeEncounters.Clear();
             activeProjectiles.Clear();
             activeCompounds.Clear();
+            activeForecasts.Clear();
+            activeGroupTimings.Clear();
             encounterRegistry.Clear();
             projectileRegistry.Clear();
             compoundRegistry.Clear();
+            forecastRegistry.Clear();
+            groupTimingRegistry.Clear();
             fogPresentation?.ResetView();
+        }
+
+        public void RenderBeatPulse(RadialBeatPulseVisual pulse, bool enabled)
+        {
+            if (judgementRing == null)
+            {
+                return;
+            }
+            judgementRing.localScale = Vector3.one * (enabled ? pulse.Scale : 1f);
         }
 
         public void CollectValidationErrors(List<string> errors)
@@ -381,6 +579,8 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgeUIValidation.AddMissing(errors, fogPresentation, "Radial stage: Fog Presentation is missing.");
             PulseForgeUIValidation.AddMissing(errors, playerCore, "Radial stage: Player Core is missing.");
             PulseForgeUIValidation.AddMissing(errors, compoundContainer, "Radial stage: Compound Container is missing.");
+            PulseForgeUIValidation.AddMissing(errors, forecastContainer, "Radial stage: Forecast Layer is missing.");
+            PulseForgeUIValidation.AddMissing(errors, groupTimingContainer, "Radial stage: Group Timing Container is missing.");
             PulseForgeUIValidation.AddMissing(errors, encounterContainer, "Radial stage: Encounter Container is missing.");
             PulseForgeUIValidation.AddMissing(errors, projectileContainer, "Radial stage: Projectile Container is missing.");
         }
@@ -413,6 +613,26 @@ namespace PulseForge.Runtime.Unity.UI
                 activeCompounds.Remove(key);
             }
             compoundRegistry.Release(key);
+        }
+
+        private void ReleaseForecast(RadialPresentationKey key)
+        {
+            if (activeForecasts.TryGetValue(key, out RadialForecastView view))
+            {
+                view.ResetView();
+                activeForecasts.Remove(key);
+            }
+            forecastRegistry.Release(key);
+        }
+
+        private void ReleaseGroupTiming(RadialPresentationKey key)
+        {
+            if (activeGroupTimings.TryGetValue(key, out RadialGroupTimingView view))
+            {
+                view.ResetView();
+                activeGroupTimings.Remove(key);
+            }
+            groupTimingRegistry.Release(key);
         }
 
         private RadialEncounterView FindFreeEncounterView()
@@ -449,6 +669,65 @@ namespace PulseForge.Runtime.Unity.UI
                 }
             }
             return null;
+        }
+
+        private RadialForecastView FindFreeForecastView()
+        {
+            for (int i = 0; i < forecastPool.Count; i++)
+            {
+                if (!forecastPool[i].IsInUse)
+                {
+                    return forecastPool[i];
+                }
+            }
+            return null;
+        }
+
+        private RadialGroupTimingView FindFreeGroupTimingView()
+        {
+            for (int i = 0; i < groupTimingPool.Count; i++)
+            {
+                if (!groupTimingPool[i].IsInUse)
+                {
+                    return groupTimingPool[i];
+                }
+            }
+            return null;
+        }
+
+        public void ApplyReadabilityMode(RadialReadabilityMode readabilityMode)
+        {
+            if (appliedReadabilityMode == readabilityMode)
+            {
+                return;
+            }
+            appliedReadabilityMode = readabilityMode;
+            bool highClarity = readabilityMode == RadialReadabilityMode.HighClarity;
+            Image backgroundImage = stageBackground == null
+                ? null
+                : stageBackground.GetComponent<Image>();
+            if (backgroundImage != null)
+            {
+                backgroundImage.color = PulseForgeUITheme.WithAlpha(
+                    PulseForgeUITheme.BackgroundSecondary,
+                    highClarity ? 0.52f : 0.72f);
+            }
+            if (directionGuides == null)
+            {
+                return;
+            }
+            for (int i = 0; i < directionGuides.Length; i++)
+            {
+                Image guide = directionGuides[i] == null
+                    ? null
+                    : directionGuides[i].gameObject.GetComponent<Image>();
+                if (guide != null)
+                {
+                    guide.color = PulseForgeUITheme.WithAlpha(
+                        PulseForgeUITheme.Divider,
+                        highClarity ? 0.28f : 0.58f);
+                }
+            }
         }
 
         private void ApplyEffectiveVisibility()

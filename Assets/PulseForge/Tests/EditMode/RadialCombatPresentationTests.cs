@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
+using PulseForge.AudioAnalysis;
 using PulseForge.Domain.Rhythm;
 using UnityEngine;
 
@@ -162,6 +163,87 @@ namespace PulseForge.Tests.EditMode
             Assert.That(GetProperty<float>(waiting, "Position01"), Is.EqualTo(0f));
             Assert.That(GetProperty<object>(late, "State").ToString(), Is.EqualTo("Late"));
             Assert.That(GetProperty<float>(late, "Position01"), Is.EqualTo(1f));
+        }
+
+        [Test]
+        public void ForecastAndActionLayersUseIndependentLeadTimes()
+        {
+            MethodInfo forecastLead = PresentationMathType().GetMethod("EvaluateForecastLeadSeconds");
+            MethodInfo actionStart = PresentationMathType().GetMethod("EvaluateActionLayerStart");
+
+            double tapLead = (double)forecastLead.Invoke(
+                null,
+                new object[] { 1, RadialEventType.Tap, 1.25f });
+            double heavyLead = (double)forecastLead.Invoke(
+                null,
+                new object[] { 1, RadialEventType.HeavyChargeRelease, 1.25f });
+            double actionTime = (double)actionStart.Invoke(null, new object[] { 10d, 1.2d });
+
+            Assert.That(tapLead, Is.EqualTo(4.625d).Within(0.0001d));
+            Assert.That(heavyLead, Is.EqualTo(5.375d).Within(0.0001d));
+            Assert.That(actionTime, Is.EqualTo(8.8d).Within(0.0001d));
+        }
+
+        [Test]
+        public void FogShortensForecastButDoesNotChangeActionLayerStart()
+        {
+            MethodInfo reveal = PresentationMathType().GetMethod("EvaluateForecastRevealTime");
+            MethodInfo actionStart = PresentationMathType().GetMethod("EvaluateActionLayerStart");
+            RadialStatusEffectSnapshot clear = default(RadialStatusEffectSnapshot);
+            RadialStatusEffectSnapshot fog = new RadialStatusEffectSnapshot(
+                true,
+                4d,
+                12d,
+                0.55f,
+                0.45d);
+
+            double clearReveal = (double)reveal.Invoke(
+                null,
+                new object[] { 10d, 1, RadialEventType.HeavyChargeRelease, 1.25f, clear });
+            double fogReveal = (double)reveal.Invoke(
+                null,
+                new object[] { 10d, 1, RadialEventType.HeavyChargeRelease, 1.25f, fog });
+            double clearAction = (double)actionStart.Invoke(null, new object[] { 10d, 1.2d });
+            double fogAction = (double)actionStart.Invoke(null, new object[] { 10d, 1.2d });
+
+            Assert.That(fogReveal, Is.GreaterThan(clearReveal));
+            Assert.That(fogAction, Is.EqualTo(clearAction));
+            Assert.That(clearAction, Is.EqualTo(8.8d).Within(0.0001d));
+        }
+
+        [Test]
+        public void FocusedCueLimitsAndForecastFadeAreDeterministic()
+        {
+            MethodInfo limit = PresentationMathType().GetMethod("FocusedCueLimit");
+            MethodInfo fade = PresentationMathType().GetMethod("EvaluateForecastFade");
+
+            Assert.That((int)limit.Invoke(null, new object[] { 0 }), Is.EqualTo(1));
+            Assert.That((int)limit.Invoke(null, new object[] { 1 }), Is.EqualTo(2));
+            Assert.That((int)limit.Invoke(null, new object[] { 2 }), Is.EqualTo(3));
+            Assert.That((float)fade.Invoke(null, new object[] { 8.8d, 8.8d, 0.18d }), Is.EqualTo(1f));
+            Assert.That((float)fade.Invoke(null, new object[] { 8.98d, 8.8d, 0.18d }), Is.EqualTo(0f));
+        }
+
+        [Test]
+        public void BeatPulseUsesSongTimeAndPrefersMainBeatOverSubdivision()
+        {
+            BeatGridData grid = new BeatGridData();
+            grid.beatTimesSeconds.Add(2d);
+            grid.subdivisionTimesSeconds.Add(2.25d);
+            MethodInfo evaluate = PresentationMathType().GetMethod("EvaluateBeatPulse");
+
+            object mainBeat = evaluate.Invoke(null, new object[] { grid, 2d });
+            object subdivision = evaluate.Invoke(null, new object[] { grid, 2.25d });
+            object repeatedPausedTime = evaluate.Invoke(null, new object[] { grid, 2.25d });
+            object noGrid = evaluate.Invoke(null, new object[] { null, 2d });
+
+            Assert.That(GetProperty<bool>(mainBeat, "IsSubdivision"), Is.False);
+            Assert.That(GetProperty<float>(mainBeat, "Strength"), Is.EqualTo(1f));
+            Assert.That(GetProperty<bool>(subdivision, "IsSubdivision"), Is.True);
+            Assert.That(
+                GetProperty<float>(repeatedPausedTime, "Strength"),
+                Is.EqualTo(GetProperty<float>(subdivision, "Strength")));
+            Assert.That(GetProperty<bool>(noGrid, "IsActive"), Is.False);
         }
 
         private static Type PresentationMathType()

@@ -28,7 +28,13 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private Text detectionValue;
         [SerializeField] private Text difficultyValue;
         [SerializeField] private Text combatStyleValue;
+        [SerializeField] private Text coverageValue;
         [SerializeField] private Text gameModeValue;
+        [SerializeField] private Text timingAssistValue;
+        [SerializeField] private Toggle showUpcomingInputs;
+        [SerializeField] private Toggle beatPulseEnabled;
+        [SerializeField] private Text forecastLeadMultiplierValue;
+        [SerializeField] private Text readabilityModeValue;
         [SerializeField] private InputField beatmapOffset;
         [SerializeField] private InputField inputOffset;
         [SerializeField] private Text message;
@@ -124,7 +130,16 @@ namespace PulseForge.Runtime.Unity.UI
             view.detectionValue = AddOptionRow(content, "Default Detection", options);
             view.difficultyValue = AddOptionRow(content, "Default Difficulty", options);
             view.combatStyleValue = AddOptionRow(content, "Default Combat Style", options);
+            view.coverageValue = AddOptionRow(content, "Default Coverage", options);
             view.gameModeValue = AddOptionRow(content, "Default Game Mode", options);
+            view.timingAssistValue = AddOptionRow(content, "Default Timing Assist", options);
+            view.showUpcomingInputs = AddToggleRow(content, "Show Upcoming Inputs");
+            view.beatPulseEnabled = AddToggleRow(content, "Beat Pulse");
+            view.forecastLeadMultiplierValue = AddOptionRow(
+                content,
+                "Forecast Lead Multiplier",
+                options);
+            view.readabilityModeValue = AddOptionRow(content, "Readability Mode", options);
             view.beatmapOffset = AddInputRow(content, "Beatmap Offset (ms)");
             view.inputOffset = AddInputRow(content, "Input Timing Offset (ms)");
             view.optionButtons = options.ToArray();
@@ -193,6 +208,22 @@ namespace PulseForge.Runtime.Unity.UI
             }
         }
 
+        public void EnsureCoverageControl(Action<GameObject> registerCreated = null)
+        {
+            Transform content = PanelRoot == null
+                ? null
+                : PanelRoot.transform.Find("Settings Card/Settings Scroll/Viewport/Content");
+            if (content == null) return;
+            List<Button> addedButtons = new List<Button>(2);
+            EnsureOptionControl(
+                content,
+                "Default Coverage",
+                ref coverageValue,
+                addedButtons,
+                registerCreated);
+            optionButtons = AppendButtons(optionButtons, addedButtons);
+        }
+
         public void EnsureActionBindingControls(Action<GameObject> registerCreated = null)
         {
             Transform content = PanelRoot == null
@@ -209,6 +240,57 @@ namespace PulseForge.Runtime.Unity.UI
             rebindButtons = orderedButtons.ToArray();
         }
 
+        public void EnsureForecastControls(Action<GameObject> registerCreated = null)
+        {
+            Transform content = PanelRoot == null
+                ? null
+                : PanelRoot.transform.Find("Settings Card/Settings Scroll/Viewport/Content");
+            if (content == null)
+            {
+                return;
+            }
+
+            List<Button> addedButtons = new List<Button>(4);
+            EnsureOptionControl(
+                content,
+                "Forecast Lead Multiplier",
+                ref forecastLeadMultiplierValue,
+                addedButtons,
+                registerCreated);
+            EnsureOptionControl(
+                content,
+                "Readability Mode",
+                ref readabilityModeValue,
+                addedButtons,
+                registerCreated);
+            optionButtons = AppendButtons(optionButtons, addedButtons);
+        }
+
+        public void EnsurePlayabilityAssistControls(Action<GameObject> registerCreated = null)
+        {
+            Transform content = PanelRoot == null
+                ? null
+                : PanelRoot.transform.Find("Settings Card/Settings Scroll/Viewport/Content");
+            if (content == null) return;
+
+            List<Button> addedButtons = new List<Button>(2);
+            EnsureOptionControl(
+                content,
+                "Default Timing Assist",
+                ref timingAssistValue,
+                addedButtons,
+                registerCreated);
+            optionButtons = AppendButtons(optionButtons, addedButtons);
+            showUpcomingInputs = EnsureToggleControl(
+                content,
+                "Show Upcoming Inputs",
+                registerCreated);
+            beatPulseEnabled = EnsureToggleControl(
+                content,
+                "Beat Pulse",
+                registerCreated);
+        }
+
         public void Bind(DebugRhythmPrototypeController value)
         {
             if (controller == value) return;
@@ -219,6 +301,8 @@ namespace PulseForge.Runtime.Unity.UI
             musicVolume.onValueChanged.AddListener(controller.SetDraftMusicVolume);
             vSync.onValueChanged.AddListener(controller.SetDraftVSync);
             motion.onValueChanged.AddListener(controller.SetDraftMotion);
+            showUpcomingInputs.onValueChanged.AddListener(controller.SetDraftShowUpcomingInputs);
+            beatPulseEnabled.onValueChanged.AddListener(controller.SetDraftBeatPulseEnabled);
             beatmapOffset.onEndEdit.AddListener(controller.SetDraftBeatmapOffsetMilliseconds);
             inputOffset.onEndEdit.AddListener(controller.SetDraftInputOffsetMilliseconds);
             BindOptions();
@@ -240,6 +324,8 @@ namespace PulseForge.Runtime.Unity.UI
             musicVolume?.onValueChanged.RemoveAllListeners();
             vSync?.onValueChanged.RemoveAllListeners();
             motion?.onValueChanged.RemoveAllListeners();
+            showUpcomingInputs?.onValueChanged.RemoveAllListeners();
+            beatPulseEnabled?.onValueChanged.RemoveAllListeners();
             beatmapOffset?.onEndEdit.RemoveAllListeners();
             inputOffset?.onEndEdit.RemoveAllListeners();
             UnbindButtons(optionButtons);
@@ -278,7 +364,17 @@ namespace PulseForge.Runtime.Unity.UI
             detectionValue.text = draft.defaultDetection;
             difficultyValue.text = draft.defaultDifficulty;
             combatStyleValue.text = draft.defaultCombatStyle;
+            coverageValue.text = draft.defaultCoverage == "FullPulse" ? "Full Pulse" : draft.defaultCoverage;
             gameModeValue.text = draft.defaultGameMode == "OneLife" ? "One Life" : draft.defaultGameMode;
+            timingAssistValue.text = draft.defaultTimingAssist;
+            showUpcomingInputs.SetIsOnWithoutNotify(draft.showUpcomingInputs);
+            beatPulseEnabled.SetIsOnWithoutNotify(draft.beatPulseEnabled);
+            forecastLeadMultiplierValue.text = draft.forecastLeadMultiplier.ToString(
+                "0.##",
+                CultureInfo.InvariantCulture) + "x";
+            readabilityModeValue.text = draft.readabilityMode == "HighClarity"
+                ? "High Clarity"
+                : draft.readabilityMode;
             beatmapOffset.SetTextWithoutNotify((draft.beatmapOffsetSeconds * 1000f).ToString("0", CultureInfo.InvariantCulture));
             inputOffset.SetTextWithoutNotify((draft.inputTimingOffsetSeconds * 1000f).ToString("0", CultureInfo.InvariantCulture));
             message.text = value.SettingsMessage;
@@ -291,22 +387,78 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgeUIValidation.AddMissing(errors, cancelButton, "Settings: Cancel button is missing.");
             PulseForgeUIValidation.AddMissing(errors, resetDefaultsButton, "Settings: Reset to Defaults button is missing.");
             PulseForgeUIValidation.AddMissing(errors, gameModeValue, "Settings: Default Game Mode is missing.");
+            PulseForgeUIValidation.AddMissing(errors, coverageValue, "Settings: Default Coverage is missing.");
+            PulseForgeUIValidation.AddMissing(errors, timingAssistValue, "Settings: Default Timing Assist is missing.");
+            PulseForgeUIValidation.AddMissing(errors, showUpcomingInputs, "Settings: Show Upcoming Inputs is missing.");
+            PulseForgeUIValidation.AddMissing(errors, beatPulseEnabled, "Settings: Beat Pulse is missing.");
+            PulseForgeUIValidation.AddMissing(
+                errors,
+                forecastLeadMultiplierValue,
+                "Settings: Forecast Lead Multiplier is missing.");
+            PulseForgeUIValidation.AddMissing(
+                errors,
+                readabilityModeValue,
+                "Settings: Readability Mode is missing.");
         }
 
         private void BindOptions()
         {
-            System.Action<int, System.Action<int>> pair = (start, action) =>
+            BindOptionRow("Display Mode", controller.CycleDraftDisplayMode);
+            BindOptionRow("Resolution", controller.CycleDraftResolution);
+            BindOptionRow("Frame Rate Limit", controller.CycleDraftFrameRate);
+            BindOptionRow("Default Detection", controller.CycleDraftDetection);
+            BindOptionRow("Default Difficulty", controller.CycleDraftDifficulty);
+            BindOptionRow("Default Combat Style", controller.CycleDraftCombatStyle);
+            BindOptionRow("Default Coverage", controller.CycleDraftCoverage);
+            BindOptionRow("Default Game Mode", controller.CycleDraftGameMode);
+            BindOptionRow("Default Timing Assist", controller.CycleDraftTimingAssist);
+            BindOptionRow("Forecast Lead Multiplier", controller.CycleDraftForecastLeadMultiplier);
+            BindOptionRow("Readability Mode", controller.CycleDraftReadabilityMode);
+        }
+
+        private void BindOptionRow(string label, Action<int> action)
+        {
+            Transform content = PanelRoot == null
+                ? null
+                : PanelRoot.transform.Find("Settings Card/Settings Scroll/Viewport/Content");
+            Transform row = content == null ? null : content.Find(label + " Row");
+            if (row == null) return;
+            Button previous = row.Find("Previous")?.GetComponent<Button>();
+            Button next = row.Find("Next")?.GetComponent<Button>();
+            PulseForgeUIFactory.BindButton(previous, () => action(-1));
+            PulseForgeUIFactory.BindButton(next, () => action(1));
+        }
+
+        private static void EnsureOptionControl(
+            Transform content,
+            string label,
+            ref Text value,
+            List<Button> orderedButtons,
+            Action<GameObject> registerCreated)
+        {
+            Transform row = content.Find(label + " Row");
+            if (row == null)
             {
-                PulseForgeUIFactory.BindButton(optionButtons[start], () => action(-1));
-                PulseForgeUIFactory.BindButton(optionButtons[start + 1], () => action(1));
-            };
-            pair(0, controller.CycleDraftDisplayMode);
-            pair(2, controller.CycleDraftResolution);
-            pair(4, controller.CycleDraftFrameRate);
-            pair(6, controller.CycleDraftDetection);
-            pair(8, controller.CycleDraftDifficulty);
-            pair(10, controller.CycleDraftCombatStyle);
-            pair(12, controller.CycleDraftGameMode);
+                value = AddOptionRow(content, label, orderedButtons);
+                row = content.Find(label + " Row");
+                Transform offsetRow = content.Find("Beatmap Offset (ms) Row");
+                if (row != null && offsetRow != null)
+                {
+                    row.SetSiblingIndex(offsetRow.GetSiblingIndex());
+                }
+                if (row != null)
+                {
+                    registerCreated?.Invoke(row.gameObject);
+                }
+                return;
+            }
+
+            Transform valueTransform = row.Find("Value");
+            value = valueTransform == null ? null : valueTransform.GetComponent<Text>();
+            Transform previous = row.Find("Previous");
+            Transform next = row.Find("Next");
+            orderedButtons.Add(previous == null ? null : previous.GetComponent<Button>());
+            orderedButtons.Add(next == null ? null : next.GetComponent<Button>());
         }
 
         private static Button[] AppendButtons(Button[] existing, List<Button> added)
@@ -317,6 +469,28 @@ namespace PulseForge.Runtime.Unity.UI
                 if (added[i] != null && !combined.Contains(added[i])) combined.Add(added[i]);
             }
             return combined.ToArray();
+        }
+
+        private static Toggle EnsureToggleControl(
+            Transform content,
+            string label,
+            Action<GameObject> registerCreated)
+        {
+            Transform row = content.Find(label + " Row");
+            if (row == null)
+            {
+                Toggle created = AddToggleRow(content, label);
+                row = created.transform;
+                Transform offsetRow = content.Find("Beatmap Offset (ms) Row");
+                if (offsetRow != null)
+                {
+                    row.SetSiblingIndex(offsetRow.GetSiblingIndex());
+                }
+                registerCreated?.Invoke(row.gameObject);
+                return created;
+            }
+
+            return row.GetComponent<Toggle>();
         }
 
         private Button GetRebindButton(int index)

@@ -195,11 +195,13 @@ namespace PulseForge.Runtime.Unity.Audio
             statusChanged("Planning radial encounters");
             BeatMapDifficulty difficulty = ToPlannerDifficulty(pipelineSettings.Difficulty);
             CombatStyle combatStyle = ToPlannerCombatStyle(pipelineSettings.CombatStyle);
+            CoverageMode coverage = ToPlannerCoverage(pipelineSettings.Coverage);
             Task<RadialEncounterPlanResult> plannerTask = Task.Run(
                 () => new RadialEncounterPlanner().Plan(
                     analysis,
                     difficulty,
                     combatStyle,
+                    coverage,
                     deterministicSeed ?? string.Empty));
             while (!plannerTask.IsCompleted)
             {
@@ -229,6 +231,7 @@ namespace PulseForge.Runtime.Unity.Audio
                 plan.beatMap,
                 analysis.qualityReport,
                 plan.qualityReport,
+                analysis.beatGrid,
                 sourcePath,
                 convertedWavPath,
                 displayName));
@@ -350,6 +353,19 @@ namespace PulseForge.Runtime.Unity.Audio
                     return CombatStyle.Bursty;
                 default:
                     return CombatStyle.Legacy;
+            }
+        }
+
+        private static CoverageMode ToPlannerCoverage(RuntimeCoverage coverage)
+        {
+            switch (coverage)
+            {
+                case RuntimeCoverage.Relaxed:
+                    return CoverageMode.Relaxed;
+                case RuntimeCoverage.FullPulse:
+                    return CoverageMode.FullPulse;
+                default:
+                    return CoverageMode.Standard;
             }
         }
 
@@ -638,6 +654,7 @@ namespace PulseForge.Runtime.Unity.Audio
             RadialBeatMapData radialBeatMap,
             AnalyzerQualityReport analyzerQuality,
             PlannerQualityReport plannerQuality,
+            BeatGridData beatGrid,
             string sourcePath,
             string convertedWavPath,
             string displayName)
@@ -646,6 +663,7 @@ namespace PulseForge.Runtime.Unity.Audio
             RadialBeatMap = radialBeatMap;
             AnalyzerQuality = analyzerQuality;
             PlannerQuality = plannerQuality;
+            BeatGrid = beatGrid;
             SourcePath = sourcePath;
             ConvertedWavPath = convertedWavPath;
             DisplayName = displayName;
@@ -667,6 +685,7 @@ namespace PulseForge.Runtime.Unity.Audio
         public AnalyzerQualityReport AnalyzerQuality { get; }
 
         public PlannerQualityReport PlannerQuality { get; }
+        public BeatGridData BeatGrid { get; }
 
         public string SourcePath { get; }
 

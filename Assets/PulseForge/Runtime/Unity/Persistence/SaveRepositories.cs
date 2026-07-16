@@ -178,6 +178,7 @@ namespace PulseForge.Runtime.Unity.Persistence
                     detectionMode = settings.DetectionMode.ToString(),
                     difficulty = settings.Difficulty.ToString(),
                     combatStyle = settings.CombatStyle.ToString(),
+                    coverage = settings.Coverage.ToString(),
                     eventCount = Math.Max(0, eventCount),
                     createdAtUtc = now,
                     updatedAtUtc = now,
@@ -322,6 +323,7 @@ namespace PulseForge.Runtime.Unity.Persistence
                 ScoreSchema.LegacyV1,
                 string.Empty,
                 RadialGameMode.Standard,
+                TimingAssistMode.Standard,
                 RadialRunOutcome.Clear);
         }
 
@@ -339,6 +341,7 @@ namespace PulseForge.Runtime.Unity.Persistence
                 scoreSchema,
                 beatMapFingerprint,
                 RadialGameMode.Standard,
+                TimingAssistMode.Standard,
                 RadialRunOutcome.Clear);
         }
 
@@ -349,6 +352,27 @@ namespace PulseForge.Runtime.Unity.Persistence
             string scoreSchema,
             string beatMapFingerprint,
             RadialGameMode gameMode,
+            RadialRunOutcome outcome)
+        {
+            return RecordPerformance(
+                trackId,
+                presetId,
+                snapshot,
+                scoreSchema,
+                beatMapFingerprint,
+                gameMode,
+                TimingAssistMode.Standard,
+                outcome);
+        }
+
+        public bool RecordPerformance(
+            string trackId,
+            string presetId,
+            ScoreSnapshot snapshot,
+            string scoreSchema,
+            string beatMapFingerprint,
+            RadialGameMode gameMode,
+            TimingAssistMode timingAssist,
             RadialRunOutcome outcome)
         {
             if (snapshot == null)
@@ -376,9 +400,11 @@ namespace PulseForge.Runtime.Unity.Persistence
                 SavedTrackPerformanceData candidate = preset.performances[i];
                 if (candidate != null && SaveDataNormalizer.CanComparePerformance(
                     candidate.gameMode,
+                    candidate.timingAssist,
                     candidate.scoreSchema,
                     candidate.beatMapFingerprint,
                     gameMode.ToString(),
+                    timingAssist.ToString(),
                     scoreSchema,
                     beatMapFingerprint))
                 {
@@ -392,6 +418,7 @@ namespace PulseForge.Runtime.Unity.Persistence
                 performance = new SavedTrackPerformanceData
                 {
                     gameMode = gameMode.ToString(),
+                    timingAssist = timingAssist.ToString(),
                     scoreSchema = scoreSchema,
                     beatMapFingerprint = beatMapFingerprint
                 };
@@ -418,6 +445,7 @@ namespace PulseForge.Runtime.Unity.Persistence
             performance.lastPlayedAtUtc = now;
 
             if (gameMode == RadialGameMode.Standard
+                && timingAssist == TimingAssistMode.Standard
                 && string.Equals(scoreSchema, ScoreSchema.LegacyV1, StringComparison.Ordinal))
             {
                 preset.playCount = performance.playCount;
@@ -582,7 +610,9 @@ namespace PulseForge.Runtime.Unity.Persistence
                 settings.DetectionMode.ToString(),
                 settings.Difficulty.ToString(),
                 settings.CombatStyle.ToString(),
-                analyzerVersion);
+                settings.Coverage.ToString(),
+                analyzerVersion,
+                analyzerVersion > 0 ? SaveDefaults.PlannerVersion : 0);
             SavedTrackPresetData legacyFallback = null;
             for (int i = 0; i < track.presets.Count; i++)
             {
@@ -591,7 +621,9 @@ namespace PulseForge.Runtime.Unity.Persistence
                     preset.detectionMode,
                     preset.difficulty,
                     preset.combatStyle,
-                    preset.analyzerVersion);
+                    preset.coverage,
+                    preset.analyzerVersion,
+                    preset.plannerVersion);
                 if (string.Equals(expected, actual, StringComparison.Ordinal))
                 {
                     return preset;
@@ -603,7 +635,9 @@ namespace PulseForge.Runtime.Unity.Persistence
                         preset.detectionMode,
                         preset.difficulty,
                         preset.combatStyle,
-                        analyzerVersion);
+                        preset.coverage,
+                        analyzerVersion,
+                        SaveDefaults.PlannerVersion);
                     if (string.Equals(expected, legacyActual, StringComparison.Ordinal))
                     {
                         legacyFallback = preset;
@@ -645,6 +679,7 @@ namespace PulseForge.Runtime.Unity.Persistence
             preset.detectionMode = settings.DetectionMode.ToString();
             preset.difficulty = settings.Difficulty.ToString();
             preset.combatStyle = settings.CombatStyle.ToString();
+            preset.coverage = settings.Coverage.ToString();
             preset.eventCount = Math.Max(0, eventCount);
             preset.inputCost = Math.Max(0, inputCost);
             preset.plannerResult = plannerResult ?? string.Empty;
@@ -653,6 +688,7 @@ namespace PulseForge.Runtime.Unity.Persistence
             preset.cacheVersion = SaveDefaults.RadialBeatMapCacheVersion;
             preset.beatMapCacheVersion = SaveDefaults.RadialBeatMapCacheVersion;
             preset.analyzerVersion = SaveDefaults.AnalyzerVersion;
+            preset.plannerVersion = SaveDefaults.PlannerVersion;
             preset.beatMapFingerprint = (beatMapFingerprint ?? string.Empty)
                 .Trim()
                 .ToLowerInvariant();
