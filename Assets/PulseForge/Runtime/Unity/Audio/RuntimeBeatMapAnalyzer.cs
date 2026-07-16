@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace PulseForge.Runtime.Unity.Audio
 {
-    internal static class RuntimeBeatMapAnalyzer
+    public static class RuntimeBeatMapAnalyzer
     {
         private const double FrameMilliseconds = 10d;
         private const double BaselineMilliseconds = 120d;
