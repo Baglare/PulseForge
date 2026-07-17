@@ -18,6 +18,7 @@ namespace PulseForge.Runtime.Unity.UI
         private RhythmActionMask cachedChoiceActions;
         private RhythmAction? cachedSelectedAction;
         private bool cachedChoiceFailure;
+        private RadialActionBindingDisplay bindingDisplay;
 
         public RadialPresentationKey Key { get; private set; }
         public bool IsInUse { get; private set; }
@@ -69,17 +70,21 @@ namespace PulseForge.Runtime.Unity.UI
             return view;
         }
 
-        public void Activate(RadialPresentationKey key, RhythmActionMask actions)
+        public void Activate(
+            RadialPresentationKey key,
+            RhythmActionMask actions,
+            RadialActionBindingDisplay bindings)
         {
             Key = key;
             IsInUse = true;
             gameObject.SetActive(true);
+            bindingDisplay = bindings;
             baseColor = ResolveColor(actions);
             projectileImage.color = baseColor;
             projectileOutline.effectColor = PulseForgeUITheme.DarkText;
             actionBadge.color = baseColor;
             actionBadge.rectTransform.sizeDelta = new Vector2(34f, 24f);
-            actionLabel.text = RadialEncounterView.ResolveActionLabel(actions);
+            actionLabel.text = bindingDisplay.Resolve(actions);
             cachedChoiceActions = RhythmActionMask.None;
             cachedSelectedAction = null;
             cachedChoiceFailure = false;
@@ -149,14 +154,14 @@ namespace PulseForge.Runtime.Unity.UI
             else if (state.SelectedAction.HasValue)
             {
                 RhythmActionMask selected = RhythmActionMaskUtility.ToMask(state.SelectedAction.Value);
-                actionLabel.text = RadialEncounterView.ResolveChoiceLabel(
+                actionLabel.text = bindingDisplay.ResolveChoice(
                     acceptedActions,
                     state.SelectedAction.Value);
                 actionBadge.color = RadialEncounterView.ResolveActionColor(selected);
             }
             else
             {
-                actionLabel.text = RadialEncounterView.ResolveActionPairLabel(acceptedActions, " / ");
+                actionLabel.text = bindingDisplay.ResolvePair(acceptedActions, " / ");
                 actionBadge.color = baseColor;
             }
             cachedChoiceActions = acceptedActions;

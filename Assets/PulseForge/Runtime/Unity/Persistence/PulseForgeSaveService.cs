@@ -252,7 +252,7 @@ namespace PulseForge.Runtime.Unity.Persistence
                 string createdAtUtc = existingPreset == null
                     ? SaveDefaults.UtcNow()
                     : existingPreset.createdAtUtc;
-                if (!cacheStore.TryWriteRadialPresetCache(
+                if (!cacheStore.TryWriteRadialPresetCacheWithBeatGrid(
                     hash,
                     presetId,
                     convertedWavPath,
@@ -441,7 +441,7 @@ namespace PulseForge.Runtime.Unity.Persistence
                 return false;
             }
 
-            if (!cacheStore.TryWriteRadialPresetCache(
+            if (!cacheStore.TryWriteRadialPresetCacheWithBeatGrid(
                 trackId,
                 presetId,
                 cachedWavPath,

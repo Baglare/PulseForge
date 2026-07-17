@@ -10,7 +10,7 @@ namespace PulseForge.Runtime.Unity.Persistence
 {
     public static class SaveDefaults
     {
-        public const int SettingsSchemaVersion = 6;
+        public const int SettingsSchemaVersion = 7;
         public const int ProfileSchemaVersion = 1;
         public const int LibrarySchemaVersion = 6;
         public const int LibraryCacheVersion = 1;
@@ -26,7 +26,7 @@ namespace PulseForge.Runtime.Unity.Persistence
             int width = currentResolution.width > 0 ? currentResolution.width : 1920;
             int height = currentResolution.height > 0 ? currentResolution.height : 1080;
             int refreshRate = ResolveRefreshRate(currentResolution, 60);
-            return new PulseForgeSettingsData
+            PulseForgeSettingsData settings = new PulseForgeSettingsData
             {
                 schemaVersion = SettingsSchemaVersion,
                 enableMotion = true,
@@ -36,6 +36,7 @@ namespace PulseForge.Runtime.Unity.Persistence
                 defaultCoverage = pipeline.Coverage.ToString(),
                 defaultGameMode = RadialGameMode.Standard.ToString(),
                 defaultTimingAssist = TimingAssistMode.Relaxed.ToString(),
+                uiLanguage = PulseForgeUILanguage.English.ToString(),
                 showUpcomingInputs = true,
                 beatPulseEnabled = true,
                 forecastLeadMultiplier = 1.25f,
@@ -62,6 +63,8 @@ namespace PulseForge.Runtime.Unity.Persistence
                     inputBindingOverridesJson = string.Empty
                 }
             };
+            PulseForgeBuildDefaults.Apply(settings);
+            return settings;
         }
 
         public static PulseForgeSettingsData CloneSettings(PulseForgeSettingsData source)
@@ -147,6 +150,13 @@ namespace PulseForge.Runtime.Unity.Persistence
                 data.showUpcomingInputs = defaults.showUpcomingInputs;
                 data.beatPulseEnabled = defaults.beatPulseEnabled;
             }
+            if (sourceSchemaVersion < 7)
+            {
+                data.uiLanguage = defaults.uiLanguage;
+            }
+            data.uiLanguage = NormalizeEnum(
+                data.uiLanguage,
+                PulseForgeUILanguage.English).ToString();
             data.defaultTimingAssist = NormalizeEnum(
                 data.defaultTimingAssist,
                 TimingAssistMode.Relaxed).ToString();

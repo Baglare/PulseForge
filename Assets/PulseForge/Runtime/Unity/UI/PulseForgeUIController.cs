@@ -1,4 +1,5 @@
 using PulseForge.Runtime.Unity.Prototype;
+using PulseForge.Runtime.Unity.Persistence;
 using UnityEngine;
 
 namespace PulseForge.Runtime.Unity.UI
@@ -8,6 +9,10 @@ namespace PulseForge.Runtime.Unity.UI
         private DebugRhythmPrototypeController runtimeController;
         private PulseForgeSceneUIRoot sceneRoot;
         private bool isBound;
+        private PulseForgeUIState? lastTooltipState;
+        private bool lastSettingsVisibility;
+        private PulseForgeUILanguage lastLanguage = (PulseForgeUILanguage)(-1);
+        private int lastLocalizationRevision = -1;
 
         public PulseForgeSceneUIRoot SceneRoot => sceneRoot;
         public bool IsBound => isBound;
@@ -38,6 +43,7 @@ namespace PulseForge.Runtime.Unity.UI
             sceneRoot.ErrorPanel?.Bind(runtimeController);
             sceneRoot.GameplayFeedbackController?.Bind(runtimeController);
             sceneRoot.RadialPresentationController?.Bind(runtimeController);
+            sceneRoot.TooltipView?.Bind(runtimeController);
             isBound = true;
             Refresh();
         }
@@ -49,6 +55,7 @@ namespace PulseForge.Runtime.Unity.UI
                 sceneRoot.CompleteMotionTransitions();
                 sceneRoot.GameplayFeedbackController?.Unbind();
                 sceneRoot.RadialPresentationController?.Unbind();
+                sceneRoot.TooltipView?.Unbind();
                 sceneRoot.SetupPanel?.Unbind();
                 sceneRoot.SavedTracksPanel?.Unbind();
                 sceneRoot.SettingsPanel?.Unbind();
@@ -63,6 +70,10 @@ namespace PulseForge.Runtime.Unity.UI
             runtimeController = null;
             sceneRoot = null;
             isBound = false;
+            lastTooltipState = null;
+            lastSettingsVisibility = false;
+            lastLanguage = (PulseForgeUILanguage)(-1);
+            lastLocalizationRevision = -1;
         }
 
         public void Refresh()
@@ -73,6 +84,13 @@ namespace PulseForge.Runtime.Unity.UI
             }
 
             PulseForgeUIState state = runtimeController.UIState;
+            bool settingsVisible = runtimeController.IsSettingsOpen;
+            if (lastTooltipState != state || lastSettingsVisibility != settingsVisible)
+            {
+                sceneRoot.TooltipView?.HideAll();
+                lastTooltipState = state;
+                lastSettingsVisibility = settingsVisible;
+            }
             sceneRoot.ApplyVisibility(state);
             bool showSavedTracks = state == PulseForgeUIState.Setup
                 && runtimeController.IsSavedTracksOpen;
@@ -121,9 +139,19 @@ namespace PulseForge.Runtime.Unity.UI
             }
 
             sceneRoot.RefreshMotion(state);
+            PulseForgeUILanguage language = runtimeController.ActiveUILanguage;
+            int localizationRevision = runtimeController.IsSettingsOpen
+                ? runtimeController.SettingsDraftRevision
+                : -1;
+            if (lastLanguage != language || lastLocalizationRevision != localizationRevision)
+            {
+                PulseForgeUILocalization.Apply(sceneRoot, language);
+                lastLanguage = language;
+                lastLocalizationRevision = localizationRevision;
+            }
         }
 
-        private void Update()
+        private void LateUpdate()
         {
             Refresh();
         }

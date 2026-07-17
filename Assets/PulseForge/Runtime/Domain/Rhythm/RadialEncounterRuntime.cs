@@ -55,28 +55,36 @@ namespace PulseForge.Domain.Rhythm
 
         internal bool TryGetAcceptedInputDistance(RhythmInputSample input, out double distance)
         {
-            distance = double.MaxValue;
-            InputRequirementRuntime requirement = FindAcceptedRequirement(input);
-            if (requirement == null)
-            {
-                return false;
-            }
-
-            distance = GetInputDistance(requirement, input);
-            return true;
+            return TryGetAcceptedInputCandidate(input, out _, out distance);
         }
 
         internal bool TryGetWrongInputDistance(RhythmInputSample input, out double distance)
         {
-            distance = double.MaxValue;
-            InputRequirementRuntime requirement = FindWrongInputRequirement(input);
-            if (requirement == null)
-            {
-                return false;
-            }
+            return TryGetWrongInputCandidate(input, out _, out distance);
+        }
 
-            distance = GetInputDistance(requirement, input);
-            return true;
+        internal bool TryGetAcceptedInputCandidate(
+            RhythmInputSample input,
+            out InputRequirementRuntime requirement,
+            out double distance)
+        {
+            requirement = FindAcceptedRequirement(input);
+            distance = requirement == null
+                ? double.MaxValue
+                : GetInputDistance(requirement, input);
+            return requirement != null;
+        }
+
+        internal bool TryGetWrongInputCandidate(
+            RhythmInputSample input,
+            out InputRequirementRuntime requirement,
+            out double distance)
+        {
+            requirement = FindWrongInputRequirement(input);
+            distance = requirement == null
+                ? double.MaxValue
+                : GetInputDistance(requirement, input);
+            return requirement != null;
         }
 
         internal bool ResolveAcceptedInput(
@@ -85,6 +93,19 @@ namespace PulseForge.Domain.Rhythm
             IList<EncounterTargetResult> newTargetResults)
         {
             InputRequirementRuntime requirement = FindAcceptedRequirement(input);
+            return ResolveAcceptedInput(
+                requirement,
+                input,
+                newRequirementResults,
+                newTargetResults);
+        }
+
+        internal bool ResolveAcceptedInput(
+            InputRequirementRuntime requirement,
+            RhythmInputSample input,
+            IList<RequirementResult> newRequirementResults,
+            IList<EncounterTargetResult> newTargetResults)
+        {
             if (requirement == null)
             {
                 return false;
@@ -126,6 +147,19 @@ namespace PulseForge.Domain.Rhythm
             IList<EncounterTargetResult> newTargetResults)
         {
             InputRequirementRuntime requirement = FindWrongInputRequirement(input);
+            return ResolveWrongInput(
+                requirement,
+                input,
+                newRequirementResults,
+                newTargetResults);
+        }
+
+        internal bool ResolveWrongInput(
+            InputRequirementRuntime requirement,
+            RhythmInputSample input,
+            IList<RequirementResult> newRequirementResults,
+            IList<EncounterTargetResult> newTargetResults)
+        {
             if (requirement == null)
             {
                 return false;
@@ -252,13 +286,14 @@ namespace PulseForge.Domain.Rhythm
             for (int i = 0; i < active.Count; i++)
             {
                 InputRequirementRuntime requirement = active[i];
-                if (!AcceptsInput(requirement, input))
+                if (EvaluateInputOpportunity(requirement, input)
+                    != InputOpportunityRejectionReason.None)
                 {
                     continue;
                 }
 
                 double distance = GetInputDistance(requirement, input);
-                if (best == null || distance < bestDistance)
+                if (IsBetterRequirement(requirement, distance, best, bestDistance))
                 {
                     best = requirement;
                     bestDistance = distance;
@@ -278,18 +313,21 @@ namespace PulseForge.Domain.Rhythm
             {
                 InputRequirementRuntime requirement = active[i];
                 InputRequirementData data = requirement.Data;
-                if (!data.exclusive || !IsWrongInputWindowActive(requirement, input))
+                if (!data.exclusive
+                    || !IsWrongInputPenaltyPhase(requirement, input.Phase)
+                    || !IsTemporalWindowActive(requirement, input.SongTimeSeconds))
                 {
                     continue;
                 }
 
-                if (RhythmActionMaskUtility.Contains(data.acceptedActions, input.Action))
+                if (EvaluateInputOpportunity(requirement, input)
+                    != InputOpportunityRejectionReason.WrongAction)
                 {
                     continue;
                 }
 
                 double distance = GetInputDistance(requirement, input);
-                if (best == null || distance < bestDistance)
+                if (IsBetterRequirement(requirement, distance, best, bestDistance))
                 {
                     best = requirement;
                     bestDistance = distance;
@@ -297,6 +335,143 @@ namespace PulseForge.Domain.Rhythm
             }
 
             return best;
+        }
+
+        internal bool IsActiveRequirement(InputRequirementRuntime requirement)
+        {
+            if (requirement == null || requirement.IsResolved)
+            {
+                return false;
+            }
+
+            List<InputRequirementRuntime> active = GetActiveRequirements();
+            for (int i = 0; i < active.Count; i++)
+            {
+                if (ReferenceEquals(active[i], requirement))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        internal bool UsesOrderedRequirements => UsesOrderedActivation();
+
+        internal int CurrentSequenceStep
+        {
+            get
+            {
+                List<InputRequirementRuntime> active = GetActiveRequirements();
+                return active.Count == 0 ? -1 : active[0].Data.orderIndex;
+            }
+        }
+
+        internal InputOpportunityRejectionReason EvaluateInputOpportunity(
+            InputRequirementRuntime requirement,
+            RhythmInputSample input)
+        {
+            if (requirement == null)
+            {
+                return InputOpportunityRejectionReason.AlreadyResolved;
+            }
+            if (requirement.IsResolved)
+            {
+                return requirement.Result != null
+                    && (requirement.Result.Reason == RadialResultReason.Timeout
+                        || requirement.Result.Reason == RadialResultReason.InsufficientCount
+                        || requirement.Result.Reason == RadialResultReason.MissingChordMember)
+                        ? InputOpportunityRejectionReason.TimedOut
+                        : InputOpportunityRejectionReason.AlreadyResolved;
+            }
+            if (!RhythmActionMaskUtility.Contains(
+                requirement.Data.acceptedActions,
+                input.Action))
+            {
+                return InputOpportunityRejectionReason.WrongAction;
+            }
+            if (GetExpectedInputPhase(requirement) != input.Phase)
+            {
+                return InputOpportunityRejectionReason.WrongPhase;
+            }
+            if (!IsActiveRequirement(requirement))
+            {
+                return InputOpportunityRejectionReason.NotCurrentStep;
+            }
+            if (requirement.HasCapturedInput
+                && Data.eventType != RadialEventType.GuardHold)
+            {
+                return InputOpportunityRejectionReason.AlreadyResolved;
+            }
+            return IsTemporalWindowActive(requirement, input.SongTimeSeconds)
+                ? InputOpportunityRejectionReason.None
+                : InputOpportunityRejectionReason.OutsideWindow;
+        }
+
+        internal bool IsTemporalWindowActive(
+            InputRequirementRuntime requirement,
+            double songTimeSeconds)
+        {
+            InputRequirementData data = requirement.Data;
+            if (Data.eventType == RadialEventType.GuardHold && requirement.HasCapturedInput)
+            {
+                return true;
+            }
+            if (Data.eventType == RadialEventType.BreakTarget
+                && data.gestureType == InputGestureType.RepeatedPress)
+            {
+                return IsAtOrAfter(songTimeSeconds, data.windowStartTimeSeconds)
+                    && IsAtOrBefore(songTimeSeconds, data.goodDeadlineSeconds);
+            }
+            if (Data.eventType == RadialEventType.HeavyChargeRelease
+                && data.phase == RhythmInputPhase.Released
+                && TryGetPairedRequirement(requirement, out InputRequirementRuntime paired)
+                && paired.HasCapturedInput)
+            {
+                return true;
+            }
+            return IsWithinGoodWindow(data, songTimeSeconds);
+        }
+
+        internal RhythmInputPhase GetExpectedInputPhase(InputRequirementRuntime requirement)
+        {
+            return Data.eventType == RadialEventType.GuardHold
+                && requirement.HasCapturedInput
+                    ? RhythmInputPhase.Released
+                    : requirement.Data.phase;
+        }
+
+        private bool IsWrongInputPenaltyPhase(
+            InputRequirementRuntime requirement,
+            RhythmInputPhase inputPhase)
+        {
+            if (Data.eventType == RadialEventType.GuardHold
+                && requirement.HasCapturedInput)
+            {
+                return inputPhase == RhythmInputPhase.Pressed;
+            }
+            return requirement.Data.phase == RhythmInputPhase.Released
+                ? inputPhase == RhythmInputPhase.Pressed
+                : inputPhase == requirement.Data.phase;
+        }
+
+        private static bool IsBetterRequirement(
+            InputRequirementRuntime candidate,
+            double candidateDistance,
+            InputRequirementRuntime current,
+            double currentDistance)
+        {
+            if (current == null || candidateDistance < currentDistance - BoundaryTolerance)
+            {
+                return true;
+            }
+            if (Math.Abs(candidateDistance - currentDistance) > BoundaryTolerance)
+            {
+                return false;
+            }
+
+            return string.CompareOrdinal(
+                candidate.Data.requirementId,
+                current.Data.requirementId) < 0;
         }
 
         private List<InputRequirementRuntime> GetActiveRequirements()
@@ -344,75 +519,6 @@ namespace PulseForge.Domain.Rhythm
                 || Data.eventType == RadialEventType.TimedChain
                 || Data.eventType == RadialEventType.SwarmChain
                 || Data.eventType == RadialEventType.HeavyChargeRelease;
-        }
-
-        private bool AcceptsInput(InputRequirementRuntime requirement, RhythmInputSample input)
-        {
-            InputRequirementData data = requirement.Data;
-            if (!RhythmActionMaskUtility.Contains(data.acceptedActions, input.Action))
-            {
-                return false;
-            }
-
-            if (Data.eventType == RadialEventType.GuardHold && requirement.HasCapturedInput)
-            {
-                return input.Phase == RhythmInputPhase.Released
-                    && input.Action == requirement.CapturedAction;
-            }
-
-            if (input.Phase != data.phase || requirement.HasCapturedInput)
-            {
-                return false;
-            }
-
-            if (Data.eventType == RadialEventType.BreakTarget
-                && data.gestureType == InputGestureType.RepeatedPress)
-            {
-                return IsAtOrAfter(input.SongTimeSeconds, data.windowStartTimeSeconds)
-                    && IsAtOrBefore(input.SongTimeSeconds, data.goodDeadlineSeconds);
-            }
-
-            if (Data.eventType == RadialEventType.HeavyChargeRelease
-                && input.Phase == RhythmInputPhase.Released
-                && TryGetPairedRequirement(requirement, out InputRequirementRuntime paired)
-                && paired.HasCapturedInput)
-            {
-                return true;
-            }
-
-            return IsWithinGoodWindow(data, input.SongTimeSeconds);
-        }
-
-        private bool IsWrongInputWindowActive(InputRequirementRuntime requirement, RhythmInputSample input)
-        {
-            InputRequirementData data = requirement.Data;
-            if (Data.eventType == RadialEventType.GuardHold && requirement.HasCapturedInput)
-            {
-                return input.Phase == RhythmInputPhase.Pressed
-                    && IsAtOrAfter(input.SongTimeSeconds, requirement.CapturedTimeSeconds)
-                    && IsAtOrBefore(input.SongTimeSeconds, data.holdEndTimeSeconds);
-            }
-
-            if (data.phase == RhythmInputPhase.Released)
-            {
-                if (input.Phase != RhythmInputPhase.Pressed)
-                {
-                    return false;
-                }
-            }
-            else if (input.Phase != data.phase)
-            {
-                return false;
-            }
-
-            if (Data.eventType == RadialEventType.BreakTarget
-                && data.gestureType == InputGestureType.RepeatedPress)
-            {
-                return IsAtOrAfter(input.SongTimeSeconds, data.windowStartTimeSeconds)
-                    && IsAtOrBefore(input.SongTimeSeconds, data.goodDeadlineSeconds);
-            }
-
-            return IsWithinGoodWindow(data, input.SongTimeSeconds);
         }
 
         private void ResolveTimedInput(

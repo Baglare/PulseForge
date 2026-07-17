@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using PulseForge.Domain.Rhythm;
 using PulseForge.Runtime.Unity.Audio;
+using PulseForge.Runtime.Unity.Persistence;
 using PulseForge.Runtime.Unity.Prototype;
 using UnityEngine;
 using UnityEngine.UI;
@@ -176,6 +177,18 @@ namespace PulseForge.Runtime.Unity.UI
             view.EnsurePersistenceControls();
             view.EnsureSettingsButton();
             return view;
+        }
+
+        public void EnsureViewportLayout()
+        {
+            RectTransform card = PanelRoot == null
+                ? null
+                : PanelRoot.transform.Find("Setup Card") as RectTransform;
+            if (card == null) return;
+            card.anchorMin = new Vector2(0.5f, 0.5f);
+            card.anchorMax = new Vector2(0.5f, 0.5f);
+            card.pivot = new Vector2(0.5f, 0.5f);
+            card.anchoredPosition = new Vector2(0f, -44f);
         }
 
         public void EnsureGameModeControls(Action<GameObject> registerCreated = null)
@@ -448,10 +461,11 @@ namespace PulseForge.Runtime.Unity.UI
 
         public void Refresh(DebugRhythmPrototypeController controller)
         {
+            bool turkish = controller.ActiveUILanguage == PulseForgeUILanguage.Turkish;
             builtInDemoButton.gameObject.SetActive(controller.HasBuiltInDemo);
             selectedFileText.text = controller.HasSelectedAudio
                 ? controller.SelectedAudioFileName
-                : "No custom audio selected";
+                : turkish ? "Özel ses seçilmedi" : "No custom audio selected";
             selectedFileText.color = controller.HasSelectedAudio
                 ? PulseForgeUITheme.PrimaryText
                 : PulseForgeUITheme.SecondaryText;
@@ -461,7 +475,7 @@ namespace PulseForge.Runtime.Unity.UI
                 saveToLibraryToggle.interactable = controller.HasSelectedAudio;
             }
 
-            statusText.text = controller.SetupStatusMessage;
+            statusText.text = LocalizeSetupStatus(controller.SetupStatusMessage, turkish);
             saveToLibraryToggle?.SetIsOnWithoutNotify(controller.SaveSetupToLibrary);
 
             RuntimeAudioPipelineSettings settings = controller.SelectedPipelineSettings;
@@ -471,6 +485,20 @@ namespace PulseForge.Runtime.Unity.UI
             coverageSelector?.SetSelected(settings.Coverage);
             gameModeSelector?.SetSelected(controller.SelectedGameMode);
             timingAssistSelector?.SetSelected(controller.SelectedTimingAssist);
+        }
+
+        private static string LocalizeSetupStatus(string value, bool turkish)
+        {
+            if (!turkish || string.IsNullOrEmpty(value)) return value;
+            switch (value)
+            {
+                case "Choose a song, select your settings, then analyze.":
+                    return "Bir şarkı seçin, ayarları belirleyin ve analiz edin.";
+                case "Song selected. Choose settings, then analyze.":
+                    return "Şarkı seçildi. Ayarları belirleyin ve analiz edin.";
+                default:
+                    return value;
+            }
         }
 
         public override void CollectValidationErrors(List<string> errors)
@@ -516,6 +544,8 @@ namespace PulseForge.Runtime.Unity.UI
                 TextAnchor.MiddleLeft,
                 FontStyle.Bold);
             PulseForgeUIFactory.SetLayoutHeight(labelText, 28f);
+            string tooltipKey = "selector." + PulseForgeTooltipSetup.Slug(label);
+            PulseForgeTooltipSetup.Attach(labelText.gameObject, tooltipKey);
 
             RectTransform options = PulseForgeUIFactory.CreateRect("Options", root);
             PulseForgeUIFactory.SetLayoutHeight(options, 52f);
@@ -535,6 +565,9 @@ namespace PulseForge.Runtime.Unity.UI
                     choices[i],
                     PulseForgeUITheme.Primary,
                     optionFontSize);
+                PulseForgeTooltipSetup.Attach(
+                    buttons[i].gameObject,
+                    tooltipKey + "." + PulseForgeTooltipSetup.Slug(choices[i]));
             }
 
             return buttons;

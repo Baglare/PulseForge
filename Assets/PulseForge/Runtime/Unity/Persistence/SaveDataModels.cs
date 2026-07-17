@@ -17,6 +17,7 @@ namespace PulseForge.Runtime.Unity.Persistence
         public string defaultCoverage;
         public string defaultGameMode;
         public string defaultTimingAssist;
+        public string uiLanguage;
         public bool showUpcomingInputs;
         public bool beatPulseEnabled;
         public float forecastLeadMultiplier;
@@ -33,6 +34,12 @@ namespace PulseForge.Runtime.Unity.Persistence
         Standard,
         Assisted,
         HighClarity
+    }
+
+    public enum PulseForgeUILanguage
+    {
+        English,
+        Turkish
     }
 
     [Serializable]

@@ -69,6 +69,7 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgePersistenceUISetup.Apply(root);
             PulseForgeSettingsUISetup.Apply(root);
             PulseForgeUIVisualStyle.Apply(root);
+            root.SetupPanel?.EnsureViewportLayout();
             PulseForgeUIMotionSetup.Apply(root);
             PulseForgeGameplayFeedbackSetup.Apply(root);
             RadialSaboteurFogSetup.Apply(root);

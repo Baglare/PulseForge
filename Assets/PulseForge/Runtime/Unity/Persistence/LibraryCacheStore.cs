@@ -36,7 +36,7 @@ namespace PulseForge.Runtime.Unity.Persistence
             out string beatMapFingerprint,
             out string errorMessage)
         {
-            return TryWriteRadialPresetCache(
+            return TryWriteRadialPresetCacheWithBeatGrid(
                 trackId,
                 presetId,
                 convertedWavPath,
@@ -51,7 +51,7 @@ namespace PulseForge.Runtime.Unity.Persistence
                 out errorMessage);
         }
 
-        public bool TryWriteRadialPresetCache(
+        public bool TryWriteRadialPresetCacheWithBeatGrid(
             string trackId,
             string presetId,
             string convertedWavPath,
@@ -94,7 +94,7 @@ namespace PulseForge.Runtime.Unity.Persistence
             string beatmapTemporaryPath = beatmapPath + ".tmp";
             try
             {
-                RadialBeatMapCacheData data = RadialBeatMapArtifactSerializer.Create(
+                RadialBeatMapCacheData data = RadialBeatMapArtifactSerializer.CreateWithBeatGrid(
                     trackId,
                     presetId,
                     beatMap,

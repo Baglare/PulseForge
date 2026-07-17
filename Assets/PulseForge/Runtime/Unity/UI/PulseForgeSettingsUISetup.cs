@@ -19,6 +19,8 @@ namespace PulseForge.Runtime.Unity.UI
             }
 
             panel?.EnsureActionBindingControls(registerCreated);
+            panel?.EnsureLanguageControl(registerCreated);
+            panel?.EnsureScrollSensitivity();
             root.ConfigureSettingsPanel(panel);
             panel?.SetActive(false);
         }

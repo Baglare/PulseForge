@@ -41,9 +41,14 @@ namespace PulseForge.Runtime.Unity.UI
             new HashSet<string>(StringComparer.Ordinal);
         private readonly List<CuePriorityCandidate> priorityCandidates =
             new List<CuePriorityCandidate>();
+        private readonly List<PresentationWindow> presentationWindows =
+            new List<PresentationWindow>();
         private DebugRhythmPrototypeController boundController;
         private IReadOnlyList<RadialEncounterRuntime> preparedEncounters;
         private RadialStatusEffectSnapshot currentStatus;
+        private RadialActionBindingDisplay bindingDisplay;
+        private int firstPresentationWindowIndex;
+        private double lastPresentationSongTime = double.NaN;
 
         public RadialCombatStageView StageView => stageView;
 
@@ -77,6 +82,9 @@ namespace PulseForge.Runtime.Unity.UI
             }
             boundController = null;
             preparedEncounters = null;
+            presentationWindows.Clear();
+            firstPresentationWindowIndex = 0;
+            lastPresentationSongTime = double.NaN;
             desiredEncounterKeys.Clear();
             desiredProjectileKeys.Clear();
             desiredCompoundKeys.Clear();
@@ -161,6 +169,8 @@ namespace PulseForge.Runtime.Unity.UI
             revealedForecastKeys.Clear();
             focusedEncounterIds.Clear();
             priorityCandidates.Clear();
+            firstPresentationWindowIndex = 0;
+            lastPresentationSongTime = double.NaN;
             currentStatus = default(RadialStatusEffectSnapshot);
             stageView?.ResetPresentation();
         }
@@ -202,8 +212,22 @@ namespace PulseForge.Runtime.Unity.UI
             ResetPresentation();
             if (encounters == null || stageView == null)
             {
+                presentationWindows.Clear();
                 return;
             }
+
+            bindingDisplay = new RadialActionBindingDisplay(
+                boundController.GetActiveBindingDisplay(RhythmAction.Guard),
+                boundController.GetActiveBindingDisplay(RhythmAction.Dodge),
+                boundController.GetActiveBindingDisplay(RhythmAction.LightAttack),
+                boundController.GetActiveBindingDisplay(RhythmAction.HeavyAttack));
+
+            int difficultyLevel = GetDifficultyLevel();
+            float forecastLeadMultiplier = GetForecastLeadMultiplier();
+            BuildPresentationWindows(
+                encounters,
+                difficultyLevel,
+                forecastLeadMultiplier);
 
             stageView.InitializePools(
                 CalculateMaximumVisibleCount(encounters, false),
@@ -211,8 +235,8 @@ namespace PulseForge.Runtime.Unity.UI
                 CalculateMaximumCompoundVisibleCount(encounters),
                 CalculateMaximumForecastVisibleCount(
                     encounters,
-                    GetDifficultyLevel(),
-                    GetForecastLeadMultiplier()),
+                    difficultyLevel,
+                    forecastLeadMultiplier),
                 CalculateMaximumGroupTimingVisibleCount(encounters));
         }
 
@@ -242,11 +266,26 @@ namespace PulseForge.Runtime.Unity.UI
                 return;
             }
 
-            BuildFocusedEncounterSet(encounters, songTimeSeconds, difficultyLevel);
+            GetActivePresentationRange(
+                songTimeSeconds,
+                out int firstWindowIndex,
+                out int endWindowIndex);
+            BuildFocusedEncounterSet(
+                songTimeSeconds,
+                difficultyLevel,
+                firstWindowIndex,
+                endWindowIndex);
 
-            for (int encounterIndex = 0; encounterIndex < encounters.Count; encounterIndex++)
+            for (int windowIndex = firstWindowIndex;
+                windowIndex < endWindowIndex;
+                windowIndex++)
             {
-                RadialEncounterRuntime encounter = encounters[encounterIndex];
+                PresentationWindow window = presentationWindows[windowIndex];
+                if (songTimeSeconds > window.EndTimeSeconds)
+                {
+                    continue;
+                }
+                RadialEncounterRuntime encounter = window.Encounter;
                 double encounterResolutionTime = GetEncounterResolutionTime(encounter);
                 double cleanupTime = encounter.IsResolved
                     ? encounterResolutionTime + CleanupSeconds
@@ -331,7 +370,11 @@ namespace PulseForge.Runtime.Unity.UI
             }
             if (!encounterView.Key.Equals(key))
             {
-                encounterView.Activate(key, targetData.archetype, requirementData.acceptedActions);
+                encounterView.Activate(
+                    key,
+                    targetData.archetype,
+                    requirementData.acceptedActions,
+                    bindingDisplay);
             }
 
             bool isRanged = targetData.archetype == EnemyArchetype.ArcherGunner;
@@ -422,14 +465,25 @@ namespace PulseForge.Runtime.Unity.UI
                     individualTimingData.gestureType,
                     individualTimingData.phase,
                     individualTimingRequirement.HasCapturedInput);
-            RadialTimingProfile timingProfile = GetTimingProfile();
-            encounterView.RenderTimingWindow(
-                targetData.direction,
+            if (TryGetInputOpportunity(
+                encounter,
+                individualTimingRequirement,
                 songTimeSeconds,
-                individualTimingData.targetTimeSeconds,
-                timingProfile.PerfectWindowSeconds,
-                timingProfile.GoodWindowSeconds,
-                showTimingWindow);
+                difficultyLevel: GetDifficultyLevel(),
+                out InputOpportunitySnapshot opportunity))
+            {
+                encounterView.RenderTimingWindow(
+                    targetData.direction,
+                    opportunity,
+                    showTimingWindow);
+            }
+            else
+            {
+                encounterView.RenderTimingWindow(
+                    targetData.direction,
+                    default(InputOpportunitySnapshot),
+                    false);
+            }
             encounterView.ApplyCuePriority(
                 targetCuePriority,
                 GetReadabilityMode(),
@@ -479,7 +533,7 @@ namespace PulseForge.Runtime.Unity.UI
             }
             if (!projectileView.Key.Equals(key))
             {
-                projectileView.Activate(key, requirement.Data.acceptedActions);
+                projectileView.Activate(key, requirement.Data.acceptedActions, bindingDisplay);
             }
             Vector2 position = RadialPresentationMath.EvaluateProjectilePosition(
                 target.direction,
@@ -599,7 +653,7 @@ namespace PulseForge.Runtime.Unity.UI
             }
             if (!groupView.Key.Equals(key))
             {
-                groupView.Activate(key);
+                groupView.Activate(key, bindingDisplay);
             }
 
             bool failed = HasFailedRequirement(encounter);
@@ -636,27 +690,42 @@ namespace PulseForge.Runtime.Unity.UI
                         chordState);
                     break;
                 case RadialEventType.OrderedSequence:
+                    int activeStep = RadialCompoundPresentationMath.FindActiveStepIndex(
+                        encounter.Requirements);
                     groupView.RenderSequence(
                         indicatorPosition,
-                        RadialCompoundPresentationMath.FindActiveStepIndex(encounter.Requirements),
+                        activeStep,
                         encounter.Requirements.Count,
                         CountSuccessfulRequirements(encounter),
+                        activeStep >= 0 && activeStep < encounter.Requirements.Count
+                            ? encounter.Requirements[activeStep].Data.acceptedActions
+                            : RhythmActionMask.None,
                         false);
                     break;
                 case RadialEventType.TimedChain:
+                    InputRequirementRuntime activeChain =
+                        FindActiveGroupTimingRequirement(encounter);
                     groupView.RenderChain(
                         indicatorPosition,
                         false,
                         CountUnresolvedRequirements(encounter),
                         encounter.Requirements.Count,
+                        activeChain == null
+                            ? RhythmActionMask.None
+                            : activeChain.Data.acceptedActions,
                         failed);
                     break;
                 case RadialEventType.SwarmChain:
+                    InputRequirementRuntime activeSwarm =
+                        FindActiveGroupTimingRequirement(encounter);
                     groupView.RenderChain(
                         indicatorPosition,
                         true,
                         RadialCompoundPresentationMath.CountRemainingTargets(encounter.Targets),
                         encounter.Targets.Count,
+                        activeSwarm == null
+                            ? RhythmActionMask.LightAttack
+                            : activeSwarm.Data.acceptedActions,
                         failed);
                     break;
                 case RadialEventType.Sweep:
@@ -740,25 +809,24 @@ namespace PulseForge.Runtime.Unity.UI
                 groupTimingView.Activate(key);
             }
 
-            InputRequirementData data = requirement.Data;
-            bool usesDeadlineWindow = encounter.Data.eventType == RadialEventType.BreakTarget
-                && data.gestureType == InputGestureType.RepeatedPress;
-            RadialTimingProfile timingProfile = GetTimingProfile();
+            if (!TryGetInputOpportunity(
+                encounter,
+                requirement,
+                songTimeSeconds,
+                GetDifficultyLevel(),
+                out InputOpportunitySnapshot opportunity))
+            {
+                return;
+            }
             groupTimingView.Render(
                 position,
-                songTimeSeconds,
-                data.targetTimeSeconds,
-                timingProfile.PerfectWindowSeconds,
-                timingProfile.GoodWindowSeconds,
-                usesDeadlineWindow,
-                data.windowStartTimeSeconds,
-                data.perfectDeadlineSeconds,
-                data.goodDeadlineSeconds,
+                opportunity,
                 BuildGroupTimingContent(encounter, requirement),
                 ResolveCuePriority(
                     encounter,
                     ResolveEncounterResultState(encounter)),
-                GetReadabilityMode());
+                GetReadabilityMode(),
+                bindingDisplay);
         }
 
         private bool TryGetGroupTimingPosition(
@@ -1561,52 +1629,46 @@ namespace PulseForge.Runtime.Unity.UI
         }
 
         private void BuildFocusedEncounterSet(
-            IReadOnlyList<RadialEncounterRuntime> encounters,
             double songTimeSeconds,
-            int difficultyLevel)
+            int difficultyLevel,
+            int firstWindowIndex,
+            int endWindowIndex)
         {
             focusedEncounterIds.Clear();
-            priorityCandidates.Clear();
-            for (int encounterIndex = 0; encounterIndex < encounters.Count; encounterIndex++)
+            for (int windowIndex = firstWindowIndex;
+                windowIndex < endWindowIndex;
+                windowIndex++)
             {
-                RadialEncounterRuntime encounter = encounters[encounterIndex];
+                PresentationWindow window = presentationWindows[windowIndex];
+                if (songTimeSeconds > window.EndTimeSeconds)
+                {
+                    continue;
+                }
+                RadialEncounterRuntime encounter = window.Encounter;
                 if (encounter.IsResolved)
                 {
                     continue;
                 }
 
-                double nextTargetTime = double.MaxValue;
                 for (int requirementIndex = 0;
                     requirementIndex < encounter.Requirements.Count;
                     requirementIndex++)
                 {
                     InputRequirementRuntime requirement = encounter.Requirements[requirementIndex];
-                    if (!requirement.IsResolved)
+                    if (!requirement.IsResolved
+                        && TryGetInputOpportunity(
+                            encounter,
+                            requirement,
+                            songTimeSeconds,
+                            difficultyLevel,
+                            out InputOpportunitySnapshot snapshot)
+                        && snapshot.Timing.FocusState == RadialTimingFocusState.Focused
+                        && snapshot.Matchable)
                     {
-                        nextTargetTime = Math.Min(
-                            nextTargetTime,
-                            requirement.Data.targetTimeSeconds);
+                        focusedEncounterIds.Add(encounter.Data.eventId);
+                        break;
                     }
                 }
-                if (nextTargetTime == double.MaxValue
-                    || songTimeSeconds < RadialPresentationMath.EvaluateActionLayerStart(
-                        nextTargetTime,
-                        encounter.Data.telegraphLeadSeconds))
-                {
-                    continue;
-                }
-
-                InsertPriorityCandidate(new CuePriorityCandidate(
-                    encounter.Data.eventId,
-                    nextTargetTime));
-            }
-
-            int focusedLimit = Math.Min(
-                RadialPresentationMath.FocusedCueLimit(difficultyLevel),
-                priorityCandidates.Count);
-            for (int i = 0; i < focusedLimit; i++)
-            {
-                focusedEncounterIds.Add(priorityCandidates[i].EventId);
             }
         }
 
@@ -1667,6 +1729,80 @@ namespace PulseForge.Runtime.Unity.UI
             return boundController == null
                 ? RadialTimingProfile.FromMode(TimingAssistMode.Standard)
                 : boundController.ActiveTimingProfileForPresentation;
+        }
+
+        private bool TryGetInputOpportunity(
+            RadialEncounterRuntime encounter,
+            InputRequirementRuntime requirement,
+            double rawSongTimeSeconds,
+            int difficultyLevel,
+            out InputOpportunitySnapshot snapshot)
+        {
+            int focusedLimit = RadialPresentationMath.FocusedCueLimit(difficultyLevel);
+            InputRequirementData data = requirement.Data;
+            RhythmAction action;
+            if (!RhythmActionMaskUtility.TryGetSingleAction(data.acceptedActions, out action))
+            {
+                action = (data.acceptedActions & RhythmActionMask.Guard) != 0
+                    ? RhythmAction.Guard
+                    : RhythmAction.LightAttack;
+            }
+            if (boundController != null)
+            {
+                RhythmAction requestedAction = requirement.HasCapturedInput
+                    ? requirement.CapturedAction
+                    : action;
+                RhythmInputPhase requestedPhase = encounter.Data.eventType == RadialEventType.GuardHold
+                    && requirement.HasCapturedInput
+                        ? RhythmInputPhase.Released
+                        : data.phase;
+                return boundController.TryGetRadialInputOpportunity(
+                    encounter.Data.eventId,
+                    requirement.Data.requirementId,
+                    requestedAction,
+                    requestedPhase,
+                    rawSongTimeSeconds,
+                    focusedLimit,
+                    out snapshot);
+            }
+
+            bool capturedHold = encounter.Data.eventType == RadialEventType.GuardHold
+                && requirement.HasCapturedInput;
+            RadialTimingSnapshot timing = new RadialTimingSnapshot(
+                encounter.Data.eventId,
+                data.requirementId,
+                requirement.HasCapturedInput ? requirement.CapturedAction : action,
+                capturedHold ? RhythmInputPhase.Released : data.phase,
+                rawSongTimeSeconds,
+                rawSongTimeSeconds,
+                capturedHold ? data.holdEndTimeSeconds : data.targetTimeSeconds,
+                GetTimingProfile(),
+                0d,
+                0d,
+                requirement.IsResolved
+                    ? RadialRequirementState.Resolved
+                    : requirement.HasCapturedInput
+                        ? RadialRequirementState.Captured
+                        : RadialRequirementState.Pending,
+                RadialTimingFocusState.Focused,
+                encounter.Data.eventType == RadialEventType.BreakTarget
+                    && data.gestureType == InputGestureType.RepeatedPress,
+                data.windowStartTimeSeconds,
+                data.perfectDeadlineSeconds,
+                data.goodDeadlineSeconds);
+            bool matchable = !requirement.IsResolved
+                && Math.Abs(timing.DeltaMilliseconds)
+                    <= timing.GoodWindowSeconds * 1000d + 0.000001d;
+            snapshot = new InputOpportunitySnapshot(
+                timing,
+                data.orderIndex,
+                matchable,
+                matchable
+                    ? InputOpportunityRejectionReason.None
+                    : requirement.IsResolved
+                        ? InputOpportunityRejectionReason.AlreadyResolved
+                        : InputOpportunityRejectionReason.OutsideWindow);
+            return true;
         }
 
         private static InputRequirementRuntime FindRequirement(
@@ -1901,6 +2037,93 @@ namespace PulseForge.Runtime.Unity.UI
             return latest;
         }
 
+        private void BuildPresentationWindows(
+            IReadOnlyList<RadialEncounterRuntime> encounters,
+            int difficultyLevel,
+            float forecastLeadMultiplier)
+        {
+            presentationWindows.Clear();
+            firstPresentationWindowIndex = 0;
+            lastPresentationSongTime = double.NaN;
+            for (int i = 0; i < encounters.Count; i++)
+            {
+                RadialEncounterRuntime encounter = encounters[i];
+                if (encounter == null || encounter.Requirements.Count == 0)
+                {
+                    continue;
+                }
+
+                double forecastLead = RadialPresentationMath.EvaluateForecastLeadSeconds(
+                    difficultyLevel,
+                    encounter.Data.eventType,
+                    forecastLeadMultiplier);
+                double start = double.PositiveInfinity;
+                for (int requirementIndex = 0;
+                    requirementIndex < encounter.Requirements.Count;
+                    requirementIndex++)
+                {
+                    InputRequirementData requirement =
+                        encounter.Requirements[requirementIndex].Data;
+                    start = Math.Min(start, requirement.targetTimeSeconds - forecastLead);
+                    start = Math.Min(
+                        start,
+                        RadialPresentationMath.EvaluateActionLayerStart(
+                            requirement.targetTimeSeconds,
+                            encounter.Data.telegraphLeadSeconds));
+                }
+                presentationWindows.Add(new PresentationWindow(
+                    encounter,
+                    start,
+                    GetEncounterPlannedEnd(encounter) + CleanupSeconds));
+            }
+            presentationWindows.Sort((left, right) =>
+            {
+                int time = left.StartTimeSeconds.CompareTo(right.StartTimeSeconds);
+                return time != 0
+                    ? time
+                    : string.CompareOrdinal(
+                        left.Encounter.Data.eventId,
+                        right.Encounter.Data.eventId);
+            });
+        }
+
+        private void GetActivePresentationRange(
+            double songTimeSeconds,
+            out int firstIndex,
+            out int endIndex)
+        {
+            if (!double.IsNaN(lastPresentationSongTime)
+                && songTimeSeconds + 0.001d < lastPresentationSongTime)
+            {
+                firstPresentationWindowIndex = 0;
+            }
+            lastPresentationSongTime = songTimeSeconds;
+
+            while (firstPresentationWindowIndex < presentationWindows.Count
+                && presentationWindows[firstPresentationWindowIndex].EndTimeSeconds
+                    < songTimeSeconds)
+            {
+                firstPresentationWindowIndex++;
+            }
+            firstIndex = firstPresentationWindowIndex;
+
+            int low = firstIndex;
+            int high = presentationWindows.Count;
+            while (low < high)
+            {
+                int middle = low + ((high - low) >> 1);
+                if (presentationWindows[middle].StartTimeSeconds <= songTimeSeconds)
+                {
+                    low = middle + 1;
+                }
+                else
+                {
+                    high = middle;
+                }
+            }
+            endIndex = low;
+        }
+
         private readonly struct VisibilityEdge
         {
             public VisibilityEdge(double timeSeconds, int delta)
@@ -1911,6 +2134,23 @@ namespace PulseForge.Runtime.Unity.UI
 
             public double TimeSeconds { get; }
             public int Delta { get; }
+        }
+
+        private readonly struct PresentationWindow
+        {
+            public PresentationWindow(
+                RadialEncounterRuntime encounter,
+                double startTimeSeconds,
+                double endTimeSeconds)
+            {
+                Encounter = encounter;
+                StartTimeSeconds = startTimeSeconds;
+                EndTimeSeconds = endTimeSeconds;
+            }
+
+            public RadialEncounterRuntime Encounter { get; }
+            public double StartTimeSeconds { get; }
+            public double EndTimeSeconds { get; }
         }
 
         private readonly struct CuePriorityCandidate

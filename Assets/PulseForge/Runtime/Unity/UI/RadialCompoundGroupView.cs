@@ -24,6 +24,7 @@ namespace PulseForge.Runtime.Unity.UI
         private int cachedFirstValue = int.MinValue;
         private int cachedSecondValue = int.MinValue;
         private RadialCompoundLinkState cachedState = (RadialCompoundLinkState)(-1);
+        private RadialActionBindingDisplay bindingDisplay;
 
         public RadialPresentationKey Key { get; private set; }
         public bool IsInUse { get; private set; }
@@ -62,7 +63,7 @@ namespace PulseForge.Runtime.Unity.UI
             indicator.anchorMin = new Vector2(0.5f, 0.5f);
             indicator.anchorMax = new Vector2(0.5f, 0.5f);
             indicator.pivot = new Vector2(0.5f, 0.5f);
-            indicator.sizeDelta = new Vector2(124f, 48f);
+            indicator.sizeDelta = new Vector2(196f, 56f);
             Image indicatorImage = indicator.gameObject.AddComponent<Image>();
             indicatorImage.sprite = PulseForgeUIFactory.RoundedSprite;
             indicatorImage.color = PulseForgeUITheme.SurfaceRaised;
@@ -79,7 +80,7 @@ namespace PulseForge.Runtime.Unity.UI
                 "Primary",
                 indicator,
                 string.Empty,
-                13,
+                16,
                 PulseForgeUITheme.PrimaryText,
                 TextAnchor.UpperCenter,
                 FontStyle.Bold);
@@ -120,9 +121,12 @@ namespace PulseForge.Runtime.Unity.UI
             return view;
         }
 
-        public void Activate(RadialPresentationKey key)
+        public void Activate(
+            RadialPresentationKey key,
+            RadialActionBindingDisplay activeBindings)
         {
             Key = key;
+            bindingDisplay = activeBindings;
             IsInUse = true;
             gameObject.SetActive(true);
             cachedFirstAction = RhythmActionMask.None;
@@ -192,9 +196,9 @@ namespace PulseForge.Runtime.Unity.UI
                 || cachedSecondAction != secondAction
                 || cachedState != state)
             {
-                primaryLabel.text = RadialEncounterView.ResolveActionLabel(firstAction)
+                primaryLabel.text = bindingDisplay.Resolve(firstAction)
                     + " + "
-                    + RadialEncounterView.ResolveActionLabel(secondAction);
+                    + bindingDisplay.Resolve(secondAction);
                 secondaryLabel.text = state == RadialCompoundLinkState.Failed
                     ? "CHORD BROKEN"
                     : state == RadialCompoundLinkState.Partial
@@ -212,6 +216,7 @@ namespace PulseForge.Runtime.Unity.UI
             int activeStep,
             int stepCount,
             int completedCount,
+            RhythmActionMask activeAction,
             bool failed)
         {
             RadialCompoundLinkState state = failed
@@ -227,10 +232,13 @@ namespace PulseForge.Runtime.Unity.UI
                 || cachedState != state)
             {
                 primaryLabel.text = activeStep >= 0
-                    ? "STEP " + (activeStep + 1) + " / " + stepCount
+                    ? bindingDisplay.Resolve(activeAction)
+                        + "  •  STEP " + (activeStep + 1) + " / " + stepCount
                     : "SEQUENCE " + completedCount + " / " + stepCount;
-                secondaryLabel.text = failed ? "ACTIVE STEP MISSED" : "DONE -> ACTIVE -> NEXT";
-                Cache(RhythmActionMask.None, RhythmActionMask.None, activeStep, completedCount, state);
+                secondaryLabel.text = failed
+                    ? "ACTIVE STEP MISSED"
+                    : "PRESS IN SHOWN ORDER";
+                Cache(activeAction, RhythmActionMask.None, activeStep, completedCount, state);
             }
             ApplyIndicatorState(state, stepCount <= 0 ? 0f : (float)completedCount / stepCount);
         }
@@ -240,6 +248,7 @@ namespace PulseForge.Runtime.Unity.UI
             bool swarm,
             int remaining,
             int total,
+            RhythmActionMask activeAction,
             bool failed)
         {
             int completed = Mathf.Max(0, total - remaining);
@@ -255,9 +264,12 @@ namespace PulseForge.Runtime.Unity.UI
                 || cachedSecondValue != total
                 || cachedState != state)
             {
-                primaryLabel.text = swarm ? "SWARM " + remaining : "CHAIN " + remaining;
-                secondaryLabel.text = failed ? "CUE MISSED" : "REMAINING / " + total;
-                Cache(RhythmActionMask.None, RhythmActionMask.None, remaining, total, state);
+                primaryLabel.text = bindingDisplay.Resolve(activeAction)
+                    + "  × " + remaining;
+                secondaryLabel.text = failed
+                    ? "CUE MISSED"
+                    : swarm ? "ONE PRESS PER SWARM CUE" : "ONE PRESS PER CHAIN CUE";
+                Cache(activeAction, RhythmActionMask.None, remaining, total, state);
             }
             ApplyIndicatorState(state, total <= 0 ? 0f : (float)completed / total);
         }
@@ -281,8 +293,8 @@ namespace PulseForge.Runtime.Unity.UI
                         : resultState == RadialPresentationResultState.Miss
                             || resultState == RadialPresentationResultState.WrongInput
                             ? "MISSED SWEEP"
-                            : RadialEncounterView.ResolveActionLabel(action) + " SWEEP";
-                secondaryLabel.text = "1 INPUT / " + targetCount + " TARGETS";
+                            : bindingDisplay.Resolve(action) + "  SWEEP";
+                secondaryLabel.text = "ONE PRESS • " + targetCount + " TARGETS";
                 Cache(action, RhythmActionMask.None, targetCount, 0, state);
             }
             ApplyIndicatorState(state, state == RadialCompoundLinkState.Complete ? 1f : 0f);

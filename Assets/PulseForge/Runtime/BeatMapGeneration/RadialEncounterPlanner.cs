@@ -211,6 +211,7 @@ namespace PulseForge.BeatMapGeneration
                 : Math.Max(0, (int)Math.Floor(
                     (cues.Count * compoundRatio) / (1d + (5d * compoundRatio))));
             int compoundCount = 0;
+            bool breakTargetCreated = false;
             int eventIndex = 0;
             for (int i = 0; i < cues.Count;)
             {
@@ -221,11 +222,15 @@ namespace PulseForge.BeatMapGeneration
                 if (section.activityLevel == SongSectionActivityLevel.Peak
                     && clusterCount >= 4
                     && compoundCount < compoundBudget
-                    && structureRandom.NextDouble() < 0.42d)
+                    && (structureRandom.NextDouble() < 0.42d
+                        || (!breakTargetCreated
+                            && difficulty == BeatMapDifficulty.Hard
+                            && style == CombatStyle.Bursty)))
                 {
                     int count = Math.Min(6, clusterCount);
                     encounters.Add(CreateBreakTarget(cues, i, count, eventIndex++, difficulty, actionRandom));
                     compoundCount++;
+                    breakTargetCreated = true;
                     i += count;
                     continue;
                 }

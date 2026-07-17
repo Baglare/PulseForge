@@ -16,7 +16,7 @@ namespace PulseForge.Runtime.Unity.Persistence
             PlannerQualityReport plannerQuality,
             string createdAtUtc = null)
         {
-            return Create(
+            return CreateWithBeatGrid(
                 trackId,
                 presetId,
                 beatMap,
@@ -26,7 +26,7 @@ namespace PulseForge.Runtime.Unity.Persistence
                 createdAtUtc);
         }
 
-        public static RadialBeatMapCacheData Create(
+        public static RadialBeatMapCacheData CreateWithBeatGrid(
             string trackId,
             string presetId,
             RadialBeatMapData beatMap,

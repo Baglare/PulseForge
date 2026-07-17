@@ -104,7 +104,7 @@ namespace PulseForge.Runtime.Unity.UI
             root.anchorMin = new Vector2(0.5f, 0.5f);
             root.anchorMax = new Vector2(0.5f, 0.5f);
             root.pivot = new Vector2(0.5f, 0.5f);
-            root.sizeDelta = new Vector2(226f, 86f);
+            root.sizeDelta = new Vector2(276f, 90f);
 
             RadialGroupTimingView view = root.gameObject.AddComponent<RadialGroupTimingView>();
             view.viewRoot = root;
@@ -141,7 +141,7 @@ namespace PulseForge.Runtime.Unity.UI
             RectTransform firstAction = CreateActionBadge(
                 "First Action",
                 root,
-                -39f,
+                -64f,
                 out Image firstActionBody,
                 out Text firstActionLabel);
             view.firstActionRoot = firstAction;
@@ -166,7 +166,7 @@ namespace PulseForge.Runtime.Unity.UI
             RectTransform secondAction = CreateActionBadge(
                 "Second Action",
                 root,
-                39f,
+                64f,
                 out Image secondActionBody,
                 out Text secondActionLabel);
             view.secondActionRoot = secondAction;
@@ -260,30 +260,33 @@ namespace PulseForge.Runtime.Unity.UI
 
         public void Render(
             Vector2 position,
-            double songTimeSeconds,
-            double targetTimeSeconds,
-            double perfectWindowSeconds,
-            double goodWindowSeconds,
-            bool usesDeadlineWindow,
-            double windowStartTimeSeconds,
-            double perfectDeadlineSeconds,
-            double goodDeadlineSeconds,
+            InputOpportunitySnapshot opportunity,
             RadialGroupTimingContent content,
             RadialCuePriority priority,
-            RadialReadabilityMode readabilityMode)
+            RadialReadabilityMode readabilityMode,
+            RadialActionBindingDisplay bindingDisplay)
         {
             viewRoot.anchoredPosition = position;
-            RadialTimingWindowVisual timing = usesDeadlineWindow
+            RadialTimingSnapshot timingSnapshot = opportunity.Timing;
+            RadialTimingWindowVisual timing = timingSnapshot.UsesDeadlineWindow
                 ? RadialPresentationMath.EvaluateDeadlineTimingWindow(
-                    songTimeSeconds,
-                    windowStartTimeSeconds,
-                    perfectDeadlineSeconds,
-                    goodDeadlineSeconds)
-                : RadialPresentationMath.EvaluateTimingWindow(
-                    songTimeSeconds,
-                    targetTimeSeconds,
-                    perfectWindowSeconds,
-                    goodWindowSeconds);
+                    timingSnapshot.EffectiveJudgementTimeSeconds,
+                    timingSnapshot.WindowStartTimeSeconds,
+                    timingSnapshot.PerfectDeadlineSeconds,
+                    timingSnapshot.GoodDeadlineSeconds)
+                : RadialPresentationMath.EvaluateInputOpportunityWindow(opportunity);
+            if (!opportunity.Matchable
+                && (timing.State == RadialTimingWindowState.Good
+                    || timing.State == RadialTimingWindowState.Perfect))
+            {
+                timing = new RadialTimingWindowVisual(
+                    timing.Position01,
+                    timing.PerfectWidth01,
+                    timing.PerfectCenter01,
+                    opportunity.DeltaMilliseconds < 0d
+                        ? RadialTimingWindowState.Waiting
+                        : RadialTimingWindowState.Late);
+            }
             lastTimingState = timing.State;
             timingPerfectZone.rectTransform.sizeDelta = new Vector2(
                 TimingTrackWidth * timing.PerfectWidth01,
@@ -295,7 +298,7 @@ namespace PulseForge.Runtime.Unity.UI
                 (timing.Position01 - 0.5f) * TimingTrackWidth,
                 0f);
             ApplyTimingState(timing.State);
-            RenderContent(content);
+            RenderContent(content, bindingDisplay);
             ApplyCuePriority(priority, readabilityMode);
         }
 
@@ -320,7 +323,9 @@ namespace PulseForge.Runtime.Unity.UI
             gameObject.SetActive(false);
         }
 
-        private void RenderContent(RadialGroupTimingContent content)
+        private void RenderContent(
+            RadialGroupTimingContent content,
+            RadialActionBindingDisplay bindingDisplay)
         {
             if (cachedFirstAction != content.FirstAction
                 || cachedSecondAction != content.SecondAction
@@ -333,14 +338,22 @@ namespace PulseForge.Runtime.Unity.UI
                     firstActionBody,
                     firstActionLabel,
                     content.FirstAction,
-                    content.FirstState);
+                    content.FirstState,
+                    bindingDisplay);
                 ConfigureAction(
                     secondActionRoot,
                     secondActionBody,
                     secondActionLabel,
                     content.SecondAction,
-                    content.SecondState);
+                    content.SecondState,
+                    bindingDisplay);
                 bool hasSecondAction = content.SecondAction != RhythmActionMask.None;
+                firstActionRoot.anchoredPosition = new Vector2(
+                    hasSecondAction ? -64f : 0f,
+                    firstActionRoot.anchoredPosition.y);
+                secondActionRoot.anchoredPosition = new Vector2(
+                    64f,
+                    secondActionRoot.anchoredPosition.y);
                 separatorLabel.gameObject.SetActive(hasSecondAction);
                 separatorLabel.text = hasSecondAction ? content.Separator : string.Empty;
                 cachedFirstAction = content.FirstAction;
@@ -449,7 +462,7 @@ namespace PulseForge.Runtime.Unity.UI
             badge.anchorMax = new Vector2(0.5f, 1f);
             badge.pivot = new Vector2(0.5f, 1f);
             badge.anchoredPosition = new Vector2(x, -17f);
-            badge.sizeDelta = new Vector2(32f, 28f);
+            badge.sizeDelta = new Vector2(104f, 30f);
             body = badge.gameObject.AddComponent<Image>();
             body.sprite = PulseForgeUIFactory.RoundedSprite;
             body.raycastTarget = false;
@@ -462,6 +475,9 @@ namespace PulseForge.Runtime.Unity.UI
                 TextAnchor.MiddleCenter,
                 FontStyle.Bold);
             label.raycastTarget = false;
+            label.resizeTextForBestFit = true;
+            label.resizeTextMinSize = 10;
+            label.resizeTextMaxSize = 20;
             return badge;
         }
 
@@ -470,7 +486,8 @@ namespace PulseForge.Runtime.Unity.UI
             Image body,
             Text label,
             RhythmActionMask action,
-            RadialGroupActionState state)
+            RadialGroupActionState state,
+            RadialActionBindingDisplay bindingDisplay)
         {
             bool visible = action != RhythmActionMask.None;
             root.gameObject.SetActive(visible);
@@ -484,7 +501,7 @@ namespace PulseForge.Runtime.Unity.UI
                 : state == RadialGroupActionState.Highlighted
                     ? Color.Lerp(actionColor, PulseForgeUITheme.PrimaryText, 0.28f)
                     : PulseForgeUITheme.WithAlpha(actionColor, 0.88f);
-            label.text = RadialEncounterView.ResolveActionLabel(action);
+            label.text = bindingDisplay.Resolve(action);
             label.color = state == RadialGroupActionState.Muted
                 ? PulseForgeUITheme.WithAlpha(PulseForgeUITheme.DarkText, 0.42f)
                 : PulseForgeUITheme.DarkText;

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System;
 using PulseForge.Domain.Rhythm;
 using PulseForge.Runtime.Unity.Audio;
+using PulseForge.Runtime.Unity.Persistence;
 using PulseForge.Runtime.Unity.Prototype;
 using UnityEngine;
 using UnityEngine.UI;
@@ -235,13 +236,17 @@ namespace PulseForge.Runtime.Unity.UI
 
         public void Refresh(DebugRhythmPrototypeController controller)
         {
+            bool turkish = controller.ActiveUILanguage == PulseForgeUILanguage.Turkish;
             songText.text = controller.SongName;
-            eventCountText.text = "EVENTS     " + controller.SessionEventCount;
-            inputCostText.text = "INPUT COST     " + controller.SessionInputCost;
-            analysisQualityText.text = "ANALYSIS     " + controller.AnalysisQualitySummary;
-            detectionText.text = "DETECTION     " + controller.AppliedDetectionLabel;
-            difficultyText.text = "DIFFICULTY     " + controller.AppliedDifficultyLabel;
-            combatStyleText.text = "COMBAT STYLE     " + controller.AppliedCombatStyleLabel;
+            eventCountText.text = (turkish ? "EVENTLER     " : "EVENTS     ") + controller.SessionEventCount;
+            inputCostText.text = (turkish ? "INPUT MALİYETİ     " : "INPUT COST     ") + controller.SessionInputCost;
+            analysisQualityText.text = (turkish ? "ANALİZ     " : "ANALYSIS     ") + controller.AnalysisQualitySummary;
+            detectionText.text = (turkish ? "ALGILAMA     " : "DETECTION     ")
+                + PulseForgeUILocalization.TranslateValue(controller.AppliedDetectionLabel, controller.ActiveUILanguage);
+            difficultyText.text = (turkish ? "ZORLUK     " : "DIFFICULTY     ")
+                + PulseForgeUILocalization.TranslateValue(controller.AppliedDifficultyLabel, controller.ActiveUILanguage);
+            combatStyleText.text = (turkish ? "DÖVÜŞ STİLİ     " : "COMBAT STYLE     ")
+                + PulseForgeUILocalization.TranslateValue(controller.AppliedCombatStyleLabel, controller.ActiveUILanguage);
             coverageSelector?.SetSelected(controller.AppliedPipelineSettings.Coverage);
             gameModeSelector?.SetSelected(controller.SelectedGameMode);
             timingAssistSelector?.SetSelected(controller.SelectedTimingAssist);

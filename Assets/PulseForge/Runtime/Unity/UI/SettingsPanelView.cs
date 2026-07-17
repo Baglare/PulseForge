@@ -31,6 +31,7 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private Text coverageValue;
         [SerializeField] private Text gameModeValue;
         [SerializeField] private Text timingAssistValue;
+        [SerializeField] private Text uiLanguageValue;
         [SerializeField] private Toggle showUpcomingInputs;
         [SerializeField] private Toggle beatPulseEnabled;
         [SerializeField] private Text forecastLeadMultiplierValue;
@@ -79,6 +80,7 @@ namespace PulseForge.Runtime.Unity.UI
             scroll.horizontal = false;
             scroll.vertical = true;
             scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 82f;
 
             RectTransform viewport = PulseForgeUIFactory.CreateStretchRect("Viewport", scrollRoot);
             viewport.gameObject.AddComponent<RectMask2D>();
@@ -103,11 +105,14 @@ namespace PulseForge.Runtime.Unity.UI
             scroll.viewport = viewport;
             scroll.content = content;
 
+            List<Button> options = new List<Button>();
+            AddSection(content, "LANGUAGE");
+            view.uiLanguageValue = AddOptionRow(content, "Tooltip Language", options);
+
             AddSection(content, "AUDIO");
             view.masterVolume = AddSliderRow(content, "Master Volume", out view.masterValue);
             view.musicVolume = AddSliderRow(content, "Music Volume", out view.musicValue);
 
-            List<Button> options = new List<Button>();
             AddSection(content, "DISPLAY");
             view.displayModeValue = AddOptionRow(content, "Display Mode", options);
             view.resolutionValue = AddOptionRow(content, "Resolution", options);
@@ -206,6 +211,37 @@ namespace PulseForge.Runtime.Unity.UI
                     optionButtons = AppendButtons(optionButtons, addedButtons);
                 }
             }
+        }
+
+        public void EnsureLanguageControl(Action<GameObject> registerCreated = null)
+        {
+            Transform content = PanelRoot == null
+                ? null
+                : PanelRoot.transform.Find("Settings Card/Settings Scroll/Viewport/Content");
+            if (content == null) return;
+            List<Button> addedButtons = new List<Button>(2);
+            EnsureOptionControl(
+                content,
+                "Tooltip Language",
+                ref uiLanguageValue,
+                addedButtons,
+                registerCreated);
+            optionButtons = AppendButtons(optionButtons, addedButtons);
+            Transform row = content.Find("Tooltip Language Row");
+            if (row != null)
+            {
+                Transform section = content.Find("LANGUAGE");
+                row.SetSiblingIndex(section == null ? 0 : section.GetSiblingIndex() + 1);
+            }
+        }
+
+        public void EnsureScrollSensitivity()
+        {
+            Transform scrollRoot = PanelRoot == null
+                ? null
+                : PanelRoot.transform.Find("Settings Card/Settings Scroll");
+            ScrollRect scroll = scrollRoot == null ? null : scrollRoot.GetComponent<ScrollRect>();
+            if (scroll != null) scroll.scrollSensitivity = 82f;
         }
 
         public void EnsureCoverageControl(Action<GameObject> registerCreated = null)
@@ -367,6 +403,9 @@ namespace PulseForge.Runtime.Unity.UI
             coverageValue.text = draft.defaultCoverage == "FullPulse" ? "Full Pulse" : draft.defaultCoverage;
             gameModeValue.text = draft.defaultGameMode == "OneLife" ? "One Life" : draft.defaultGameMode;
             timingAssistValue.text = draft.defaultTimingAssist;
+            uiLanguageValue.text = draft.uiLanguage == PulseForgeUILanguage.Turkish.ToString()
+                ? "TR"
+                : "EN";
             showUpcomingInputs.SetIsOnWithoutNotify(draft.showUpcomingInputs);
             beatPulseEnabled.SetIsOnWithoutNotify(draft.beatPulseEnabled);
             forecastLeadMultiplierValue.text = draft.forecastLeadMultiplier.ToString(
@@ -389,6 +428,7 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgeUIValidation.AddMissing(errors, gameModeValue, "Settings: Default Game Mode is missing.");
             PulseForgeUIValidation.AddMissing(errors, coverageValue, "Settings: Default Coverage is missing.");
             PulseForgeUIValidation.AddMissing(errors, timingAssistValue, "Settings: Default Timing Assist is missing.");
+            PulseForgeUIValidation.AddMissing(errors, uiLanguageValue, "Settings: Tooltip Language is missing.");
             PulseForgeUIValidation.AddMissing(errors, showUpcomingInputs, "Settings: Show Upcoming Inputs is missing.");
             PulseForgeUIValidation.AddMissing(errors, beatPulseEnabled, "Settings: Beat Pulse is missing.");
             PulseForgeUIValidation.AddMissing(
@@ -412,6 +452,7 @@ namespace PulseForge.Runtime.Unity.UI
             BindOptionRow("Default Coverage", controller.CycleDraftCoverage);
             BindOptionRow("Default Game Mode", controller.CycleDraftGameMode);
             BindOptionRow("Default Timing Assist", controller.CycleDraftTimingAssist);
+            BindOptionRow("Tooltip Language", controller.CycleDraftUILanguage);
             BindOptionRow("Forecast Lead Multiplier", controller.CycleDraftForecastLeadMultiplier);
             BindOptionRow("Readability Mode", controller.CycleDraftReadabilityMode);
         }

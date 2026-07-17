@@ -304,6 +304,31 @@ namespace PulseForge.Runtime.Unity.UI
                 state);
         }
 
+        public static RadialTimingWindowVisual EvaluateInputOpportunityWindow(
+            InputOpportunitySnapshot opportunity)
+        {
+            RadialTimingSnapshot timing = opportunity.Timing;
+            RadialTimingWindowVisual visual = EvaluateTimingWindow(
+                timing.EffectiveJudgementTimeSeconds,
+                timing.TargetTimeSeconds,
+                timing.PerfectWindowSeconds,
+                timing.GoodWindowSeconds);
+            if (opportunity.Matchable
+                || (visual.State != RadialTimingWindowState.Good
+                    && visual.State != RadialTimingWindowState.Perfect))
+            {
+                return visual;
+            }
+
+            return new RadialTimingWindowVisual(
+                visual.Position01,
+                visual.PerfectWidth01,
+                visual.PerfectCenter01,
+                opportunity.DeltaMilliseconds < 0d
+                    ? RadialTimingWindowState.Waiting
+                    : RadialTimingWindowState.Late);
+        }
+
         public static RadialTimingWindowVisual EvaluateDeadlineTimingWindow(
             double songTimeSeconds,
             double windowStartTimeSeconds,

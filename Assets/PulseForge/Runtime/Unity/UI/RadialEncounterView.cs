@@ -5,6 +5,66 @@ using UnityEngine.UI;
 
 namespace PulseForge.Runtime.Unity.UI
 {
+    public readonly struct RadialActionBindingDisplay
+    {
+        public RadialActionBindingDisplay(string guard, string dodge, string light, string heavy)
+        {
+            Guard = guard;
+            Dodge = dodge;
+            Light = light;
+            Heavy = heavy;
+        }
+
+        public string Guard { get; }
+        public string Dodge { get; }
+        public string Light { get; }
+        public string Heavy { get; }
+
+        public string Resolve(RhythmActionMask actions)
+        {
+            if ((actions & RhythmActionMask.Guard) != 0) return Guard;
+            if ((actions & RhythmActionMask.Dodge) != 0) return Dodge;
+            if ((actions & RhythmActionMask.LightAttack) != 0) return Light;
+            if ((actions & RhythmActionMask.HeavyAttack) != 0) return Heavy;
+            return "-";
+        }
+
+        public string ResolvePair(RhythmActionMask actions, string separator)
+        {
+            string result = string.Empty;
+            Append(ref result, actions, RhythmActionMask.Guard, Guard, separator);
+            Append(ref result, actions, RhythmActionMask.Dodge, Dodge, separator);
+            Append(ref result, actions, RhythmActionMask.LightAttack, Light, separator);
+            Append(ref result, actions, RhythmActionMask.HeavyAttack, Heavy, separator);
+            return string.IsNullOrEmpty(result) ? "-" : result;
+        }
+
+        public string ResolveChoice(RhythmActionMask actions, RhythmAction selected)
+        {
+            const string mutedPrefix = "<color=#647080>";
+            const string mutedSuffix = "</color>";
+            if (actions == (RhythmActionMask.Guard | RhythmActionMask.Dodge))
+            {
+                return selected == RhythmAction.Guard
+                    ? Guard + " / " + mutedPrefix + Dodge + mutedSuffix
+                    : mutedPrefix + Guard + mutedSuffix + " / " + Dodge;
+            }
+            return Resolve(RhythmActionMaskUtility.ToMask(selected));
+        }
+
+        private static void Append(
+            ref string value,
+            RhythmActionMask actions,
+            RhythmActionMask action,
+            string label,
+            string separator)
+        {
+            if ((actions & action) == 0) return;
+            if (!string.IsNullOrEmpty(value)) value += separator;
+            value += label;
+        }
+    }
+
     public sealed class RadialEncounterView : MonoBehaviour
     {
         private const float TimingTrackWidth = 104f;
@@ -46,6 +106,7 @@ namespace PulseForge.Runtime.Unity.UI
         private int cachedRequiredRepeatCount = int.MinValue;
         private int cachedFlags = int.MinValue;
         private RadialTimingWindowState lastTimingState = RadialTimingWindowState.Waiting;
+        private RadialActionBindingDisplay bindingDisplay;
 
         public RadialPresentationKey Key { get; private set; }
         public bool IsInUse { get; private set; }
@@ -118,6 +179,9 @@ namespace PulseForge.Runtime.Unity.UI
                 PulseForgeUITheme.DarkText,
                 TextAnchor.MiddleCenter,
                 FontStyle.Bold);
+            badgeText.resizeTextForBestFit = true;
+            badgeText.resizeTextMinSize = 9;
+            badgeText.resizeTextMaxSize = 18;
             view.actionLabel = badgeText;
 
             Text result = PulseForgeUIFactory.CreateText(
@@ -335,16 +399,18 @@ namespace PulseForge.Runtime.Unity.UI
         public void Activate(
             RadialPresentationKey key,
             EnemyArchetype archetype,
-            RhythmActionMask actions)
+            RhythmActionMask actions,
+            RadialActionBindingDisplay bindings)
         {
             Key = key;
             IsInUse = true;
             gameObject.SetActive(true);
             activeArchetype = archetype;
+            bindingDisplay = bindings;
             ConfigureArchetype(archetype);
+            ConfigureEmbeddedActionLabel();
             actionColor = ResolveActionColor(actions);
-            actionBadge.color = actionColor;
-            actionLabel.text = ResolveActionLabel(actions);
+            actionLabel.text = bindingDisplay.Resolve(actions);
             ConfigureActionBadge(actions);
             baseBodyColor = Color.Lerp(PulseForgeUITheme.SurfaceRaised, actionColor, 0.30f);
             bodyImage.color = baseBodyColor;
@@ -369,7 +435,7 @@ namespace PulseForge.Runtime.Unity.UI
             viewRoot.localScale = Vector3.one * Mathf.Max(0.05f, scale);
             bodyImage.gameObject.SetActive(bodyVisible);
             actionBadge.gameObject.SetActive(bodyVisible);
-            archetypeGlyph.gameObject.SetActive(bodyVisible);
+            archetypeGlyph.gameObject.SetActive(false);
             exclamationLabel.gameObject.SetActive(exclamationVisible);
             bool showSaboteur = activeArchetype == EnemyArchetype.Saboteur && bodyVisible;
             saboteurFuseLabel.gameObject.SetActive(showSaboteur);
@@ -379,10 +445,7 @@ namespace PulseForge.Runtime.Unity.UI
 
         public void RenderTimingWindow(
             RadialDirection direction,
-            double songTimeSeconds,
-            double targetTimeSeconds,
-            double perfectWindowSeconds,
-            double goodWindowSeconds,
+            InputOpportunitySnapshot opportunity,
             bool visible)
         {
             timingRoot.gameObject.SetActive(visible);
@@ -393,11 +456,8 @@ namespace PulseForge.Runtime.Unity.UI
                 return;
             }
 
-            RadialTimingWindowVisual timing = RadialPresentationMath.EvaluateTimingWindow(
-                songTimeSeconds,
-                targetTimeSeconds,
-                perfectWindowSeconds,
-                goodWindowSeconds);
+            RadialTimingWindowVisual timing =
+                RadialPresentationMath.EvaluateInputOpportunityWindow(opportunity);
             lastTimingState = timing.State;
             timingRoot.anchoredPosition = ResolveTimingOffset(direction);
             timingRoot.localScale = timing.State == RadialTimingWindowState.Perfect
@@ -539,11 +599,11 @@ namespace PulseForge.Runtime.Unity.UI
                 if (state.Kind == RadialCompoundTargetKind.Choice)
                 {
                     actionBadge.gameObject.SetActive(bodyImage.gameObject.activeSelf);
-                    actionLabel.text = ResolveActionPairLabel(acceptedActions, " / ");
-                    actionBadge.rectTransform.sizeDelta = new Vector2(62f, 32f);
+                    actionLabel.text = bindingDisplay.ResolvePair(acceptedActions, " / ");
+                    actionBadge.rectTransform.sizeDelta = new Vector2(64f, 46f);
                     if (state.SelectedAction.HasValue)
                     {
-                        actionLabel.text = ResolveChoiceLabel(
+                        actionLabel.text = bindingDisplay.ResolveChoice(
                             acceptedActions,
                             state.SelectedAction.Value);
                         actionBadge.color = ResolveActionColor(
@@ -573,7 +633,7 @@ namespace PulseForge.Runtime.Unity.UI
                     }
                     else if (state.ActiveStep)
                     {
-                        stepLabel.text = "> " + (state.StepIndex + 1) + "/" + state.StepCount;
+                        stepLabel.text = (state.StepIndex + 1) + "/" + state.StepCount;
                         stepLabel.color = actionColor;
                     }
                     else
@@ -597,7 +657,9 @@ namespace PulseForge.Runtime.Unity.UI
                         }
                     }
                     stepLabel.text = "ARMOR " + state.RepeatCount + "/" + state.RequiredRepeatCount
-                        + (state.HasHeavyFinisher ? " + H FINISHER" : string.Empty);
+                        + (state.HasHeavyFinisher
+                            ? " + " + bindingDisplay.Heavy + " FINISHER"
+                            : string.Empty);
                     stepLabel.color = state.Failed ? PulseForgeUITheme.Miss : PulseForgeUITheme.Strike;
                 }
                 else if (state.Kind == RadialCompoundTargetKind.HeavyCharge)
@@ -937,30 +999,57 @@ namespace PulseForge.Runtime.Unity.UI
 
         private void ConfigureActionBadge(RhythmActionMask actions)
         {
-            actionBadge.rectTransform.localRotation = Quaternion.identity;
+            actionBadge.rectTransform.localRotation = Quaternion.Inverse(
+                bodyImage.rectTransform.localRotation);
             actionLabel.rectTransform.localRotation = Quaternion.identity;
-            if (actions == RhythmActionMask.Guard)
+            actionBadge.rectTransform.sizeDelta = new Vector2(64f, 46f);
+            actionLabel.fontSize = 26;
+            actionLabel.resizeTextMinSize = 11;
+            actionLabel.resizeTextMaxSize = 26;
+            actionLabel.color = PulseForgeUITheme.PrimaryText;
+        }
+
+        private void ConfigureEmbeddedActionLabel()
+        {
+            RectTransform body = bodyImage.rectTransform;
+            body.sizeDelta = new Vector2(
+                Mathf.Max(70f, body.sizeDelta.x),
+                Mathf.Max(76f, body.sizeDelta.y));
+            if (actionBadge.transform.parent != body)
             {
-                actionBadge.rectTransform.sizeDelta = new Vector2(32f, 34f);
+                actionBadge.rectTransform.SetParent(body, false);
             }
-            else if (actions == RhythmActionMask.Dodge)
+            actionBadge.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+            actionBadge.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            actionBadge.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            actionBadge.rectTransform.anchoredPosition = new Vector2(0f, -4f);
+            actionBadge.enabled = false;
+
+            actionLabel.rectTransform.anchorMin = Vector2.zero;
+            actionLabel.rectTransform.anchorMax = Vector2.one;
+            actionLabel.rectTransform.offsetMin = new Vector2(3f, 2f);
+            actionLabel.rectTransform.offsetMax = new Vector2(-3f, -2f);
+            actionLabel.alignment = TextAnchor.MiddleCenter;
+            Outline labelOutline = actionLabel.GetComponent<Outline>();
+            if (labelOutline == null)
             {
-                actionBadge.rectTransform.sizeDelta = new Vector2(29f, 29f);
-                actionBadge.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
-                actionLabel.rectTransform.localRotation = Quaternion.Euler(0f, 0f, -45f);
+                labelOutline = actionLabel.gameObject.AddComponent<Outline>();
             }
-            else if (actions == RhythmActionMask.LightAttack)
-            {
-                actionBadge.rectTransform.sizeDelta = new Vector2(36f, 25f);
-            }
-            else if (actions == RhythmActionMask.HeavyAttack)
-            {
-                actionBadge.rectTransform.sizeDelta = new Vector2(38f, 34f);
-            }
-            else
-            {
-                actionBadge.rectTransform.sizeDelta = new Vector2(48f, 32f);
-            }
+            labelOutline.effectColor = new Color(0f, 0f, 0f, 0.86f);
+            labelOutline.effectDistance = new Vector2(2f, -2f);
+            labelOutline.useGraphicAlpha = true;
+
+            RectTransform archetype = archetypeGlyph.rectTransform;
+            archetype.anchorMin = new Vector2(0f, 1f);
+            archetype.anchorMax = new Vector2(1f, 1f);
+            archetype.pivot = new Vector2(0.5f, 1f);
+            archetype.anchoredPosition = new Vector2(0f, -4f);
+            archetype.sizeDelta = new Vector2(0f, 18f);
+            archetypeGlyph.fontSize = 12;
+            archetypeGlyph.alignment = TextAnchor.UpperCenter;
+            archetypeGlyph.color = PulseForgeUITheme.WithAlpha(
+                PulseForgeUITheme.PrimaryText,
+                0.58f);
         }
 
         private static void AppendActionLabel(

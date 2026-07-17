@@ -51,6 +51,7 @@ namespace PulseForge.Runtime.Unity.Prototype
         [SerializeField] private float simultaneousInputWindowSeconds = 0.035f;
         [SerializeField] private float debugBeatMapOffsetSeconds = 0f;
         [SerializeField] private float inputTimingOffsetSeconds = 0f;
+        [SerializeField] private bool useDeterministicTimingFixture = false;
         [SerializeField] private DebugCombatSceneView combatSceneView = null;
 
         private RhythmSession session;
@@ -110,6 +111,9 @@ namespace PulseForge.Runtime.Unity.Prototype
         private readonly PulseForgeRuntimeFlow runtimeFlow = new PulseForgeRuntimeFlow();
         private bool useRuntimeSessionSource;
         private bool legacyDebugOverlayVisible;
+        private bool timingAuditVisible;
+        private bool hasTimingAudit;
+        private double activeRadialBeatMapOffsetSeconds;
         private string setupStatusMessage = "Choose a song, select your settings, then analyze.";
         private long gameplayFeedbackSequence;
         private bool hasPublishedGameplayState;
@@ -164,6 +168,18 @@ namespace PulseForge.Runtime.Unity.Prototype
             .GetSnapshot(CurrentSongTimeSeconds)
             .IsFogActive;
         public PulseForgeSettingsData SettingsDraft => settingsDraft;
+        public PulseForgeUILanguage ActiveUILanguage
+        {
+            get
+            {
+                string value = isSettingsOpen && settingsDraft != null
+                    ? settingsDraft.uiLanguage
+                    : saveService?.Settings?.uiLanguage;
+                return Enum.TryParse(value, true, out PulseForgeUILanguage language)
+                    ? language
+                    : PulseForgeUILanguage.English;
+            }
+        }
         public IReadOnlyList<PulseForgeResolutionOption> AvailableResolutions => availableResolutions;
         public bool MotionEnabledSetting
         {
@@ -271,6 +287,54 @@ namespace PulseForge.Runtime.Unity.Prototype
         internal RadialTimingProfile ActiveTimingProfileForPresentation => radialSession == null
             ? RadialTimingProfile.FromMode(selectedTimingAssist)
             : radialSession.TimingProfile;
+
+        internal bool TryGetRadialTimingSnapshot(
+            string eventId,
+            string requirementId,
+            double rawSongTimeSeconds,
+            int focusedCueLimit,
+            out RadialTimingSnapshot snapshot)
+        {
+            if (radialSession == null)
+            {
+                snapshot = default(RadialTimingSnapshot);
+                return false;
+            }
+            return radialSession.TryGetTimingSnapshot(
+                eventId,
+                requirementId,
+                rawSongTimeSeconds,
+                inputTimingOffsetSeconds,
+                activeRadialBeatMapOffsetSeconds,
+                focusedCueLimit,
+                out snapshot);
+        }
+
+        internal bool TryGetRadialInputOpportunity(
+            string eventId,
+            string requirementId,
+            RhythmAction action,
+            RhythmInputPhase phase,
+            double rawSongTimeSeconds,
+            int focusedCueLimit,
+            out InputOpportunitySnapshot snapshot)
+        {
+            if (radialSession == null)
+            {
+                snapshot = default(InputOpportunitySnapshot);
+                return false;
+            }
+            return radialSession.TryGetInputOpportunitySnapshot(
+                eventId,
+                requirementId,
+                action,
+                phase,
+                rawSongTimeSeconds,
+                inputTimingOffsetSeconds,
+                activeRadialBeatMapOffsetSeconds,
+                focusedCueLimit,
+                out snapshot);
+        }
 
         public TimingAssistMode SelectedTimingAssist => selectedTimingAssist;
 
@@ -457,11 +521,12 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private void Update()
         {
-            HandleRuntimeKeyboardInput();
+            double frameSongTimeSeconds = CurrentTimeSeconds;
+            HandleRuntimeKeyboardInput(frameSongTimeSeconds);
 
             if (radialSession != null)
             {
-                radialStatusEffects.Update(CurrentTimeSeconds);
+                radialStatusEffects.Update(frameSongTimeSeconds);
             }
 
             if (isCountdownActive)
@@ -478,7 +543,7 @@ namespace PulseForge.Runtime.Unity.Prototype
             if (radialSession != null)
             {
                 IReadOnlyList<RequirementResult> radialResults = radialSession.Update(
-                    CurrentTimeSeconds,
+                    frameSongTimeSeconds + inputTimingOffsetSeconds,
                     IsActionHeld);
                 ProcessRadialRequirementResults(radialResults);
                 StopIfComplete();
@@ -506,16 +571,22 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private void OnGUI()
         {
-            if (!legacyDebugOverlayVisible)
+            if (!legacyDebugOverlayVisible && !timingAuditVisible)
             {
                 return;
             }
 
             EnsureHudStyles();
-
-            CalculateHudRects(out Rect mainAreaRect, out Rect rightPanelRect);
-            DrawMainArea(mainAreaRect);
-            DrawRightPanel(rightPanelRect);
+            if (legacyDebugOverlayVisible)
+            {
+                CalculateHudRects(out Rect mainAreaRect, out Rect rightPanelRect);
+                DrawMainArea(mainAreaRect);
+                DrawRightPanel(rightPanelRect);
+            }
+            if (timingAuditVisible)
+            {
+                DrawTimingAuditPanel();
+            }
         }
 
         private static void CalculateHudRects(out Rect mainAreaRect, out Rect rightPanelRect)
@@ -527,6 +598,78 @@ namespace PulseForge.Runtime.Unity.Prototype
 
             mainAreaRect = new Rect(LayoutMargin, LayoutMargin, mainAreaWidth, contentHeight);
             rightPanelRect = new Rect(mainAreaRect.xMax + PanelGap, LayoutMargin, rightPanelWidth, contentHeight);
+        }
+
+        private void DrawTimingAuditPanel()
+        {
+            const float width = 430f;
+            const float height = 282f;
+            Rect rect = new Rect(
+                Mathf.Max(10f, Screen.width - width - 14f),
+                14f,
+                width,
+                height);
+            DrawSolidRect(rect, HudPanelColor);
+            GUILayout.BeginArea(InsetRect(rect, PanelPadding));
+            GUILayout.Label("TIMING AUDIT (F2)", sectionTitleStyle);
+            if (!hasTimingAudit || radialSession == null)
+            {
+                GUILayout.Label("Waiting for radial press / release...", mutedLabelStyle);
+                GUILayout.EndArea();
+                return;
+            }
+
+            RadialInputAuditRecord audit = radialSession.LastInputAudit;
+            RadialTimingSnapshot timing = audit.Timing;
+            GUILayout.Label(
+                timing.Action + " / " + timing.Phase + "  ->  " + audit.Reason,
+                metricValueStyle);
+            GUILayout.Label(
+                "Target: " + timing.TargetTimeSeconds.ToString("0.000", CultureInfo.InvariantCulture)
+                + "s   Effective: " + timing.EffectiveJudgementTimeSeconds.ToString("0.000", CultureInfo.InvariantCulture)
+                + "s   Delta: " + timing.DeltaMilliseconds.ToString("+0.0;-0.0;0.0", CultureInfo.InvariantCulture) + " ms",
+                metricLabelStyle);
+            GUILayout.Label(
+                "Windows: +/-" + (timing.PerfectWindowSeconds * 1000d).ToString("0", CultureInfo.InvariantCulture)
+                + " / +/-" + (timing.GoodWindowSeconds * 1000d).ToString("0", CultureInfo.InvariantCulture)
+                + " ms   Assist: " + timing.TimingAssist,
+                metricLabelStyle);
+            GUILayout.Label(
+                "Offsets: input " + (timing.InputOffsetSeconds * 1000d).ToString("+0;-0;0", CultureInfo.InvariantCulture)
+                + " ms, beatmap " + (timing.BeatMapOffsetSeconds * 1000d).ToString("+0;-0;0", CultureInfo.InvariantCulture) + " ms",
+                metricLabelStyle);
+            GUILayout.Label(
+                "Matched: " + EmptyAsDash(timing.EventId) + " / " + EmptyAsDash(timing.RequirementId),
+                metricLabelStyle);
+            GUILayout.Label(
+                "Focused: " + EmptyAsDash(audit.FocusedEventId) + " / " + EmptyAsDash(audit.FocusedRequirementId)
+                + "   State: " + timing.RequirementState + " / " + timing.FocusState,
+                mutedLabelStyle);
+            if (audit.Reason == RadialInputAuditReason.NoActiveRequirement)
+            {
+                InputOpportunityDiagnostics diagnostics = audit.Diagnostics;
+                GUILayout.Label(
+                    "Candidates: pending " + diagnostics.PendingRequirementCount
+                    + ", in-window " + diagnostics.WindowCandidateCount,
+                    metricLabelStyle);
+                GUILayout.Label(
+                    "Nearest: " + EmptyAsDash(diagnostics.NearestRequirementId)
+                    + " / " + diagnostics.NearestRequirementState
+                    + " / " + diagnostics.NearestDeltaMilliseconds.ToString(
+                        "+0.0;-0.0;0.0",
+                        CultureInfo.InvariantCulture)
+                    + " ms",
+                    metricLabelStyle);
+                GUILayout.Label(
+                    "Rejected: " + diagnostics.NearestRejectionReason,
+                    mutedLabelStyle);
+            }
+            GUILayout.EndArea();
+        }
+
+        private static string EmptyAsDash(string value)
+        {
+            return string.IsNullOrEmpty(value) ? "-" : value;
         }
 
         private static float CalculateRightPanelWidth(float contentWidth)
@@ -1543,9 +1686,12 @@ namespace PulseForge.Runtime.Unity.Prototype
                 {
                     activeSessionUsesRadialV2ScoreSchema = true;
                     activeBeatGrid = runtimeBeatGrid;
+                    activeRadialBeatMapOffsetSeconds = runtimeRadialBeatMap.globalOffsetSeconds
+                        + debugBeatMapOffsetSeconds;
                     radialSession = new RadialRhythmSession(
                         runtimeRadialBeatMap.encounters,
-                        selectedTimingAssist);
+                        selectedTimingAssist,
+                        activeRadialBeatMapOffsetSeconds);
                     session = null;
                 }
                 else
@@ -1556,9 +1702,12 @@ namespace PulseForge.Runtime.Unity.Prototype
                     {
                         activeSessionUsesRadialV2ScoreSchema = debugRadialBeatMapJson != null;
                         activeBeatGrid = configuredBeatGrid;
+                        activeRadialBeatMapOffsetSeconds = radialBeatMap.globalOffsetSeconds
+                            + debugBeatMapOffsetSeconds;
                         radialSession = new RadialRhythmSession(
                             radialBeatMap.encounters,
-                            selectedTimingAssist);
+                            selectedTimingAssist,
+                            activeRadialBeatMapOffsetSeconds);
                         session = null;
                     }
                     else
@@ -1571,10 +1720,12 @@ namespace PulseForge.Runtime.Unity.Prototype
                             new BeatEventTimeoutProcessor(new HitJudge()));
                         radialSession = null;
                         activeBeatGrid = null;
+                        activeRadialBeatMapOffsetSeconds = 0d;
                     }
                 }
                 scoreTracker = new ScoreTracker();
                 radialInputSequence = 0L;
+                hasTimingAudit = false;
                 scoredRadialUnits.Clear();
                 completedSessionRecorded = false;
                 radialRunPolicy.Reset(selectedGameMode);
@@ -1606,6 +1757,8 @@ namespace PulseForge.Runtime.Unity.Prototype
                 session = null;
                 radialSession = null;
                 activeBeatGrid = null;
+                activeRadialBeatMapOffsetSeconds = 0d;
+                hasTimingAudit = false;
                 radialStatusEffects.Reset();
                 activeSessionUsesRadialV2ScoreSchema = false;
                 scoreTracker = new ScoreTracker();
@@ -1618,6 +1771,11 @@ namespace PulseForge.Runtime.Unity.Prototype
         }
 
         private IReadOnlyList<BeatEventData> CreateSessionBeatEvents()
+        {
+            return ApplyDebugBeatMapOffset(CreateUnshiftedSessionBeatEvents());
+        }
+
+        private IReadOnlyList<BeatEventData> CreateUnshiftedSessionBeatEvents()
         {
             IReadOnlyList<BeatEventData> beatEvents;
             if (useRuntimeSessionSource && runtimeBeatEvents != null)
@@ -1637,7 +1795,7 @@ namespace PulseForge.Runtime.Unity.Prototype
                 beatEvents = CreateDebugEventData();
             }
 
-            return ApplyDebugBeatMapOffset(beatEvents);
+            return beatEvents;
         }
 
         private RadialBeatMapData CreateConfiguredRadialBeatMap()
@@ -1648,6 +1806,10 @@ namespace PulseForge.Runtime.Unity.Prototype
         private RadialBeatMapData CreateConfiguredRadialBeatMap(out BeatGridData beatGrid)
         {
             beatGrid = null;
+            if (useDeterministicTimingFixture)
+            {
+                return RadialTimingFixture.Create();
+            }
             if (debugRadialBeatMapJson != null)
             {
                 if (!RadialBeatMapArtifactSerializer.TryDeserialize(
@@ -1661,7 +1823,7 @@ namespace PulseForge.Runtime.Unity.Prototype
                 return artifact.radialBeatMap;
             }
 
-            IReadOnlyList<BeatEventData> legacyEvents = CreateSessionBeatEvents();
+            IReadOnlyList<BeatEventData> legacyEvents = CreateUnshiftedSessionBeatEvents();
             return legacyEvents == null || legacyEvents.Count == 0
                 ? null
                 : LegacyBeatMapRadialAdapter.Convert(legacyEvents);
@@ -2102,12 +2264,16 @@ namespace PulseForge.Runtime.Unity.Prototype
             }
         }
 
-        private void HandleRuntimeKeyboardInput()
+        private void HandleRuntimeKeyboardInput(double frameSongTimeSeconds)
         {
             Keyboard keyboard = Keyboard.current;
             if (keyboard != null && keyboard.f1Key.wasPressedThisFrame)
             {
                 legacyDebugOverlayVisible = !legacyDebugOverlayVisible;
+            }
+            if (keyboard != null && keyboard.f2Key.wasPressedThisFrame)
+            {
+                timingAuditVisible = !timingAuditVisible;
             }
 
             EnsureInputService();
@@ -2138,19 +2304,23 @@ namespace PulseForge.Runtime.Unity.Prototype
                 ForwardRadialInput(
                     RhythmAction.Guard,
                     inputService.GuardWasPressedThisFrame,
-                    inputService.GuardWasReleasedThisFrame);
+                    inputService.GuardWasReleasedThisFrame,
+                    frameSongTimeSeconds);
                 ForwardRadialInput(
                     RhythmAction.LightAttack,
                     inputService.LightAttackWasPressedThisFrame,
-                    inputService.LightAttackWasReleasedThisFrame);
+                    inputService.LightAttackWasReleasedThisFrame,
+                    frameSongTimeSeconds);
                 ForwardRadialInput(
                     RhythmAction.Dodge,
                     inputService.DodgeWasPressedThisFrame,
-                    inputService.DodgeWasReleasedThisFrame);
+                    inputService.DodgeWasReleasedThisFrame,
+                    frameSongTimeSeconds);
                 ForwardRadialInput(
                     RhythmAction.HeavyAttack,
                     inputService.HeavyAttackWasPressedThisFrame,
-                    inputService.HeavyAttackWasReleasedThisFrame);
+                    inputService.HeavyAttackWasReleasedThisFrame,
+                    frameSongTimeSeconds);
                 return;
             }
 
@@ -2181,15 +2351,19 @@ namespace PulseForge.Runtime.Unity.Prototype
             QueueInput(action, CurrentTimeSeconds, GetPresentationTimeSeconds());
         }
 
-        private void ForwardRadialInput(RhythmAction action, bool pressed, bool released)
+        private void ForwardRadialInput(
+            RhythmAction action,
+            bool pressed,
+            bool released,
+            double frameSongTimeSeconds)
         {
             if (pressed)
             {
-                ResolveRadialInput(action, RhythmInputPhase.Pressed, CurrentTimeSeconds);
+                ResolveRadialInput(action, RhythmInputPhase.Pressed, frameSongTimeSeconds);
             }
             if (released)
             {
-                ResolveRadialInput(action, RhythmInputPhase.Released, CurrentTimeSeconds);
+                ResolveRadialInput(action, RhythmInputPhase.Released, frameSongTimeSeconds);
             }
         }
 
@@ -2203,11 +2377,25 @@ namespace PulseForge.Runtime.Unity.Prototype
                 return;
             }
 
-            double adjustedTime = songTimeSeconds + inputTimingOffsetSeconds;
             long sequenceId = ++radialInputSequence;
+            int focusedLimit = RadialPresentationMath.FocusedCueLimit(
+                RadialPresentationDifficultyLevel);
             RadialInputResolveResult result = phase == RhythmInputPhase.Pressed
-                ? radialSession.Press(action, adjustedTime, sequenceId)
-                : radialSession.Release(action, adjustedTime, sequenceId);
+                ? radialSession.Press(
+                    action,
+                    songTimeSeconds,
+                    sequenceId,
+                    inputTimingOffsetSeconds,
+                    activeRadialBeatMapOffsetSeconds,
+                    focusedLimit)
+                : radialSession.Release(
+                    action,
+                    songTimeSeconds,
+                    sequenceId,
+                    inputTimingOffsetSeconds,
+                    activeRadialBeatMapOffsetSeconds,
+                    focusedLimit);
+            hasTimingAudit = true;
             ProcessRadialRequirementResults(result.RequirementResults);
             if (!result.Consumed && result.RequirementResults.Count == 0)
             {
@@ -3123,10 +3311,42 @@ namespace PulseForge.Runtime.Unity.Prototype
             settingsDraftRevision++;
         }
 
+        public void CycleDraftUILanguage(int direction)
+        {
+            if (!TryGetSettingsDraft(out PulseForgeSettingsData draft)) return;
+            PulseForgeUILanguage current = Enum.TryParse(
+                draft.uiLanguage,
+                true,
+                out PulseForgeUILanguage parsed)
+                    ? parsed
+                    : PulseForgeUILanguage.English;
+            PulseForgeUILanguage[] values =
+                (PulseForgeUILanguage[])Enum.GetValues(typeof(PulseForgeUILanguage));
+            draft.uiLanguage = values[
+                WrapIndex((int)current + direction, values.Length)].ToString();
+            settingsDraftRevision++;
+        }
+
         public string GetDraftBindingDisplay(PulseForgeInputAction action)
         {
             EnsureInputService();
             return inputService.GetBindingDisplayString(action);
+        }
+
+        public string GetActiveBindingDisplay(RhythmAction action)
+        {
+            EnsureInputService();
+            switch (action)
+            {
+                case RhythmAction.Guard:
+                    return inputService.GetBindingDisplayString(PulseForgeInputAction.Guard);
+                case RhythmAction.Dodge:
+                    return inputService.GetBindingDisplayString(PulseForgeInputAction.Dodge);
+                case RhythmAction.HeavyAttack:
+                    return inputService.GetBindingDisplayString(PulseForgeInputAction.HeavyAttack);
+                default:
+                    return inputService.GetBindingDisplayString(PulseForgeInputAction.LightAttack);
+            }
         }
 
         public void BeginDraftRebind(PulseForgeInputAction action)

@@ -239,7 +239,7 @@ namespace PulseForge.Editor.AudioPipeline
 
                 UpdateGeneratedJsonPathsFromInputs();
                 UpdateReportPathsFromInputs();
-                RadialBeatMapCacheData artifact = RadialBeatMapArtifactSerializer.Create(
+                RadialBeatMapCacheData artifact = RadialBeatMapArtifactSerializer.CreateWithBeatGrid(
                     seed,
                     BuildRadialPresetId(combatStyle),
                     radialPlanResult.beatMap,
@@ -314,7 +314,7 @@ namespace PulseForge.Editor.AudioPipeline
                         seed);
                     variant.beatMap.displayName = GetSafeOutputName() + " " + StyleVariantLabels[i];
                     radialVariantResults[i] = variant;
-                    RadialBeatMapCacheData artifact = RadialBeatMapArtifactSerializer.Create(
+                    RadialBeatMapCacheData artifact = RadialBeatMapArtifactSerializer.CreateWithBeatGrid(
                         seed,
                         BuildRadialPresetId(style),
                         variant.beatMap,

@@ -25,6 +25,7 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private PulseForgeGameplayFeedbackController gameplayFeedbackController;
         [SerializeField] private RadialCombatStageView radialCombatStage;
         [SerializeField] private RadialCombatPresentationController radialPresentationController;
+        [SerializeField] private PulseForgeTooltipView tooltipView;
 
         public Canvas Canvas => canvas;
         public GameObject Background => background;
@@ -44,6 +45,7 @@ namespace PulseForge.Runtime.Unity.UI
         public PulseForgeGameplayFeedbackController GameplayFeedbackController => gameplayFeedbackController;
         public RadialCombatStageView RadialCombatStage => radialCombatStage;
         public RadialCombatPresentationController RadialPresentationController => radialPresentationController;
+        public PulseForgeTooltipView TooltipView => tooltipView;
 
         public void Configure(
             Canvas sceneCanvas,
@@ -90,6 +92,11 @@ namespace PulseForge.Runtime.Unity.UI
         {
             radialCombatStage = stage;
             radialPresentationController = presentationController;
+        }
+
+        public void ConfigureTooltip(PulseForgeTooltipView value)
+        {
+            tooltipView = value;
         }
 
         public void ConfigureSavedTracksPanel(SavedTracksPanelView value)
