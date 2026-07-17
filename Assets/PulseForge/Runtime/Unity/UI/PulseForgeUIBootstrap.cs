@@ -64,6 +64,7 @@ namespace PulseForge.Runtime.Unity.UI
             RadialForecastSetup.Apply(root);
             RadialGroupTimingSetup.Apply(root);
             RadialArenaVisualSetup.Apply(root);
+            RadialCombatVfxSetup.Apply(root);
             root.ProcessingPanel?.EnsureV2Stages();
             root.ReadyPanel?.EnsureV2SummaryFields();
             PulseForgeTooltipSetup.Apply(root);

@@ -15,9 +15,12 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private RectTransform smokeBurst;
         [SerializeField] private Image smokeImage;
         [SerializeField] private Text smokeLabel;
+        [SerializeField] private CanvasGroup fogCanvasGroup;
 
         private string smokeEncounterId = string.Empty;
         private double smokeStartSongTimeSeconds;
+
+        public GameObject FogOverlayRoot => fogOverlayRoot;
 
         public void Configure(
             GameObject overlayRoot,
@@ -37,11 +40,48 @@ namespace PulseForge.Runtime.Unity.UI
             smokeLabel = smokeText;
         }
 
+        public void ConfigurePolish(CanvasGroup canvasGroup)
+        {
+            fogCanvasGroup = canvasGroup;
+            if (fogCanvasGroup != null)
+            {
+                fogCanvasGroup.blocksRaycasts = false;
+                fogCanvasGroup.interactable = false;
+            }
+        }
+
         public void Render(RadialStatusEffectSnapshot status, double songTimeSeconds)
+        {
+            Render(status, songTimeSeconds, false);
+        }
+
+        public void Render(
+            RadialStatusEffectSnapshot status,
+            double songTimeSeconds,
+            bool highClarity)
         {
             if (fogOverlayRoot != null)
             {
                 fogOverlayRoot.SetActive(status.IsFogActive);
+            }
+            if (fogCanvasGroup == null && fogOverlayRoot != null)
+            {
+                fogCanvasGroup = fogOverlayRoot.GetComponent<CanvasGroup>();
+            }
+            if (fogCanvasGroup != null)
+            {
+                float fade = 0f;
+                if (status.IsFogActive)
+                {
+                    float startFade = Mathf.Clamp01((float)(
+                        (songTimeSeconds - status.StartedAtSongTimeSeconds)
+                        / RadialVfxTokens.FogTransitionDuration));
+                    float endFade = Mathf.Clamp01((float)(
+                        status.RemainingSeconds(songTimeSeconds)
+                        / RadialVfxTokens.FogTransitionDuration));
+                    fade = Mathf.SmoothStep(0f, 1f, Mathf.Min(startFade, endFade));
+                }
+                fogCanvasGroup.alpha = fade * (highClarity ? 0.66f : 0.88f);
             }
             if (status.IsFogActive && remainingLabel != null)
             {
@@ -74,6 +114,10 @@ namespace PulseForge.Runtime.Unity.UI
             if (fogOverlayRoot != null)
             {
                 fogOverlayRoot.SetActive(false);
+            }
+            if (fogCanvasGroup != null)
+            {
+                fogCanvasGroup.alpha = 0f;
             }
             if (smokeBurst != null)
             {

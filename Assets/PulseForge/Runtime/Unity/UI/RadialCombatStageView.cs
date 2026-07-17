@@ -46,6 +46,7 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private RectTransform encounterContainer;
         [SerializeField] private RectTransform projectileContainer;
         [SerializeField] private RadialFogPresentationView fogPresentation;
+        [SerializeField] private RadialCombatVfxLayer combatVfxLayer;
         [SerializeField] private float outerRadius = 360f;
         [SerializeField] private float judgementRadius = 155f;
         [SerializeField] private int baseEncounterPoolCapacity = 12;
@@ -97,6 +98,8 @@ namespace PulseForge.Runtime.Unity.UI
         private bool forecastPoolWarningLogged;
         private bool groupTimingPoolWarningLogged;
         private RadialReadabilityMode appliedReadabilityMode = (RadialReadabilityMode)(-1);
+        private Vector2 playerCoreRestingPosition;
+        private bool hasPlayerCoreRestingPosition;
 
         public GameObject StageBackground => stageBackground;
         public RectTransform DirectionGuidesRoot => directionGuidesRoot;
@@ -113,6 +116,7 @@ namespace PulseForge.Runtime.Unity.UI
         public RectTransform EncounterContainer => encounterContainer;
         public RectTransform ProjectileContainer => projectileContainer;
         public RadialFogPresentationView FogPresentation => fogPresentation;
+        public RadialCombatVfxLayer CombatVfxLayer => combatVfxLayer;
         public float OuterRadius => outerRadius;
         public float JudgementRadius => judgementRadius;
         public int PoolSafetyMargin => Mathf.Max(0, poolSafetyMargin);
@@ -141,6 +145,7 @@ namespace PulseForge.Runtime.Unity.UI
             directionGuides = guides ?? Array.Empty<RectTransform>();
             judgementRing = ring;
             playerCore = core;
+            CapturePlayerCoreRestingPosition();
             encounterContainer = encounters;
             projectileContainer = projectiles;
         }
@@ -180,11 +185,53 @@ namespace PulseForge.Runtime.Unity.UI
             fogPresentation = value;
         }
 
+        public void ConfigureCombatVfx(RadialCombatVfxLayer value)
+        {
+            combatVfxLayer = value;
+        }
+
         public void RenderFog(
             PulseForge.Domain.Rhythm.RadialStatusEffectSnapshot status,
             double songTimeSeconds)
         {
-            fogPresentation?.Render(status, songTimeSeconds);
+            fogPresentation?.Render(
+                status,
+                songTimeSeconds,
+                appliedReadabilityMode == RadialReadabilityMode.HighClarity);
+        }
+
+        public void BeginCombatVfxFrame()
+        {
+            combatVfxLayer?.BeginFrame();
+        }
+
+        public void RenderCombatVfx(RadialCombatVfxCue cue, double songTimeSeconds)
+        {
+            combatVfxLayer?.RenderCue(cue, songTimeSeconds);
+        }
+
+        public void EndCombatVfxFrame()
+        {
+            combatVfxLayer?.EndFrame();
+        }
+
+        public void RenderReactivePolish(
+            RadialReactiveVisual visual,
+            float coreReaction,
+            bool motionEnabled)
+        {
+            arenaGraphic?.SetReactivePolish(visual);
+            if (playerCore == null)
+            {
+                return;
+            }
+
+            CapturePlayerCoreRestingPosition();
+            float reaction = motionEnabled ? Mathf.Clamp01(coreReaction) : 0f;
+            playerCore.anchoredPosition = playerCoreRestingPosition
+                + Vector2.left * (reaction * 4f);
+            playerCore.localScale = Vector3.one * (
+                1f + visual.Core * 0.035f + reaction * 0.025f);
         }
 
         public void ShowSaboteurSmoke(string encounterId, double songTimeSeconds)
@@ -569,7 +616,15 @@ namespace PulseForge.Runtime.Unity.UI
             compoundRegistry.Clear();
             forecastRegistry.Clear();
             groupTimingRegistry.Clear();
+            combatVfxLayer?.ResetView();
             fogPresentation?.ResetView();
+            arenaGraphic?.SetReactivePolish(default(RadialReactiveVisual));
+            if (playerCore != null)
+            {
+                CapturePlayerCoreRestingPosition();
+                playerCore.anchoredPosition = playerCoreRestingPosition;
+                playerCore.localScale = Vector3.one;
+            }
             ClearDirectionEmphasis();
         }
 
@@ -620,6 +675,7 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgeUIValidation.AddMissing(errors, guardVfxAnchor, "M10AB radial stage: Guard VFX Anchor is missing.");
             PulseForgeUIValidation.AddMissing(errors, attackVfxAnchor, "M10AB radial stage: Attack VFX Anchor is missing.");
             PulseForgeUIValidation.AddMissing(errors, dodgeVfxAnchor, "M10AB radial stage: Dodge VFX Anchor is missing.");
+            PulseForgeUIValidation.AddMissing(errors, combatVfxLayer, "M10CD radial stage: Combat VFX Pool is missing.");
             PulseForgeUIValidation.AddMissing(errors, compoundContainer, "Radial stage: Compound Container is missing.");
             PulseForgeUIValidation.AddMissing(errors, forecastContainer, "Radial stage: Forecast Layer is missing.");
             PulseForgeUIValidation.AddMissing(errors, groupTimingContainer, "Radial stage: Group Timing Container is missing.");
@@ -790,6 +846,16 @@ namespace PulseForge.Runtime.Unity.UI
                         (highClarity ? 0.10f : 0.08f) + emphasis * 0.54f);
                 }
             }
+        }
+
+        private void CapturePlayerCoreRestingPosition()
+        {
+            if (hasPlayerCoreRestingPosition || playerCore == null)
+            {
+                return;
+            }
+            playerCoreRestingPosition = playerCore.anchoredPosition;
+            hasPlayerCoreRestingPosition = true;
         }
 
         private void ApplyEffectiveVisibility()

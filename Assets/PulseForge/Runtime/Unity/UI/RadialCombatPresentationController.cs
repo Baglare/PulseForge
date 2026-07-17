@@ -50,6 +50,8 @@ namespace PulseForge.Runtime.Unity.UI
         private RadialActionBindingDisplay bindingDisplay;
         private int firstPresentationWindowIndex;
         private double lastPresentationSongTime = double.NaN;
+        private float coreReaction;
+        private float reactiveEventIntensity;
 
         public RadialCombatStageView StageView => stageView;
 
@@ -119,6 +121,7 @@ namespace PulseForge.Runtime.Unity.UI
             if (!usesRadialStage)
             {
                 stageView.RenderBeatPulse(default, false);
+                stageView.RenderReactivePolish(default(RadialReactiveVisual), 0f, false);
                 ClearForecastPresentation();
                 ClearGroupTimingPresentation();
                 preparedEncounters = null;
@@ -140,6 +143,7 @@ namespace PulseForge.Runtime.Unity.UI
                 && state != PulseForgeUIState.Failed)
             {
                 stageView.RenderBeatPulse(default, false);
+                stageView.RenderReactivePolish(default(RadialReactiveVisual), 0f, false);
                 ClearForecastPresentation();
                 ClearGroupTimingPresentation();
                 return;
@@ -173,6 +177,8 @@ namespace PulseForge.Runtime.Unity.UI
             firstPresentationWindowIndex = 0;
             lastPresentationSongTime = double.NaN;
             currentStatus = default(RadialStatusEffectSnapshot);
+            coreReaction = 0f;
+            reactiveEventIntensity = 0f;
             stageView?.ResetPresentation();
         }
 
@@ -251,6 +257,9 @@ namespace PulseForge.Runtime.Unity.UI
             desiredForecastKeys.Clear();
             desiredGroupTimingKeys.Clear();
             Array.Clear(directionEmphasis, 0, directionEmphasis.Length);
+            coreReaction = 0f;
+            reactiveEventIntensity = 0f;
+            stageView.BeginCombatVfxFrame();
             currentStatus = boundController == null
                 ? default(RadialStatusEffectSnapshot)
                 : boundController.RadialStatusForPresentation;
@@ -265,7 +274,9 @@ namespace PulseForge.Runtime.Unity.UI
                 stageView.ReleaseCompoundsExcept(desiredCompoundKeys);
                 stageView.ReleaseForecastsExcept(desiredForecastKeys);
                 stageView.ReleaseGroupTimingsExcept(desiredGroupTimingKeys);
+                stageView.EndCombatVfxFrame();
                 stageView.RenderDirectionEmphasis(directionEmphasis);
+                RenderReactivePolish(songTimeSeconds, readabilityMode);
                 return;
             }
 
@@ -289,6 +300,9 @@ namespace PulseForge.Runtime.Unity.UI
                     continue;
                 }
                 RadialEncounterRuntime encounter = window.Encounter;
+                reactiveEventIntensity = Mathf.Max(
+                    reactiveEventIntensity,
+                    Mathf.Clamp01(encounter.Data.intensity));
                 double encounterResolutionTime = GetEncounterResolutionTime(encounter);
                 double cleanupTime = encounter.IsResolved
                     ? encounterResolutionTime + CleanupSeconds
@@ -338,7 +352,9 @@ namespace PulseForge.Runtime.Unity.UI
             stageView.ReleaseCompoundsExcept(desiredCompoundKeys);
             stageView.ReleaseForecastsExcept(desiredForecastKeys);
             stageView.ReleaseGroupTimingsExcept(desiredGroupTimingKeys);
+            stageView.EndCombatVfxFrame();
             stageView.RenderDirectionEmphasis(directionEmphasis);
+            RenderReactivePolish(songTimeSeconds, readabilityMode);
         }
 
         private void RenderTarget(
@@ -458,6 +474,14 @@ namespace PulseForge.Runtime.Unity.UI
                     || encounter.Data.eventType == RadialEventType.BreakTarget,
                 ref position,
                 ref scale);
+            RenderCombatEffects(
+                key,
+                encounter,
+                targetData,
+                motionRequirement,
+                resultState,
+                position,
+                songTimeSeconds);
             encounterView.Render(
                 position,
                 scale,
@@ -554,9 +578,272 @@ namespace PulseForge.Runtime.Unity.UI
                 timeline.TargetTimeSeconds,
                 stageView.OuterRadius - 34f,
                 stageView.JudgementRadius);
-            projectileView.Render(position, target.direction, resultState);
-            projectileView.ApplyCompoundState(compoundState, requirement.Data.acceptedActions);
             projectileView.ApplyCuePriority(cuePriority, GetReadabilityMode());
+            RequirementResult result = requirement.Result;
+            float reactionProgress = result == null || !IsMotionEnabled()
+                ? 0f
+                : RadialPresentationMath.EvaluateProgress(
+                    songTimeSeconds,
+                    result.ResolutionTimeSeconds,
+                    result.ResolutionTimeSeconds + RadialVfxTokens.ProjectileReactionDuration);
+            projectileView.Render(
+                position,
+                target.direction,
+                resultState,
+                result == null ? (RhythmAction?)null : result.Action,
+                reactionProgress);
+            projectileView.ApplyCompoundState(compoundState, requirement.Data.acceptedActions);
+        }
+
+        private void RenderCombatEffects(
+            RadialPresentationKey targetKey,
+            RadialEncounterRuntime encounter,
+            EncounterTargetData target,
+            InputRequirementRuntime requirement,
+            RadialPresentationResultState resultState,
+            Vector2 targetPosition,
+            double songTimeSeconds)
+        {
+            if (!IsMotionEnabled())
+            {
+                return;
+            }
+
+            RadialPresentationKey effectKey = new RadialPresentationKey(
+                targetKey.EventId,
+                targetKey.TargetId,
+                requirement.Data.requirementId);
+            float eventIntensity = Mathf.Clamp01(encounter.Data.intensity);
+            float clarity = GetReadabilityMode() == RadialReadabilityMode.HighClarity
+                ? RadialVfxTokens.HighClarityVfxMultiplier
+                : 1f;
+            float baseIntensity = Mathf.Clamp01((0.68f + eventIntensity * 0.32f) * clarity);
+            float directionAngle = DirectionAngle(target.direction);
+
+            if (encounter.Data.eventType == RadialEventType.BreakTarget)
+            {
+                InputRequirementRuntime repeated = FindRequirementByGesture(
+                    encounter,
+                    InputGestureType.RepeatedPress);
+                if (repeated != null && repeated.AcceptedPressCount > 0)
+                {
+                    bool finalSegment = repeated.AcceptedPressCount
+                        >= repeated.Data.requiredPressCount;
+                    RenderCombatCue(
+                        new RadialCombatVfxKey(
+                            effectKey,
+                            finalSegment
+                                ? RadialCombatVfxKind.BreakFinal
+                                : RadialCombatVfxKind.BreakSegment,
+                            repeated.AcceptedPressCount),
+                        targetPosition,
+                        directionAngle,
+                        repeated.LastAcceptedPressTimeSeconds,
+                        finalSegment
+                            ? RadialVfxTokens.HeavyEffectDuration
+                            : RadialVfxTokens.BreakSegmentDuration,
+                        finalSegment ? 1.14f : 0.82f,
+                        baseIntensity,
+                        songTimeSeconds);
+                    if (finalSegment && HasHeavyFinisher(encounter))
+                    {
+                        RenderCombatCue(
+                            new RadialCombatVfxKey(
+                                effectKey,
+                                RadialCombatVfxKind.HeavyImpact,
+                                repeated.AcceptedPressCount),
+                            targetPosition,
+                            directionAngle,
+                            repeated.LastAcceptedPressTimeSeconds,
+                            RadialVfxTokens.HeavyEffectDuration,
+                            RadialVfxTokens.HeavyEffectScale,
+                            baseIntensity,
+                            songTimeSeconds);
+                    }
+                }
+            }
+
+            RequirementResult result = requirement.Result;
+            if (result == null)
+            {
+                return;
+            }
+
+            float gradeMultiplier = result.Grade == HitGrade.Perfect
+                ? RadialVfxTokens.PerfectMultiplier
+                : result.Grade == HitGrade.Good
+                    ? RadialVfxTokens.GoodMultiplier
+                    : RadialVfxTokens.MissReaction;
+            float intensity = Mathf.Clamp01(baseIntensity * gradeMultiplier);
+            bool missed = resultState == RadialPresentationResultState.Miss
+                || resultState == RadialPresentationResultState.WrongInput
+                || result.Grade == HitGrade.Miss;
+            if (missed)
+            {
+                RenderCombatCue(
+                    new RadialCombatVfxKey(effectKey, RadialCombatVfxKind.MissImpact),
+                    Vector2.zero,
+                    directionAngle,
+                    result.ResolutionTimeSeconds,
+                    RadialVfxTokens.CombatEffectDuration,
+                    0.92f,
+                    intensity,
+                    songTimeSeconds);
+                if (songTimeSeconds >= result.ResolutionTimeSeconds
+                    && songTimeSeconds <= result.ResolutionTimeSeconds
+                        + RadialVfxTokens.CombatEffectDuration)
+                {
+                    float missProgress = RadialPresentationMath.EvaluateProgress(
+                        songTimeSeconds,
+                        result.ResolutionTimeSeconds,
+                        result.ResolutionTimeSeconds + RadialVfxTokens.CombatEffectDuration);
+                    coreReaction = Mathf.Max(
+                        coreReaction,
+                        Mathf.Sin(missProgress * Mathf.PI) * RadialVfxTokens.MissReaction);
+                }
+                return;
+            }
+
+            switch (result.Action)
+            {
+                case RhythmAction.Guard:
+                    RenderCombatCue(
+                        new RadialCombatVfxKey(effectKey, RadialCombatVfxKind.GuardArc),
+                        Vector2.zero,
+                        directionAngle,
+                        result.ResolutionTimeSeconds,
+                        RadialVfxTokens.CombatEffectDuration,
+                        RadialVfxTokens.GuardEffectScale,
+                        intensity,
+                        songTimeSeconds);
+                    RenderCombatCue(
+                        new RadialCombatVfxKey(effectKey, RadialCombatVfxKind.CoreBurst),
+                        Vector2.zero,
+                        directionAngle,
+                        result.ResolutionTimeSeconds,
+                        RadialVfxTokens.CombatEffectDuration,
+                        0.82f,
+                        intensity,
+                        songTimeSeconds);
+                    if (target.archetype == EnemyArchetype.ArcherGunner)
+                    {
+                        RenderCombatCue(
+                            new RadialCombatVfxKey(
+                                effectKey,
+                                RadialCombatVfxKind.ProjectileDeflect),
+                            Vector2.zero,
+                            directionAngle,
+                            result.ResolutionTimeSeconds,
+                            RadialVfxTokens.ProjectileReactionDuration,
+                            0.92f,
+                            intensity,
+                            songTimeSeconds);
+                    }
+                    break;
+                case RhythmAction.Dodge:
+                    RenderCombatCue(
+                        new RadialCombatVfxKey(
+                            effectKey,
+                            RadialCombatVfxKind.DodgeAfterimage),
+                        Vector2.zero,
+                        directionAngle,
+                        result.ResolutionTimeSeconds,
+                        RadialVfxTokens.CombatEffectDuration,
+                        RadialVfxTokens.DodgeEffectScale,
+                        intensity,
+                        songTimeSeconds);
+                    break;
+                case RhythmAction.LightAttack:
+                    RenderCombatCue(
+                        new RadialCombatVfxKey(effectKey, RadialCombatVfxKind.LightSlash),
+                        targetPosition,
+                        directionAngle,
+                        result.ResolutionTimeSeconds,
+                        RadialVfxTokens.CombatEffectDuration,
+                        RadialVfxTokens.LightEffectScale,
+                        intensity,
+                        songTimeSeconds);
+                    break;
+                case RhythmAction.HeavyAttack:
+                    RenderCombatCue(
+                        new RadialCombatVfxKey(effectKey, RadialCombatVfxKind.HeavyImpact),
+                        targetPosition,
+                        directionAngle,
+                        result.ResolutionTimeSeconds,
+                        RadialVfxTokens.HeavyEffectDuration,
+                        RadialVfxTokens.HeavyEffectScale,
+                        intensity,
+                        songTimeSeconds);
+                    if (target.archetype == EnemyArchetype.Armored
+                        || target.archetype == EnemyArchetype.GiantBreaker)
+                    {
+                        RenderCombatCue(
+                            new RadialCombatVfxKey(
+                                effectKey,
+                                RadialCombatVfxKind.ArmorBreak),
+                            targetPosition,
+                            directionAngle,
+                            result.ResolutionTimeSeconds,
+                            RadialVfxTokens.HeavyEffectDuration,
+                            1.06f,
+                            intensity,
+                            songTimeSeconds);
+                    }
+                    break;
+            }
+        }
+
+        private void RenderCombatCue(
+            RadialCombatVfxKey key,
+            Vector2 position,
+            float rotationDegrees,
+            double startTimeSeconds,
+            float durationSeconds,
+            float scale,
+            float intensity,
+            double songTimeSeconds)
+        {
+            stageView.RenderCombatVfx(
+                new RadialCombatVfxCue(
+                    key,
+                    position,
+                    rotationDegrees,
+                    startTimeSeconds,
+                    durationSeconds,
+                    scale,
+                    intensity),
+                songTimeSeconds);
+        }
+
+        private void RenderReactivePolish(
+            double songTimeSeconds,
+            RadialReadabilityMode readabilityMode)
+        {
+            bool motionEnabled = IsMotionEnabled();
+            stageView.RenderReactivePolish(
+                RadialReactivePresentationMath.Evaluate(
+                    boundController == null
+                        ? null
+                        : boundController.ActiveBeatGridForPresentation,
+                    songTimeSeconds,
+                    reactiveEventIntensity,
+                    motionEnabled
+                        && boundController != null
+                        && boundController.BeatPulseEnabledForPresentation,
+                    readabilityMode == RadialReadabilityMode.HighClarity),
+                coreReaction,
+                motionEnabled);
+        }
+
+        private bool IsMotionEnabled()
+        {
+            return boundController == null || boundController.MotionEnabledSetting;
+        }
+
+        private static float DirectionAngle(RadialDirection direction)
+        {
+            Vector2 vector = RadialPresentationMath.DirectionVector(direction);
+            return Mathf.Atan2(vector.y, vector.x) * Mathf.Rad2Deg;
         }
 
         private void RenderForecast(

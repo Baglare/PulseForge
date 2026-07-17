@@ -161,9 +161,36 @@ namespace PulseForge.Runtime.Unity.UI
             RadialDirection direction,
             RadialPresentationResultState resultState)
         {
-            viewRoot.anchoredPosition = position;
+            Render(position, direction, resultState, null, 0f);
+        }
+
+        public void Render(
+            Vector2 position,
+            RadialDirection direction,
+            RadialPresentationResultState resultState,
+            RhythmAction? resolvedAction,
+            float resolutionProgress)
+        {
             Vector2 vector = RadialPresentationMath.DirectionVector(direction);
             float angle = Mathf.Atan2(vector.y, vector.x) * Mathf.Rad2Deg;
+            float reaction = Mathf.Clamp01(resolutionProgress);
+            bool successful = resultState == RadialPresentationResultState.Perfect
+                || resultState == RadialPresentationResultState.Good
+                || resultState == RadialPresentationResultState.Resolved;
+            if (successful && resolvedAction == RhythmAction.Guard)
+            {
+                Vector2 tangent = new Vector2(-vector.y, vector.x);
+                position += tangent * (72f * reaction) + vector * (104f * reaction);
+                angle += 112f * reaction;
+                cueCanvasGroup.alpha *= 1f - reaction * 0.72f;
+            }
+            else if (successful && resolvedAction == RhythmAction.Dodge)
+            {
+                position = Vector2.Lerp(position, -vector * 72f, reaction);
+                cueCanvasGroup.alpha *= 1f - reaction;
+            }
+
+            viewRoot.anchoredPosition = position;
             viewRoot.localRotation = Quaternion.Euler(
                 0f,
                 0f,
@@ -172,11 +199,13 @@ namespace PulseForge.Runtime.Unity.UI
             if (resultState == RadialPresentationResultState.Miss
                 || resultState == RadialPresentationResultState.WrongInput)
             {
+                viewRoot.anchoredPosition = Vector2.Lerp(position, Vector2.zero, reaction);
                 projectileImage.color = PulseForgeUITheme.Miss;
                 actionBadge.color = PulseForgeUITheme.Miss;
                 energyTrail.color = PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Miss, 0.38f);
                 energyCore.color = PulseForgeUITheme.Miss;
                 noseGlow.color = PulseForgeUITheme.Miss;
+                viewRoot.localScale *= 1f + Mathf.Sin(reaction * Mathf.PI) * 0.16f;
             }
         }
 

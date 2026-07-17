@@ -12,6 +12,7 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private float judgementRadius = 155f;
 
         private readonly float[] directionEmphasis = new float[DirectionCount];
+        private RadialReactiveVisual reactiveVisual;
 
         public void Configure(float stageOuterRadius, float stageJudgementRadius)
         {
@@ -44,6 +45,12 @@ namespace PulseForge.Runtime.Unity.UI
             }
         }
 
+        public void SetReactivePolish(RadialReactiveVisual visual)
+        {
+            reactiveVisual = visual;
+            SetVerticesDirty();
+        }
+
         protected override void OnPopulateMesh(VertexHelper vertexHelper)
         {
             vertexHelper.Clear();
@@ -61,13 +68,25 @@ namespace PulseForge.Runtime.Unity.UI
                 center,
                 platformRadius + 18f,
                 platformRadius + 8f,
-                PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Strike, 0.10f),
+                PulseForgeUITheme.WithAlpha(
+                    Color.Lerp(
+                        PulseForgeUITheme.Strike,
+                        PulseForgeUITheme.Primary,
+                        reactiveVisual.Downbeat),
+                    Mathf.Clamp01(0.10f
+                        + reactiveVisual.Downbeat * 0.44f
+                        + reactiveVisual.Ambient * 0.10f)),
                 CircleSegments);
             AddCircle(
                 vertexHelper,
                 center,
                 platformRadius,
-                PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Surface, 0.96f),
+                PulseForgeUITheme.WithAlpha(
+                    Color.Lerp(
+                        PulseForgeUITheme.Surface,
+                        PulseForgeUITheme.AccentSoft,
+                        reactiveVisual.Ambient * 0.16f),
+                    0.96f),
                 CircleSegments);
 
             float panelInner = judgementRadius + 34f;
@@ -100,7 +119,14 @@ namespace PulseForge.Runtime.Unity.UI
                 center,
                 outerRadius + 16f,
                 outerRadius + 11f,
-                PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Strike, 0.34f),
+                PulseForgeUITheme.WithAlpha(
+                    Color.Lerp(
+                        PulseForgeUITheme.Strike,
+                        PulseForgeUITheme.Primary,
+                        reactiveVisual.Downbeat),
+                    Mathf.Clamp01(0.34f
+                        + reactiveVisual.Downbeat * 0.40f
+                        + reactiveVisual.Ambient * 0.12f)),
                 CircleSegments);
             AddRing(
                 vertexHelper,
@@ -121,14 +147,16 @@ namespace PulseForge.Runtime.Unity.UI
             {
                 Vector2 direction = DirectionVector(i);
                 float emphasis = directionEmphasis[i];
+                float reactiveEmphasis = Mathf.Clamp01(
+                    emphasis + emphasis * reactiveVisual.Direction * 0.38f);
                 Color channelColor = Color.Lerp(
                     PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Divider, 0.36f),
                     PulseForgeUITheme.WithAlpha(PulseForgeUITheme.AccentSoft, 0.68f),
-                    emphasis);
+                    reactiveEmphasis);
                 Color energyColor = Color.Lerp(
                     PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Primary, 0.12f),
                     PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Primary, 0.72f),
-                    emphasis);
+                    reactiveEmphasis);
 
                 AddRadialQuad(
                     vertexHelper,
@@ -152,17 +180,19 @@ namespace PulseForge.Runtime.Unity.UI
                     direction,
                     laneStart + 5f,
                     outerRadius,
-                    emphasis > 0.01f ? 3.5f : 2f,
+                    reactiveEmphasis > 0.01f
+                        ? 3.5f + reactiveVisual.Direction * emphasis * 1.5f
+                        : 2f,
                     energyColor);
 
                 AddCircle(
                     vertexHelper,
                     center + direction * (outerRadius + 23f),
-                    emphasis > 0.01f ? 5f : 3.5f,
+                    reactiveEmphasis > 0.01f ? 5f : 3.5f,
                     Color.Lerp(
                         PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Strike, 0.40f),
                         PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Primary, 0.90f),
-                        emphasis),
+                        reactiveEmphasis),
                     12);
             }
 
