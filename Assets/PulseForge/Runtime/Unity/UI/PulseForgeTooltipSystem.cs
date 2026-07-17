@@ -383,7 +383,7 @@ namespace PulseForge.Runtime.Unity.UI
             Add(e, "selector.timing-assist.relaxed", "Relaxed", "Perfect ±65 ms, Good ±140 ms. Scores are stored separately from Standard.", "Rahat", "Perfect ±65 ms, Good ±140 ms. Skorlar Standard'dan ayrı tutulur.");
             Add(e, "selector.timing-assist.practice", "Practice", "Perfect ±90 ms, Good ±200 ms. Intended for learning and stored separately.", "Pratik", "Perfect ±90 ms, Good ±200 ms. Öğrenme için tasarlanmıştır ve ayrı kaydedilir.");
 
-            AddSetting(e, "tooltip-language", "Tooltip Language", "Selects English or Turkish hover descriptions.", "Açıklama Dili", "Mouse ile üzerine gelinen açıklamalarda İngilizce veya Türkçe dilini seçer.");
+            AddSetting(e, "tooltip-language", "Language / Dil", "Selects English or Turkish for the entire UI.", "Language / Dil", "Tüm arayüz için İngilizce veya Türkçe dilini seçer.");
             AddSetting(e, "master-volume", "Master Volume", "Controls the overall application volume.", "Ana Ses", "Uygulamanın genel ses seviyesini ayarlar.");
             AddSetting(e, "music-volume", "Music Volume", "Controls song playback volume without changing analysis.", "Müzik Sesi", "Analizi değiştirmeden şarkı oynatma sesini ayarlar.");
             AddSetting(e, "display-mode", "Display Mode", "Switches between supported window and fullscreen modes.", "Görüntü Modu", "Desteklenen pencere ve tam ekran modları arasında geçiş yapar.");

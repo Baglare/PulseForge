@@ -29,6 +29,17 @@ namespace PulseForge.Domain.Rhythm
             IEnumerable<RadialEncounterEventData> encounterData,
             TimingAssistMode timingAssist,
             double beatMapOffsetSeconds)
+            : this(
+                encounterData,
+                RadialTimingProfile.FromMode(timingAssist),
+                beatMapOffsetSeconds)
+        {
+        }
+
+        public RadialRhythmSession(
+            IEnumerable<RadialEncounterEventData> encounterData,
+            RadialTimingProfile timingProfile,
+            double beatMapOffsetSeconds)
         {
             if (encounterData == null)
             {
@@ -36,7 +47,7 @@ namespace PulseForge.Domain.Rhythm
             }
 
             ValidateFinite(beatMapOffsetSeconds, nameof(beatMapOffsetSeconds));
-            TimingProfile = RadialTimingProfile.FromMode(timingAssist);
+            TimingProfile = timingProfile;
             BeatMapOffsetSeconds = beatMapOffsetSeconds;
             encounters = new List<RadialEncounterRuntime>();
             HashSet<string> encounterIds = new HashSet<string>(StringComparer.Ordinal);
@@ -211,7 +222,9 @@ namespace PulseForge.Domain.Rhythm
             ValidateFinite(inputOffsetSeconds, nameof(inputOffsetSeconds));
             ValidateFinite(beatMapOffsetSeconds, nameof(beatMapOffsetSeconds));
             ValidateBeatMapOffset(beatMapOffsetSeconds);
-            double effectiveTime = rawSongTimeSeconds + inputOffsetSeconds;
+            double effectiveTime = RadialTimingMath.EffectiveJudgementTimeSeconds(
+                rawSongTimeSeconds,
+                inputOffsetSeconds);
             if (!TryFindRequirement(
                 eventId,
                 requirementId,
@@ -282,7 +295,9 @@ namespace PulseForge.Domain.Rhythm
             ValidateFinite(inputOffsetSeconds, nameof(inputOffsetSeconds));
             ValidateFinite(beatMapOffsetSeconds, nameof(beatMapOffsetSeconds));
             ValidateBeatMapOffset(beatMapOffsetSeconds);
-            double effectiveTime = rawSongTimeSeconds + inputOffsetSeconds;
+            double effectiveTime = RadialTimingMath.EffectiveJudgementTimeSeconds(
+                rawSongTimeSeconds,
+                inputOffsetSeconds);
             return ResolveInput(
                 new RhythmInputSample(action, phase, effectiveTime, sequenceId),
                 rawSongTimeSeconds,

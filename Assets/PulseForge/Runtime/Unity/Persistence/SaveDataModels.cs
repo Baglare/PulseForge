@@ -10,6 +10,8 @@ namespace PulseForge.Runtime.Unity.Persistence
     public sealed class PulseForgeSettingsData
     {
         public int schemaVersion;
+        public bool firstTimeSetupCompleted;
+        public bool calibrationCompleted;
         public bool enableMotion;
         public string defaultDetection;
         public string defaultDifficulty;
@@ -17,6 +19,7 @@ namespace PulseForge.Runtime.Unity.Persistence
         public string defaultCoverage;
         public string defaultGameMode;
         public string defaultTimingAssist;
+        public string language;
         public string uiLanguage;
         public bool showUpcomingInputs;
         public bool beatPulseEnabled;
@@ -86,6 +89,16 @@ namespace PulseForge.Runtime.Unity.Persistence
         public int highestScore;
         public int highestCombo;
         public string lastPlayedAtUtc;
+        public List<TutorialLessonProgressData> tutorialLessons;
+    }
+
+    [Serializable]
+    public sealed class TutorialLessonProgressData
+    {
+        public string lessonId;
+        public bool completed;
+        public int successfulAttempts;
+        public string lastCompletedAtUtc;
     }
 
     [Serializable]

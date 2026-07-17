@@ -43,6 +43,7 @@ namespace PulseForge.Runtime.Unity.UI
             new List<CuePriorityCandidate>();
         private readonly List<PresentationWindow> presentationWindows =
             new List<PresentationWindow>();
+        private readonly float[] directionEmphasis = new float[8];
         private DebugRhythmPrototypeController boundController;
         private IReadOnlyList<RadialEncounterRuntime> preparedEncounters;
         private RadialStatusEffectSnapshot currentStatus;
@@ -249,6 +250,7 @@ namespace PulseForge.Runtime.Unity.UI
             desiredCompoundKeys.Clear();
             desiredForecastKeys.Clear();
             desiredGroupTimingKeys.Clear();
+            Array.Clear(directionEmphasis, 0, directionEmphasis.Length);
             currentStatus = boundController == null
                 ? default(RadialStatusEffectSnapshot)
                 : boundController.RadialStatusForPresentation;
@@ -263,6 +265,7 @@ namespace PulseForge.Runtime.Unity.UI
                 stageView.ReleaseCompoundsExcept(desiredCompoundKeys);
                 stageView.ReleaseForecastsExcept(desiredForecastKeys);
                 stageView.ReleaseGroupTimingsExcept(desiredGroupTimingKeys);
+                stageView.RenderDirectionEmphasis(directionEmphasis);
                 return;
             }
 
@@ -335,6 +338,7 @@ namespace PulseForge.Runtime.Unity.UI
             stageView.ReleaseCompoundsExcept(desiredCompoundKeys);
             stageView.ReleaseForecastsExcept(desiredForecastKeys);
             stageView.ReleaseGroupTimingsExcept(desiredGroupTimingKeys);
+            stageView.RenderDirectionEmphasis(directionEmphasis);
         }
 
         private void RenderTarget(
@@ -430,6 +434,14 @@ namespace PulseForge.Runtime.Unity.UI
                     requirementData.targetTimeSeconds,
                     stageView.OuterRadius,
                     stageView.JudgementRadius);
+            }
+
+            int directionIndex = (int)targetData.direction;
+            if (directionIndex >= 0 && directionIndex < directionEmphasis.Length)
+            {
+                directionEmphasis[directionIndex] = Mathf.Max(
+                    directionEmphasis[directionIndex],
+                    bodyVisible ? 1f : 0.62f);
             }
 
             float scale = 1f;
@@ -587,6 +599,13 @@ namespace PulseForge.Runtime.Unity.UI
 
             revealedForecastKeys.Add(key);
             desiredForecastKeys.Add(key);
+            int directionIndex = (int)targetData.direction;
+            if (directionIndex >= 0 && directionIndex < directionEmphasis.Length)
+            {
+                directionEmphasis[directionIndex] = Mathf.Max(
+                    directionEmphasis[directionIndex],
+                    0.34f);
+            }
             if (!stageView.TryAcquireForecast(key, out RadialForecastView forecastView))
             {
                 return;

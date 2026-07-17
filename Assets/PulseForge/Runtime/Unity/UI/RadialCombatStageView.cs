@@ -36,6 +36,10 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private RectTransform[] directionGuides = Array.Empty<RectTransform>();
         [SerializeField] private RectTransform judgementRing;
         [SerializeField] private RectTransform playerCore;
+        [SerializeField] private RadialArenaGraphic arenaGraphic;
+        [SerializeField] private RectTransform guardVfxAnchor;
+        [SerializeField] private RectTransform attackVfxAnchor;
+        [SerializeField] private RectTransform dodgeVfxAnchor;
         [SerializeField] private RectTransform compoundContainer;
         [SerializeField] private RectTransform forecastContainer;
         [SerializeField] private RectTransform groupTimingContainer;
@@ -83,6 +87,7 @@ namespace PulseForge.Runtime.Unity.UI
             new RadialPresentationPoolRegistry();
         private readonly RadialPresentationPoolRegistry groupTimingRegistry =
             new RadialPresentationPoolRegistry();
+        private readonly float[] directionEmphasis = new float[8];
 
         private bool uiStateVisible;
         private bool radialSessionVisible;
@@ -98,6 +103,10 @@ namespace PulseForge.Runtime.Unity.UI
         public IReadOnlyList<RectTransform> DirectionGuides => directionGuides;
         public RectTransform JudgementRing => judgementRing;
         public RectTransform PlayerCore => playerCore;
+        public RadialArenaGraphic ArenaGraphic => arenaGraphic;
+        public RectTransform GuardVfxAnchor => guardVfxAnchor;
+        public RectTransform AttackVfxAnchor => attackVfxAnchor;
+        public RectTransform DodgeVfxAnchor => dodgeVfxAnchor;
         public RectTransform CompoundContainer => compoundContainer;
         public RectTransform ForecastContainer => forecastContainer;
         public RectTransform GroupTimingContainer => groupTimingContainer;
@@ -139,6 +148,21 @@ namespace PulseForge.Runtime.Unity.UI
         public void ConfigureCompoundContainer(RectTransform compounds)
         {
             compoundContainer = compounds;
+        }
+
+        public void ConfigureArenaVisuals(
+            RadialArenaGraphic arena,
+            RectTransform guardAnchor,
+            RectTransform attackAnchor,
+            RectTransform dodgeAnchor)
+        {
+            arenaGraphic = arena;
+            guardVfxAnchor = guardAnchor;
+            attackVfxAnchor = attackAnchor;
+            dodgeVfxAnchor = dodgeAnchor;
+            arenaGraphic?.SetDirectionEmphasis(directionEmphasis);
+            ApplyDirectionGuideColors(
+                appliedReadabilityMode == RadialReadabilityMode.HighClarity);
         }
 
         public void ConfigureForecastContainer(RectTransform forecasts)
@@ -546,6 +570,7 @@ namespace PulseForge.Runtime.Unity.UI
             forecastRegistry.Clear();
             groupTimingRegistry.Clear();
             fogPresentation?.ResetView();
+            ClearDirectionEmphasis();
         }
 
         public void RenderBeatPulse(RadialBeatPulseVisual pulse, bool enabled)
@@ -555,6 +580,19 @@ namespace PulseForge.Runtime.Unity.UI
                 return;
             }
             judgementRing.localScale = Vector3.one * (enabled ? pulse.Scale : 1f);
+        }
+
+        public void RenderDirectionEmphasis(float[] values)
+        {
+            for (int i = 0; i < directionEmphasis.Length; i++)
+            {
+                directionEmphasis[i] = values == null || i >= values.Length
+                    ? 0f
+                    : Mathf.Clamp01(values[i]);
+            }
+            arenaGraphic?.SetDirectionEmphasis(directionEmphasis);
+            ApplyDirectionGuideColors(
+                appliedReadabilityMode == RadialReadabilityMode.HighClarity);
         }
 
         public void CollectValidationErrors(List<string> errors)
@@ -578,6 +616,10 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgeUIValidation.AddMissing(errors, judgementRing, "Radial stage: Judgement Ring is missing.");
             PulseForgeUIValidation.AddMissing(errors, fogPresentation, "Radial stage: Fog Presentation is missing.");
             PulseForgeUIValidation.AddMissing(errors, playerCore, "Radial stage: Player Core is missing.");
+            PulseForgeUIValidation.AddMissing(errors, arenaGraphic, "M10AB radial stage: Forge Arena Foundation is missing.");
+            PulseForgeUIValidation.AddMissing(errors, guardVfxAnchor, "M10AB radial stage: Guard VFX Anchor is missing.");
+            PulseForgeUIValidation.AddMissing(errors, attackVfxAnchor, "M10AB radial stage: Attack VFX Anchor is missing.");
+            PulseForgeUIValidation.AddMissing(errors, dodgeVfxAnchor, "M10AB radial stage: Dodge VFX Anchor is missing.");
             PulseForgeUIValidation.AddMissing(errors, compoundContainer, "Radial stage: Compound Container is missing.");
             PulseForgeUIValidation.AddMissing(errors, forecastContainer, "Radial stage: Forecast Layer is missing.");
             PulseForgeUIValidation.AddMissing(errors, groupTimingContainer, "Radial stage: Group Timing Container is missing.");
@@ -709,13 +751,30 @@ namespace PulseForge.Runtime.Unity.UI
             if (backgroundImage != null)
             {
                 backgroundImage.color = PulseForgeUITheme.WithAlpha(
-                    PulseForgeUITheme.BackgroundSecondary,
-                    highClarity ? 0.52f : 0.72f);
+                    PulseForgeUITheme.Backdrop,
+                    highClarity ? 0.86f : 0.94f);
             }
+            ApplyDirectionGuideColors(highClarity);
+        }
+
+        private void ClearDirectionEmphasis()
+        {
+            for (int i = 0; i < directionEmphasis.Length; i++)
+            {
+                directionEmphasis[i] = 0f;
+            }
+            arenaGraphic?.SetDirectionEmphasis(directionEmphasis);
+            ApplyDirectionGuideColors(
+                appliedReadabilityMode == RadialReadabilityMode.HighClarity);
+        }
+
+        private void ApplyDirectionGuideColors(bool highClarity)
+        {
             if (directionGuides == null)
             {
                 return;
             }
+
             for (int i = 0; i < directionGuides.Length; i++)
             {
                 Image guide = directionGuides[i] == null
@@ -723,9 +782,12 @@ namespace PulseForge.Runtime.Unity.UI
                     : directionGuides[i].gameObject.GetComponent<Image>();
                 if (guide != null)
                 {
+                    float emphasis = i < directionEmphasis.Length
+                        ? directionEmphasis[i]
+                        : 0f;
                     guide.color = PulseForgeUITheme.WithAlpha(
-                        PulseForgeUITheme.Divider,
-                        highClarity ? 0.28f : 0.58f);
+                        Color.Lerp(PulseForgeUITheme.AccentSoft, PulseForgeUITheme.Primary, emphasis),
+                        (highClarity ? 0.10f : 0.08f) + emphasis * 0.54f);
                 }
             }
         }

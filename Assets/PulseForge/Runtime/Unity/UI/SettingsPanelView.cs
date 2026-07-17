@@ -45,6 +45,9 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private Button resetDefaultsButton;
         [SerializeField] private Button resetBindingsButton;
         [SerializeField] private Button cancelRebindButton;
+        [SerializeField] private Button runCalibrationButton;
+        [SerializeField] private Button trainingButton;
+        [SerializeField] private Button restartFirstTimeSetupButton;
         [SerializeField] private Button[] optionButtons;
         [SerializeField] private Button[] rebindButtons;
 
@@ -147,6 +150,16 @@ namespace PulseForge.Runtime.Unity.UI
             view.readabilityModeValue = AddOptionRow(content, "Readability Mode", options);
             view.beatmapOffset = AddInputRow(content, "Beatmap Offset (ms)");
             view.inputOffset = AddInputRow(content, "Input Timing Offset (ms)");
+            AddSection(content, "GUIDANCE");
+            view.runCalibrationButton = PulseForgeUIFactory.CreateButton(
+                "Run Calibration", content, "Run Calibration", PulseForgeUITheme.SecondaryText, 17);
+            PulseForgeUIFactory.SetLayoutHeight(view.runCalibrationButton, 50f);
+            view.trainingButton = PulseForgeUIFactory.CreateButton(
+                "Training", content, "Training", PulseForgeUITheme.SecondaryText, 17);
+            PulseForgeUIFactory.SetLayoutHeight(view.trainingButton, 50f);
+            view.restartFirstTimeSetupButton = PulseForgeUIFactory.CreateButton(
+                "Restart First-Time Setup", content, "Restart First-Time Setup", PulseForgeUITheme.SecondaryText, 17);
+            PulseForgeUIFactory.SetLayoutHeight(view.restartFirstTimeSetupButton, 50f);
             view.optionButtons = options.ToArray();
             view.rebindButtons = rebinds.ToArray();
 
@@ -230,9 +243,55 @@ namespace PulseForge.Runtime.Unity.UI
             Transform row = content.Find("Tooltip Language Row");
             if (row != null)
             {
+                Text label = row.Find("Label")?.GetComponent<Text>();
+                if (label != null)
+                {
+                    label.text = "Language / Dil";
+                }
                 Transform section = content.Find("LANGUAGE");
                 row.SetSiblingIndex(section == null ? 0 : section.GetSiblingIndex() + 1);
             }
+        }
+
+        public void EnsureM9HControls(Action<GameObject> registerCreated = null)
+        {
+            Transform content = PanelRoot == null
+                ? null
+                : PanelRoot.transform.Find("Settings Card/Settings Scroll/Viewport/Content");
+            if (content == null) return;
+
+            Transform languageRow = content.Find("Tooltip Language Row");
+            Text languageLabel = languageRow == null
+                ? null
+                : languageRow.Find("Label")?.GetComponent<Text>();
+            if (languageLabel != null)
+            {
+                languageLabel.text = "Language / Dil";
+            }
+
+            Transform guidance = content.Find("GUIDANCE");
+            if (guidance == null)
+            {
+                AddSection(content, "GUIDANCE");
+                guidance = content.Find("GUIDANCE");
+                if (guidance != null) registerCreated?.Invoke(guidance.gameObject);
+            }
+
+            runCalibrationButton = EnsureM9HButton(
+                content,
+                runCalibrationButton,
+                "Run Calibration",
+                registerCreated);
+            trainingButton = EnsureM9HButton(
+                content,
+                trainingButton,
+                "Training",
+                registerCreated);
+            restartFirstTimeSetupButton = EnsureM9HButton(
+                content,
+                restartFirstTimeSetupButton,
+                "Restart First-Time Setup",
+                registerCreated);
         }
 
         public void EnsureScrollSensitivity()
@@ -352,6 +411,9 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgeUIFactory.BindButton(applyButton, controller.ApplySettingsDraft);
             PulseForgeUIFactory.BindButton(cancelButton, controller.CancelSettings);
             PulseForgeUIFactory.BindButton(resetDefaultsButton, controller.ResetSettingsDraftToDefaults);
+            PulseForgeUIFactory.BindButton(runCalibrationButton, controller.RunCalibrationFromSettings);
+            PulseForgeUIFactory.BindButton(trainingButton, controller.OpenTrainingFromSettings);
+            PulseForgeUIFactory.BindButton(restartFirstTimeSetupButton, controller.RestartFirstTimeSetup);
         }
 
         public void Unbind()
@@ -371,6 +433,9 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgeUIFactory.UnbindButton(applyButton);
             PulseForgeUIFactory.UnbindButton(cancelButton);
             PulseForgeUIFactory.UnbindButton(resetDefaultsButton);
+            PulseForgeUIFactory.UnbindButton(runCalibrationButton);
+            PulseForgeUIFactory.UnbindButton(trainingButton);
+            PulseForgeUIFactory.UnbindButton(restartFirstTimeSetupButton);
             controller = null;
             lastRevision = -1;
         }
@@ -428,7 +493,13 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgeUIValidation.AddMissing(errors, gameModeValue, "Settings: Default Game Mode is missing.");
             PulseForgeUIValidation.AddMissing(errors, coverageValue, "Settings: Default Coverage is missing.");
             PulseForgeUIValidation.AddMissing(errors, timingAssistValue, "Settings: Default Timing Assist is missing.");
-            PulseForgeUIValidation.AddMissing(errors, uiLanguageValue, "Settings: Tooltip Language is missing.");
+            PulseForgeUIValidation.AddMissing(errors, uiLanguageValue, "Settings: Language / Dil is missing.");
+            PulseForgeUIValidation.AddMissing(errors, runCalibrationButton, "Settings: Run Calibration is missing.");
+            PulseForgeUIValidation.AddMissing(errors, trainingButton, "Settings: Training is missing.");
+            PulseForgeUIValidation.AddMissing(
+                errors,
+                restartFirstTimeSetupButton,
+                "Settings: Restart First-Time Setup is missing.");
             PulseForgeUIValidation.AddMissing(errors, showUpcomingInputs, "Settings: Show Upcoming Inputs is missing.");
             PulseForgeUIValidation.AddMissing(errors, beatPulseEnabled, "Settings: Beat Pulse is missing.");
             PulseForgeUIValidation.AddMissing(
@@ -468,6 +539,32 @@ namespace PulseForge.Runtime.Unity.UI
             Button next = row.Find("Next")?.GetComponent<Button>();
             PulseForgeUIFactory.BindButton(previous, () => action(-1));
             PulseForgeUIFactory.BindButton(next, () => action(1));
+        }
+
+        private static Button EnsureM9HButton(
+            Transform content,
+            Button current,
+            string label,
+            Action<GameObject> registerCreated)
+        {
+            if (current != null)
+            {
+                return current;
+            }
+            Transform existing = content.Find(label);
+            if (existing != null)
+            {
+                return existing.GetComponent<Button>();
+            }
+            Button button = PulseForgeUIFactory.CreateButton(
+                label,
+                content,
+                label,
+                PulseForgeUITheme.SecondaryText,
+                17);
+            PulseForgeUIFactory.SetLayoutHeight(button, 50f);
+            registerCreated?.Invoke(button.gameObject);
+            return button;
         }
 
         private static void EnsureOptionControl(

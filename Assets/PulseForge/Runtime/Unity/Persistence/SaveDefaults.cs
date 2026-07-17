@@ -10,8 +10,8 @@ namespace PulseForge.Runtime.Unity.Persistence
 {
     public static class SaveDefaults
     {
-        public const int SettingsSchemaVersion = 7;
-        public const int ProfileSchemaVersion = 1;
+        public const int SettingsSchemaVersion = 8;
+        public const int ProfileSchemaVersion = 2;
         public const int LibrarySchemaVersion = 6;
         public const int LibraryCacheVersion = 1;
         public const int AudioCacheVersion = 1;
@@ -29,6 +29,8 @@ namespace PulseForge.Runtime.Unity.Persistence
             PulseForgeSettingsData settings = new PulseForgeSettingsData
             {
                 schemaVersion = SettingsSchemaVersion,
+                firstTimeSetupCompleted = false,
+                calibrationCompleted = false,
                 enableMotion = true,
                 defaultDetection = pipeline.DetectionMode.ToString(),
                 defaultDifficulty = pipeline.Difficulty.ToString(),
@@ -36,6 +38,7 @@ namespace PulseForge.Runtime.Unity.Persistence
                 defaultCoverage = pipeline.Coverage.ToString(),
                 defaultGameMode = RadialGameMode.Standard.ToString(),
                 defaultTimingAssist = TimingAssistMode.Relaxed.ToString(),
+                language = PulseForgeUILanguage.English.ToString(),
                 uiLanguage = PulseForgeUILanguage.English.ToString(),
                 showUpcomingInputs = true,
                 beatPulseEnabled = true,
@@ -83,7 +86,8 @@ namespace PulseForge.Runtime.Unity.Persistence
             return new PulseForgeProfileData
             {
                 schemaVersion = ProfileSchemaVersion,
-                lastPlayedAtUtc = string.Empty
+                lastPlayedAtUtc = string.Empty,
+                tutorialLessons = new List<TutorialLessonProgressData>()
             };
         }
 
@@ -154,9 +158,18 @@ namespace PulseForge.Runtime.Unity.Persistence
             {
                 data.uiLanguage = defaults.uiLanguage;
             }
-            data.uiLanguage = NormalizeEnum(
-                data.uiLanguage,
+            if (sourceSchemaVersion < 8)
+            {
+                data.language = NormalizeEnum(
+                    data.uiLanguage,
+                    PulseForgeUILanguage.English).ToString();
+                data.firstTimeSetupCompleted = sourceSchemaVersion > 0;
+                data.calibrationCompleted = false;
+            }
+            data.language = NormalizeEnum(
+                data.language,
                 PulseForgeUILanguage.English).ToString();
+            data.uiLanguage = data.language;
             data.defaultTimingAssist = NormalizeEnum(
                 data.defaultTimingAssist,
                 TimingAssistMode.Relaxed).ToString();
@@ -307,6 +320,35 @@ namespace PulseForge.Runtime.Unity.Persistence
             data.highestScore = Math.Max(0, data.highestScore);
             data.highestCombo = Math.Max(0, data.highestCombo);
             data.lastPlayedAtUtc = NormalizeOptionalUtc(data.lastPlayedAtUtc);
+            data.tutorialLessons = data.tutorialLessons ?? new List<TutorialLessonProgressData>();
+            HashSet<string> lessonIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (int i = data.tutorialLessons.Count - 1; i >= 0; i--)
+            {
+                TutorialLessonProgressData lesson = data.tutorialLessons[i];
+                if (lesson == null
+                    || string.IsNullOrWhiteSpace(lesson.lessonId)
+                    || !lessonIds.Add(lesson.lessonId.Trim()))
+                {
+                    data.tutorialLessons.RemoveAt(i);
+                    continue;
+                }
+
+                lesson.lessonId = lesson.lessonId.Trim();
+                lesson.successfulAttempts = Math.Max(0, lesson.successfulAttempts);
+                if (lesson.successfulAttempts >= 2)
+                {
+                    lesson.completed = true;
+                }
+                if (lesson.completed)
+                {
+                    lesson.successfulAttempts = Math.Max(2, lesson.successfulAttempts);
+                    lesson.lastCompletedAtUtc = NormalizeOptionalUtc(lesson.lastCompletedAtUtc);
+                }
+                else
+                {
+                    lesson.lastCompletedAtUtc = string.Empty;
+                }
+            }
             return data;
         }
 
@@ -923,6 +965,60 @@ namespace PulseForge.Runtime.Unity.Persistence
             return string.IsNullOrWhiteSpace(value)
                 ? string.Empty
                 : value.Trim().Replace('\\', '/').TrimStart('/');
+        }
+    }
+
+    public static class FirstTimeSetupSettings
+    {
+        public static PulseForgeSettingsData Restart(PulseForgeSettingsData settings)
+        {
+            PulseForgeSettingsData restarted = SaveDefaults.CloneSettings(settings);
+            restarted.firstTimeSetupCompleted = false;
+            return restarted;
+        }
+    }
+
+    public static class TutorialLessonProgressUtility
+    {
+        public static TutorialLessonProgressData RecordSuccess(
+            PulseForgeProfileData profile,
+            string lessonId,
+            string completedAtUtc)
+        {
+            profile = SaveDataNormalizer.NormalizeProfile(profile);
+            if (string.IsNullOrWhiteSpace(lessonId))
+            {
+                throw new ArgumentException("Lesson id is required.", nameof(lessonId));
+            }
+
+            TutorialLessonProgressData progress = null;
+            for (int i = 0; i < profile.tutorialLessons.Count; i++)
+            {
+                if (string.Equals(
+                    profile.tutorialLessons[i].lessonId,
+                    lessonId,
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    progress = profile.tutorialLessons[i];
+                    break;
+                }
+            }
+            if (progress == null)
+            {
+                progress = new TutorialLessonProgressData
+                {
+                    lessonId = lessonId.Trim()
+                };
+                profile.tutorialLessons.Add(progress);
+            }
+
+            progress.successfulAttempts++;
+            if (progress.successfulAttempts >= 2)
+            {
+                progress.completed = true;
+                progress.lastCompletedAtUtc = completedAtUtc ?? string.Empty;
+            }
+            return progress;
         }
     }
 }

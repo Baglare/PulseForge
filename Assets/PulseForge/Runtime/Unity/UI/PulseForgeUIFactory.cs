@@ -1,4 +1,5 @@
 using System;
+using PulseForge.Runtime.Unity.Onboarding;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
@@ -68,6 +69,7 @@ namespace PulseForge.Runtime.Unity.UI
             root.ConfigureSavedTracksPanel(savedTracks);
             PulseForgePersistenceUISetup.Apply(root);
             PulseForgeSettingsUISetup.Apply(root);
+            PulseForgeM9HUISetup.Apply(root);
             PulseForgeUIVisualStyle.Apply(root);
             root.SetupPanel?.EnsureViewportLayout();
             PulseForgeUIMotionSetup.Apply(root);
@@ -79,6 +81,7 @@ namespace PulseForge.Runtime.Unity.UI
             RadialForecastSetup.Apply(root);
             RadialGroupTimingSetup.Apply(root);
             root.ApplyVisibility(PulseForgeUIState.Setup);
+            root.ApplyM9HVisibility(PulseForgeExperienceView.None);
             return root;
         }
 

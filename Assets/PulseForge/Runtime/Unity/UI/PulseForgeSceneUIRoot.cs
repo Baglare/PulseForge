@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using PulseForge.Runtime.Unity.Onboarding;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -26,6 +27,11 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private RadialCombatStageView radialCombatStage;
         [SerializeField] private RadialCombatPresentationController radialPresentationController;
         [SerializeField] private PulseForgeTooltipView tooltipView;
+        [SerializeField] private FirstTimeSetupView firstTimeSetupView;
+        [SerializeField] private CalibrationView calibrationView;
+        [SerializeField] private TrainingLessonSelectView trainingLessonSelectView;
+        [SerializeField] private ActiveTrainingView activeTrainingView;
+        [SerializeField] private TrainingResultView trainingResultView;
 
         public Canvas Canvas => canvas;
         public GameObject Background => background;
@@ -46,6 +52,11 @@ namespace PulseForge.Runtime.Unity.UI
         public RadialCombatStageView RadialCombatStage => radialCombatStage;
         public RadialCombatPresentationController RadialPresentationController => radialPresentationController;
         public PulseForgeTooltipView TooltipView => tooltipView;
+        public FirstTimeSetupView FirstTimeSetupView => firstTimeSetupView;
+        public CalibrationView CalibrationView => calibrationView;
+        public TrainingLessonSelectView TrainingLessonSelectView => trainingLessonSelectView;
+        public ActiveTrainingView ActiveTrainingView => activeTrainingView;
+        public TrainingResultView TrainingResultView => trainingResultView;
 
         public void Configure(
             Canvas sceneCanvas,
@@ -107,6 +118,48 @@ namespace PulseForge.Runtime.Unity.UI
         public void ConfigureSettingsPanel(SettingsPanelView value)
         {
             settingsPanel = value;
+        }
+
+        public void ConfigureM9H(
+            FirstTimeSetupView firstTime,
+            CalibrationView calibration,
+            TrainingLessonSelectView lessonSelect,
+            ActiveTrainingView activeTraining,
+            TrainingResultView trainingResult)
+        {
+            firstTimeSetupView = firstTime;
+            calibrationView = calibration;
+            trainingLessonSelectView = lessonSelect;
+            activeTrainingView = activeTraining;
+            trainingResultView = trainingResult;
+        }
+
+        public void ApplyM9HVisibility(PulseForgeExperienceView experienceView)
+        {
+            bool active = experienceView != PulseForgeExperienceView.None;
+            if (active)
+            {
+                SetActive(setupPanel, false);
+                SetActive(savedTracksPanel, false);
+                SetActive(settingsPanel, false);
+                SetActive(processingPanel, false);
+                SetActive(readyPanel, false);
+                SetActive(gameplayHud, false);
+                SetActive(countdownOverlay, false);
+                SetActive(pauseOverlay, false);
+                SetActive(resultsPanel, false);
+                SetActive(errorPanel, false);
+            }
+            SetActive(firstTimeSetupView, experienceView == PulseForgeExperienceView.FirstTimeSetup);
+            SetActive(calibrationView, experienceView == PulseForgeExperienceView.Calibration);
+            SetActive(trainingLessonSelectView, experienceView == PulseForgeExperienceView.TrainingLessonSelect);
+            SetActive(activeTrainingView, experienceView == PulseForgeExperienceView.ActiveTraining);
+            SetActive(trainingResultView, experienceView == PulseForgeExperienceView.TrainingResult);
+            PulseForgePanelView activeExperience = ResolveExperienceView(experienceView);
+            if (activeExperience != null)
+            {
+                activeExperience.PanelRoot.transform.SetAsLastSibling();
+            }
         }
 
         public void ApplySettingsVisibility(bool visible)
@@ -191,6 +244,11 @@ namespace PulseForge.Runtime.Unity.UI
             SetActive(pauseOverlay, true);
             SetActive(resultsPanel, true);
             SetActive(errorPanel, true);
+            SetActive(firstTimeSetupView, true);
+            SetActive(calibrationView, true);
+            SetActive(trainingLessonSelectView, true);
+            SetActive(activeTrainingView, true);
+            SetActive(trainingResultView, true);
         }
 
         public bool CollectValidationErrors(List<string> errors)
@@ -217,6 +275,11 @@ namespace PulseForge.Runtime.Unity.UI
             AddMissing(errors, gameplayFeedbackController, "M8B.2 gameplay feedback controller is missing.");
             AddMissing(errors, radialCombatStage, "M9D.1 Radial Combat Stage is missing.");
             AddMissing(errors, radialPresentationController, "M9D.1 radial presentation controller is missing.");
+            AddMissing(errors, firstTimeSetupView, "M9H First-Time Setup view is missing.");
+            AddMissing(errors, calibrationView, "M9H Calibration view is missing.");
+            AddMissing(errors, trainingLessonSelectView, "M9H Training Lesson Select view is missing.");
+            AddMissing(errors, activeTrainingView, "M9H Active Training view is missing.");
+            AddMissing(errors, trainingResultView, "M9H Training Result view is missing.");
 
             setupPanel?.CollectValidationErrors(errors);
             savedTracksPanel?.CollectValidationErrors(errors);
@@ -231,6 +294,11 @@ namespace PulseForge.Runtime.Unity.UI
             motionController?.CollectValidationErrors(errors);
             gameplayFeedbackController?.CollectValidationErrors(errors);
             radialCombatStage?.CollectValidationErrors(errors);
+            firstTimeSetupView?.CollectValidationErrors(errors);
+            calibrationView?.CollectValidationErrors(errors);
+            trainingLessonSelectView?.CollectValidationErrors(errors);
+            activeTrainingView?.CollectValidationErrors(errors);
+            trainingResultView?.CollectValidationErrors(errors);
             return errors.Count == 0;
         }
 
@@ -239,6 +307,19 @@ namespace PulseForge.Runtime.Unity.UI
             if (panel != null)
             {
                 panel.SetActive(isActive);
+            }
+        }
+
+        private PulseForgePanelView ResolveExperienceView(PulseForgeExperienceView experienceView)
+        {
+            switch (experienceView)
+            {
+                case PulseForgeExperienceView.FirstTimeSetup: return firstTimeSetupView;
+                case PulseForgeExperienceView.Calibration: return calibrationView;
+                case PulseForgeExperienceView.TrainingLessonSelect: return trainingLessonSelectView;
+                case PulseForgeExperienceView.ActiveTraining: return activeTrainingView;
+                case PulseForgeExperienceView.TrainingResult: return trainingResultView;
+                default: return null;
             }
         }
 

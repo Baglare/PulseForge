@@ -53,6 +53,7 @@ namespace PulseForge.Runtime.Unity.UI
 
             PulseForgePersistenceUISetup.Apply(root);
             PulseForgeSettingsUISetup.Apply(root);
+            PulseForgeM9HUISetup.Apply(root);
             root.SetupPanel?.EnsureViewportLayout();
             PulseForgeUIMotionSetup.Apply(root);
             PulseForgeGameplayFeedbackSetup.Apply(root);
@@ -62,6 +63,7 @@ namespace PulseForge.Runtime.Unity.UI
             PulseForgePlayabilityAssistUISetup.Apply(root);
             RadialForecastSetup.Apply(root);
             RadialGroupTimingSetup.Apply(root);
+            RadialArenaVisualSetup.Apply(root);
             root.ProcessingPanel?.EnsureV2Stages();
             root.ReadyPanel?.EnsureV2SummaryFields();
             PulseForgeTooltipSetup.Apply(root);

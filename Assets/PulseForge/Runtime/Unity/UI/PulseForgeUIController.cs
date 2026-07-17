@@ -1,5 +1,6 @@
 using PulseForge.Runtime.Unity.Prototype;
 using PulseForge.Runtime.Unity.Persistence;
+using PulseForge.Runtime.Unity.Onboarding;
 using UnityEngine;
 
 namespace PulseForge.Runtime.Unity.UI
@@ -13,6 +14,7 @@ namespace PulseForge.Runtime.Unity.UI
         private bool lastSettingsVisibility;
         private PulseForgeUILanguage lastLanguage = (PulseForgeUILanguage)(-1);
         private int lastLocalizationRevision = -1;
+        private PulseForgeExperienceView lastExperienceView = (PulseForgeExperienceView)(-1);
 
         public PulseForgeSceneUIRoot SceneRoot => sceneRoot;
         public bool IsBound => isBound;
@@ -36,6 +38,11 @@ namespace PulseForge.Runtime.Unity.UI
             sceneRoot.SetupPanel?.Bind(runtimeController);
             sceneRoot.SavedTracksPanel?.Bind(runtimeController);
             sceneRoot.SettingsPanel?.Bind(runtimeController);
+            sceneRoot.FirstTimeSetupView?.Bind(runtimeController);
+            sceneRoot.CalibrationView?.Bind(runtimeController);
+            sceneRoot.TrainingLessonSelectView?.Bind(runtimeController);
+            sceneRoot.ActiveTrainingView?.Bind(runtimeController);
+            sceneRoot.TrainingResultView?.Bind(runtimeController);
             sceneRoot.ReadyPanel?.Bind(runtimeController);
             sceneRoot.GameplayHud?.Bind(runtimeController);
             sceneRoot.PauseOverlay?.Bind(runtimeController);
@@ -59,6 +66,11 @@ namespace PulseForge.Runtime.Unity.UI
                 sceneRoot.SetupPanel?.Unbind();
                 sceneRoot.SavedTracksPanel?.Unbind();
                 sceneRoot.SettingsPanel?.Unbind();
+                sceneRoot.FirstTimeSetupView?.Unbind();
+                sceneRoot.CalibrationView?.Unbind();
+                sceneRoot.TrainingLessonSelectView?.Unbind();
+                sceneRoot.ActiveTrainingView?.Unbind();
+                sceneRoot.TrainingResultView?.Unbind();
                 sceneRoot.ReadyPanel?.Unbind();
                 sceneRoot.GameplayHud?.Unbind();
                 sceneRoot.PauseOverlay?.Unbind();
@@ -74,6 +86,7 @@ namespace PulseForge.Runtime.Unity.UI
             lastSettingsVisibility = false;
             lastLanguage = (PulseForgeUILanguage)(-1);
             lastLocalizationRevision = -1;
+            lastExperienceView = (PulseForgeExperienceView)(-1);
         }
 
         public void Refresh()
@@ -85,17 +98,24 @@ namespace PulseForge.Runtime.Unity.UI
 
             PulseForgeUIState state = runtimeController.UIState;
             bool settingsVisible = runtimeController.IsSettingsOpen;
-            if (lastTooltipState != state || lastSettingsVisibility != settingsVisible)
+            PulseForgeExperienceView experienceView = runtimeController.Experience == null
+                ? PulseForgeExperienceView.None
+                : runtimeController.Experience.View;
+            if (lastTooltipState != state
+                || lastSettingsVisibility != settingsVisible
+                || lastExperienceView != experienceView)
             {
                 sceneRoot.TooltipView?.HideAll();
                 lastTooltipState = state;
                 lastSettingsVisibility = settingsVisible;
+                lastExperienceView = experienceView;
             }
             sceneRoot.ApplyVisibility(state);
             bool showSavedTracks = state == PulseForgeUIState.Setup
                 && runtimeController.IsSavedTracksOpen;
             sceneRoot.ApplyAuxiliaryVisibility(state, showSavedTracks);
             sceneRoot.ApplySettingsVisibility(runtimeController.IsSettingsOpen);
+            sceneRoot.ApplyM9HVisibility(experienceView);
             sceneRoot.GameplayHud?.SetRhythmLaneVisible(
                 !runtimeController.UsesRadialCombatPresentation);
             sceneRoot.RadialPresentationController?.Refresh(runtimeController);
@@ -138,11 +158,28 @@ namespace PulseForge.Runtime.Unity.UI
                     break;
             }
 
+            switch (experienceView)
+            {
+                case PulseForgeExperienceView.FirstTimeSetup:
+                    sceneRoot.FirstTimeSetupView?.Refresh(runtimeController);
+                    break;
+                case PulseForgeExperienceView.Calibration:
+                    sceneRoot.CalibrationView?.Refresh(runtimeController);
+                    break;
+                case PulseForgeExperienceView.TrainingLessonSelect:
+                    sceneRoot.TrainingLessonSelectView?.Refresh(runtimeController);
+                    break;
+                case PulseForgeExperienceView.ActiveTraining:
+                    sceneRoot.ActiveTrainingView?.Refresh(runtimeController);
+                    break;
+                case PulseForgeExperienceView.TrainingResult:
+                    sceneRoot.TrainingResultView?.Refresh(runtimeController);
+                    break;
+            }
+
             sceneRoot.RefreshMotion(state);
             PulseForgeUILanguage language = runtimeController.ActiveUILanguage;
-            int localizationRevision = runtimeController.IsSettingsOpen
-                ? runtimeController.SettingsDraftRevision
-                : -1;
+            int localizationRevision = runtimeController.LocalizationRevision;
             if (lastLanguage != language || lastLocalizationRevision != localizationRevision)
             {
                 PulseForgeUILocalization.Apply(sceneRoot, language);

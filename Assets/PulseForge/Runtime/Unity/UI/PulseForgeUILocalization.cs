@@ -31,13 +31,16 @@ namespace PulseForge.Runtime.Unity.UI
                 { "Retry", "Tekrar Dene" },
                 { "Back", "Geri" },
                 { "Load", "Yükle" },
-                { "Remove", "Kaldır" }
+                { "Remove", "Kaldır" },
+                { "Run Calibration", "Kalibrasyonu Çalıştır" },
+                { "Training", "Eğitim" },
+                { "Restart First-Time Setup", "İlk Kurulumu Yeniden Başlat" }
             };
 
         private static readonly Dictionary<string, string> TurkishSettingsRows =
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                { "Tooltip Language", "Açıklama Dili" },
+                { "Tooltip Language", "Language / Dil" },
                 { "Master Volume", "Ana Ses" },
                 { "Music Volume", "Müzik Sesi" },
                 { "Display Mode", "Görüntü Modu" },
@@ -146,7 +149,12 @@ namespace PulseForge.Runtime.Unity.UI
             {
                 Transform row = panel.transform.FindDeepChild(entry.Key + " Row");
                 Text label = row == null ? null : row.Find("Label")?.GetComponent<Text>();
-                if (label != null) label.text = turkish ? entry.Value : entry.Key;
+                if (label != null)
+                {
+                    label.text = entry.Key == "Tooltip Language"
+                        ? "Language / Dil"
+                        : turkish ? entry.Value : entry.Key;
+                }
                 Text value = row == null ? null : row.Find("Value")?.GetComponent<Text>();
                 if (value != null)
                 {

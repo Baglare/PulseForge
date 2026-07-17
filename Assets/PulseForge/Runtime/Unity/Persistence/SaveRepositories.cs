@@ -87,6 +87,27 @@ namespace PulseForge.Runtime.Unity.Persistence
             return store.Save(FileName, Current, SaveDataNormalizer.NormalizeProfile);
         }
 
+        public bool Save(PulseForgeProfileData profile)
+        {
+            Current = SaveDataNormalizer.NormalizeProfile(profile);
+            return store.Save(FileName, Current, SaveDataNormalizer.NormalizeProfile);
+        }
+
+        public bool RecordTutorialSuccess(string lessonId)
+        {
+            if (string.IsNullOrWhiteSpace(lessonId))
+            {
+                return false;
+            }
+
+            Current = SaveDataNormalizer.NormalizeProfile(Current);
+            TutorialLessonProgressUtility.RecordSuccess(
+                Current,
+                lessonId,
+                SaveDefaults.UtcNow());
+            return Save(Current);
+        }
+
         public PulseForgeProfileData ResetToDefaults()
         {
             Current = SaveDefaults.CreateProfile();

@@ -2,6 +2,31 @@ using System;
 
 namespace PulseForge.Domain.Rhythm
 {
+    public static class RadialTimingMath
+    {
+        public static double EffectiveJudgementTimeSeconds(
+            double rawSongTimeSeconds,
+            double inputOffsetSeconds)
+        {
+            if (double.IsNaN(rawSongTimeSeconds) || double.IsInfinity(rawSongTimeSeconds))
+            {
+                throw new ArgumentOutOfRangeException(nameof(rawSongTimeSeconds));
+            }
+            if (double.IsNaN(inputOffsetSeconds) || double.IsInfinity(inputOffsetSeconds))
+            {
+                throw new ArgumentOutOfRangeException(nameof(inputOffsetSeconds));
+            }
+            return rawSongTimeSeconds + inputOffsetSeconds;
+        }
+
+        public static double InputOffsetForObservedDelta(
+            double currentInputOffsetSeconds,
+            double observedDeltaSeconds)
+        {
+            return currentInputOffsetSeconds - observedDeltaSeconds;
+        }
+    }
+
     public enum RadialRequirementState
     {
         Pending,

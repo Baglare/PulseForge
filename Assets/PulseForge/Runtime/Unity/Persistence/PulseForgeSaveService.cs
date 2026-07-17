@@ -73,6 +73,30 @@ namespace PulseForge.Runtime.Unity.Persistence
             return saved;
         }
 
+        public bool SaveProfile(PulseForgeProfileData profile)
+        {
+            EnsureInitialized();
+            bool saved = profileRepository.Save(profile);
+            Profile = profileRepository.Current;
+            return saved;
+        }
+
+        public bool RecordTutorialSuccess(string lessonId)
+        {
+            EnsureInitialized();
+            bool saved = profileRepository.RecordTutorialSuccess(lessonId);
+            Profile = profileRepository.Current;
+            return saved;
+        }
+
+        public PulseForgeSettingsData RestartFirstTimeSetup()
+        {
+            EnsureInitialized();
+            PulseForgeSettingsData settings = FirstTimeSetupSettings.Restart(Settings);
+            SaveSettings(settings);
+            return Settings;
+        }
+
         public PulseForgeSettingsData ResetSettings()
         {
             EnsureInitialized();

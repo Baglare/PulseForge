@@ -28,6 +28,10 @@ namespace PulseForge.Editor.UI
         private const string ApplyM9F2GroupTimingMenu = "Tools/PulseForge/UI/Apply M9F.2 Group Timing Setup";
         private const string ApplyM9G1CoverageMenu = "Tools/PulseForge/UI/Apply M9G.1 Coverage Setup";
         private const string ApplyM9G2PlayabilityAssistMenu = "Tools/PulseForge/UI/Apply M9G.2 Playability Assist Setup";
+        private const string ApplyM9HOnboardingTrainingMenu =
+            "Tools/PulseForge/UI/Apply M9H Onboarding & Training Setup";
+        private const string ApplyM10ABArenaEnemyVisualMenu =
+            "Tools/PulseForge/UI/Apply M10AB Arena & Enemy Visual Setup";
         private const string ValidateMenu = "Tools/PulseForge/UI/Validate Scene UI";
         private const string ButtonMotionClassIdentifier =
             "Assembly-CSharp::PulseForge.Runtime.Unity.UI.PulseForgeUIButtonMotion";
@@ -799,6 +803,119 @@ namespace PulseForge.Editor.UI
             Undo.CollapseUndoOperations(undoGroup);
             Debug.Log(
                 "PulseForge M9E.2 Saboteur & Fog setup was applied. The scene is dirty and has not been saved automatically.",
+                root);
+        }
+
+        [MenuItem(ApplyM9HOnboardingTrainingMenu)]
+        private static void ApplyM9HOnboardingTrainingSetup()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                EditorUtility.DisplayDialog(
+                    "PulseForge UI",
+                    "M9H Onboarding & Training setup can only be applied in Edit Mode.",
+                    "OK");
+                return;
+            }
+
+            Scene activeScene = SceneManager.GetActiveScene();
+            PulseForgeSceneUIRoot[] roots = FindInActiveScene<PulseForgeSceneUIRoot>(activeScene);
+            if (roots.Length != 1)
+            {
+                Debug.LogError(
+                    roots.Length == 0
+                        ? "Apply M9H Onboarding & Training Setup requires one PulseForgeSceneUIRoot in the active scene. None was found."
+                        : "Apply M9H Onboarding & Training Setup requires exactly one PulseForgeSceneUIRoot in the active scene. "
+                            + roots.Length + " were found.");
+                return;
+            }
+
+            PulseForgeSceneUIRoot root = roots[0];
+            int undoGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName("Apply PulseForge M9H Onboarding & Training Setup");
+            Undo.RegisterFullObjectHierarchyUndo(
+                root.gameObject,
+                "Apply PulseForge M9H Onboarding & Training Setup");
+            Undo.RecordObject(root, "Configure PulseForge M9H UI");
+            PulseForgeM9HUISetup.Apply(
+                root,
+                gameObject => Undo.RegisterCreatedObjectUndo(
+                    gameObject,
+                    "Create PulseForge M9H Onboarding & Training UI"));
+
+            Component[] components = root.GetComponentsInChildren<Component>(true);
+            for (int i = 0; i < components.Length; i++)
+            {
+                if (components[i] != null)
+                {
+                    EditorUtility.SetDirty(components[i]);
+                }
+            }
+
+            EditorUtility.SetDirty(root);
+            EditorSceneManager.MarkSceneDirty(activeScene);
+            Selection.activeGameObject = root.gameObject;
+            EditorGUIUtility.PingObject(root);
+            Undo.CollapseUndoOperations(undoGroup);
+            Debug.Log(
+                "PulseForge M9H Onboarding & Training setup was applied. The scene is dirty and has not been saved automatically.",
+                root);
+        }
+
+        [MenuItem(ApplyM10ABArenaEnemyVisualMenu)]
+        private static void ApplyM10ABArenaEnemyVisualSetup()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                EditorUtility.DisplayDialog(
+                    "PulseForge UI",
+                    "M10AB Arena & Enemy Visual setup can only be applied in Edit Mode.",
+                    "OK");
+                return;
+            }
+
+            Scene activeScene = SceneManager.GetActiveScene();
+            PulseForgeSceneUIRoot[] roots = FindInActiveScene<PulseForgeSceneUIRoot>(activeScene);
+            if (roots.Length != 1)
+            {
+                Debug.LogError(
+                    roots.Length == 0
+                        ? "Apply M10AB Arena & Enemy Visual Setup requires one PulseForgeSceneUIRoot in the active scene. None was found."
+                        : "Apply M10AB Arena & Enemy Visual Setup requires exactly one PulseForgeSceneUIRoot in the active scene. "
+                            + roots.Length + " were found.");
+                return;
+            }
+
+            PulseForgeSceneUIRoot root = roots[0];
+            int undoGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName("Apply PulseForge M10AB Arena & Enemy Visual Setup");
+            Undo.RegisterFullObjectHierarchyUndo(
+                root.gameObject,
+                "Apply PulseForge M10AB Arena & Enemy Visual Setup");
+            Undo.RecordObject(root, "Configure PulseForge M10AB Arena & Enemy Visuals");
+
+            RadialCombatStageView stage = RadialArenaVisualSetup.Apply(
+                root,
+                gameObject => Undo.RegisterCreatedObjectUndo(
+                    gameObject,
+                    "Create PulseForge M10AB Arena & Enemy Visual UI"),
+                (gameObject, componentType) => Undo.AddComponent(gameObject, componentType));
+
+            Component[] components = root.GetComponentsInChildren<Component>(true);
+            for (int i = 0; i < components.Length; i++)
+            {
+                if (components[i] != null)
+                {
+                    EditorUtility.SetDirty(components[i]);
+                }
+            }
+
+            EditorSceneManager.MarkSceneDirty(activeScene);
+            Selection.activeGameObject = stage == null ? root.gameObject : stage.gameObject;
+            EditorGUIUtility.PingObject(stage == null ? (Object)root : stage);
+            Undo.CollapseUndoOperations(undoGroup);
+            Debug.Log(
+                "PulseForge M10AB Arena & Enemy Visual setup was applied. The scene is dirty and has not been saved automatically.",
                 root);
         }
 

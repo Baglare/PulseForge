@@ -9,6 +9,7 @@ using PulseForge.Domain.Rhythm;
 using PulseForge.Runtime.Unity.Audio;
 using PulseForge.Runtime.Unity.BeatMaps;
 using PulseForge.Runtime.Unity.Input;
+using PulseForge.Runtime.Unity.Onboarding;
 using PulseForge.Runtime.Unity.Persistence;
 using PulseForge.Runtime.Unity.Timing;
 using PulseForge.Runtime.Unity.UI;
@@ -134,6 +135,7 @@ namespace PulseForge.Runtime.Unity.Prototype
         private bool isSettingsOpen;
         private string settingsMessage = string.Empty;
         private int settingsDraftRevision;
+        private PulseForgeExperienceCoordinator experienceCoordinator;
 
         public event Action<PulseForgeGameplayResultEvent> GameplayResultResolved;
         public event Action<PulseForgeComboChangedEvent> GameplayComboChanged;
@@ -148,6 +150,9 @@ namespace PulseForge.Runtime.Unity.Prototype
         public bool IsInputRebinding => inputService != null && inputService.IsRebinding;
         public string SettingsMessage => settingsMessage;
         public int SettingsDraftRevision => settingsDraftRevision;
+        public int LocalizationRevision => settingsDraftRevision
+            + (experienceCoordinator == null ? 0 : experienceCoordinator.Revision);
+        public PulseForgeExperienceCoordinator Experience => experienceCoordinator;
         public RadialGameMode SelectedGameMode => selectedGameMode;
         public string SelectedGameModeLabel => selectedGameMode == RadialGameMode.OneLife
             ? "One Life"
@@ -172,9 +177,13 @@ namespace PulseForge.Runtime.Unity.Prototype
         {
             get
             {
+                if (experienceCoordinator != null && experienceCoordinator.IsActive)
+                {
+                    return experienceCoordinator.Language;
+                }
                 string value = isSettingsOpen && settingsDraft != null
-                    ? settingsDraft.uiLanguage
-                    : saveService?.Settings?.uiLanguage;
+                    ? settingsDraft.language
+                    : saveService?.Settings?.language;
                 return Enum.TryParse(value, true, out PulseForgeUILanguage language)
                     ? language
                     : PulseForgeUILanguage.English;
@@ -497,6 +506,10 @@ namespace PulseForge.Runtime.Unity.Prototype
             EnsureSaveService();
             ApplyLoadedSettings();
             EnsureInputService();
+            experienceCoordinator = new PulseForgeExperienceCoordinator(
+                this,
+                saveService,
+                inputService);
             PulseForgeRuntimeSettingsApplier.ApplyAudio(saveService.Settings, GetOrAddAudioSource());
             PulseForgeRuntimeSettingsApplier.ApplyDisplay(saveService.Settings);
             runtimeFlow.ReturnToSetup(false);
@@ -509,6 +522,8 @@ namespace PulseForge.Runtime.Unity.Prototype
 
         private void OnDestroy()
         {
+            experienceCoordinator?.Dispose();
+            experienceCoordinator = null;
             SaveCurrentSettings();
             inputService?.Dispose();
             inputService = null;
@@ -522,6 +537,7 @@ namespace PulseForge.Runtime.Unity.Prototype
         private void Update()
         {
             double frameSongTimeSeconds = CurrentTimeSeconds;
+            experienceCoordinator?.Update();
             HandleRuntimeKeyboardInput(frameSongTimeSeconds);
 
             if (radialSession != null)
@@ -2277,7 +2293,9 @@ namespace PulseForge.Runtime.Unity.Prototype
             }
 
             EnsureInputService();
-            if (isSettingsOpen || inputService == null)
+            if (isSettingsOpen
+                || inputService == null
+                || (experienceCoordinator != null && experienceCoordinator.IsBlockingGameplay))
             {
                 return;
             }
@@ -3045,6 +3063,7 @@ namespace PulseForge.Runtime.Unity.Prototype
         public void OpenSettings()
         {
             if (isSettingsOpen
+                || (experienceCoordinator != null && experienceCoordinator.IsActive)
                 || (UIState != PulseForgeUIState.Setup && UIState != PulseForgeUIState.Paused))
             {
                 return;
@@ -3115,6 +3134,11 @@ namespace PulseForge.Runtime.Unity.Prototype
 
             inputService?.CancelInteractiveRebind();
             settingsDraft = SaveDefaults.CreateSettings();
+            if (settingsPreviewBaseline != null)
+            {
+                settingsDraft.firstTimeSetupCompleted = settingsPreviewBaseline.firstTimeSetupCompleted;
+                settingsDraft.calibrationCompleted = settingsPreviewBaseline.calibrationCompleted;
+            }
             inputService?.ResetBindings();
             settingsDraft.input.inputBindingOverridesJson = string.Empty;
             PreviewDraftAudioAndMotion();
@@ -3322,9 +3346,47 @@ namespace PulseForge.Runtime.Unity.Prototype
                     : PulseForgeUILanguage.English;
             PulseForgeUILanguage[] values =
                 (PulseForgeUILanguage[])Enum.GetValues(typeof(PulseForgeUILanguage));
-            draft.uiLanguage = values[
+            draft.language = values[
                 WrapIndex((int)current + direction, values.Length)].ToString();
+            draft.uiLanguage = draft.language;
             settingsDraftRevision++;
+        }
+
+        public void RunCalibrationFromSettings()
+        {
+            if (isSettingsOpen)
+            {
+                CancelSettings();
+            }
+            experienceCoordinator?.StartCalibration(false);
+        }
+
+        public void OpenTrainingFromSettings()
+        {
+            if (isSettingsOpen)
+            {
+                CancelSettings();
+            }
+            experienceCoordinator?.OpenTrainingLessonSelect();
+        }
+
+        public void RestartFirstTimeSetup()
+        {
+            if (isSettingsOpen)
+            {
+                CancelSettings();
+            }
+            EnsureSaveService();
+            saveService.RestartFirstTimeSetup();
+            experienceCoordinator?.BeginFirstTimeSetup();
+        }
+
+        internal void ApplyExperienceSettings(PulseForgeSettingsData settings)
+        {
+            EnsureSaveService();
+            PulseForgeSettingsData applied = SaveDefaults.CloneSettings(settings);
+            saveService.SaveSettings(applied);
+            ApplySettingsData(saveService.Settings, true);
         }
 
         public string GetDraftBindingDisplay(PulseForgeInputAction action)

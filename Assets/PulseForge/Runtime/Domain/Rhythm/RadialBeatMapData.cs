@@ -32,6 +32,17 @@ namespace PulseForge.Domain.Rhythm
         public double PerfectWindowSeconds { get; }
         public double GoodWindowSeconds { get; }
 
+        public static RadialTimingProfile Create(
+            TimingAssistMode mode,
+            double perfectWindowSeconds,
+            double goodWindowSeconds)
+        {
+            return new RadialTimingProfile(
+                mode,
+                perfectWindowSeconds,
+                goodWindowSeconds);
+        }
+
         public static RadialTimingProfile FromMode(TimingAssistMode mode)
         {
             switch (mode)

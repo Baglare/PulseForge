@@ -26,7 +26,7 @@ namespace PulseForge.Tests.EditMode
             Assert.That(GetField<bool>(normalized, "showUpcomingInputs"), Is.True);
             Assert.That(GetField<bool>(normalized, "beatPulseEnabled"), Is.True);
             Assert.That(GetField<string>(normalized, "uiLanguage"), Is.EqualTo("English"));
-            Assert.That(GetField<int>(normalized, "schemaVersion"), Is.EqualTo(7));
+            Assert.That(GetField<int>(normalized, "schemaVersion"), Is.EqualTo(8));
         }
 
         [Test]

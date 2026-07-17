@@ -73,6 +73,7 @@ namespace PulseForge.Runtime.Unity.UI
         [SerializeField] private CanvasGroup cueCanvasGroup;
         [SerializeField] private Image bodyImage;
         [SerializeField] private Outline bodyOutline;
+        [SerializeField] private RadialEnemySilhouetteGraphic silhouetteGraphic;
         [SerializeField] private Text archetypeGlyph;
         [SerializeField] private Image actionBadge;
         [SerializeField] private Text actionLabel;
@@ -150,6 +151,15 @@ namespace PulseForge.Runtime.Unity.UI
             outline.useGraphicAlpha = true;
             view.bodyImage = bodyImage;
             view.bodyOutline = outline;
+
+            RectTransform silhouette = PulseForgeUIFactory.CreateStretchRect(
+                "Enemy Silhouette",
+                body);
+            RadialEnemySilhouetteGraphic silhouetteRenderer =
+                silhouette.gameObject.AddComponent<RadialEnemySilhouetteGraphic>();
+            silhouetteRenderer.color = Color.white;
+            silhouetteRenderer.raycastTarget = false;
+            view.silhouetteGraphic = silhouetteRenderer;
 
             Text archetype = PulseForgeUIFactory.CreateText(
                 "Archetype Shape",
@@ -407,14 +417,18 @@ namespace PulseForge.Runtime.Unity.UI
             gameObject.SetActive(true);
             activeArchetype = archetype;
             bindingDisplay = bindings;
+            actionColor = ResolveActionColor(actions);
             ConfigureArchetype(archetype);
             ConfigureEmbeddedActionLabel();
-            actionColor = ResolveActionColor(actions);
             actionLabel.text = bindingDisplay.Resolve(actions);
             ConfigureActionBadge(actions);
-            baseBodyColor = Color.Lerp(PulseForgeUITheme.SurfaceRaised, actionColor, 0.30f);
+            baseBodyColor = PulseForgeUITheme.WithAlpha(
+                Color.Lerp(PulseForgeUITheme.BackgroundSecondary, actionColor, 0.12f),
+                0.34f);
             bodyImage.color = baseBodyColor;
-            bodyOutline.effectColor = Color.Lerp(PulseForgeUITheme.Border, actionColor, 0.50f);
+            bodyOutline.effectColor = PulseForgeUITheme.WithAlpha(
+                Color.Lerp(PulseForgeUITheme.Border, actionColor, 0.50f),
+                0.46f);
             resultLabel.gameObject.SetActive(true);
             resultLabel.text = string.Empty;
             exclamationLabel.gameObject.SetActive(false);
@@ -891,6 +905,7 @@ namespace PulseForge.Runtime.Unity.UI
             bodyImage.rectTransform.sizeDelta = size;
             bodyImage.rectTransform.localRotation = Quaternion.Euler(0f, 0f, rotation);
             archetypeGlyph.text = glyph;
+            silhouetteGraphic?.Configure(archetype, actionColor);
         }
 
         private static Vector2 ResolveTimingOffset(RadialDirection direction)
@@ -1004,7 +1019,8 @@ namespace PulseForge.Runtime.Unity.UI
             actionLabel.rectTransform.localRotation = Quaternion.identity;
             actionBadge.rectTransform.sizeDelta = new Vector2(64f, 46f);
             actionLabel.fontSize = 26;
-            actionLabel.resizeTextMinSize = 11;
+            actionLabel.resizeTextForBestFit = true;
+            actionLabel.resizeTextMinSize = 8;
             actionLabel.resizeTextMaxSize = 26;
             actionLabel.color = PulseForgeUITheme.PrimaryText;
         }
@@ -1019,6 +1035,7 @@ namespace PulseForge.Runtime.Unity.UI
             {
                 actionBadge.rectTransform.SetParent(body, false);
             }
+            actionBadge.rectTransform.SetAsLastSibling();
             actionBadge.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
             actionBadge.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
             actionBadge.rectTransform.pivot = new Vector2(0.5f, 0.5f);
