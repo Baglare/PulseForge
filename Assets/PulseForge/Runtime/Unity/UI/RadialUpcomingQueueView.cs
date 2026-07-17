@@ -11,6 +11,8 @@ namespace PulseForge.Runtime.Unity.UI
     public sealed class RadialUpcomingQueueView : MonoBehaviour
     {
         private const int MaximumCards = 5;
+        private static readonly Vector2 GameplaySize = new Vector2(690f, 82f);
+        private static readonly Vector2 GameplayPosition = new Vector2(0f, 22f);
 
         [SerializeField] private RectTransform cardsRoot;
         [SerializeField] private Text[] actionTexts = Array.Empty<Text>();
@@ -27,14 +29,10 @@ namespace PulseForge.Runtime.Unity.UI
                 "Upcoming Input Queue",
                 parent,
                 PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Surface, 0.82f));
-            root.anchorMin = new Vector2(0.5f, 1f);
-            root.anchorMax = new Vector2(0.5f, 1f);
-            root.pivot = new Vector2(0.5f, 1f);
-            root.sizeDelta = new Vector2(690f, 92f);
-            root.anchoredPosition = new Vector2(0f, -148f);
 
             RadialUpcomingQueueView view = root.gameObject.AddComponent<RadialUpcomingQueueView>();
             view.cardsRoot = root;
+            view.ApplyGameplayLayout();
             view.actionTexts = new Text[MaximumCards];
             view.symbolTexts = new Text[MaximumCards];
             view.directionTexts = new Text[MaximumCards];
@@ -45,6 +43,24 @@ namespace PulseForge.Runtime.Unity.UI
                 view.CreateCard(i);
             }
             return view;
+        }
+
+        public void ApplyGameplayLayout()
+        {
+            if (cardsRoot == null)
+            {
+                cardsRoot = transform as RectTransform;
+            }
+            if (cardsRoot == null)
+            {
+                return;
+            }
+
+            cardsRoot.anchorMin = new Vector2(0.5f, 0f);
+            cardsRoot.anchorMax = new Vector2(0.5f, 0f);
+            cardsRoot.pivot = new Vector2(0.5f, 0f);
+            cardsRoot.sizeDelta = GameplaySize;
+            cardsRoot.anchoredPosition = GameplayPosition;
         }
 
         public void Refresh(DebugRhythmPrototypeController controller)

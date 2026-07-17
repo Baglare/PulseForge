@@ -44,6 +44,8 @@ namespace PulseForge.Runtime.Unity.UI
         private readonly List<PresentationWindow> presentationWindows =
             new List<PresentationWindow>();
         private readonly float[] directionEmphasis = new float[8];
+        private readonly bool[] compoundLayoutSlots = new bool[8];
+        private readonly bool[] groupTimingLayoutSlots = new bool[4];
         private DebugRhythmPrototypeController boundController;
         private IReadOnlyList<RadialEncounterRuntime> preparedEncounters;
         private RadialStatusEffectSnapshot currentStatus;
@@ -257,6 +259,8 @@ namespace PulseForge.Runtime.Unity.UI
             desiredForecastKeys.Clear();
             desiredGroupTimingKeys.Clear();
             Array.Clear(directionEmphasis, 0, directionEmphasis.Length);
+            Array.Clear(compoundLayoutSlots, 0, compoundLayoutSlots.Length);
+            Array.Clear(groupTimingLayoutSlots, 0, groupTimingLayoutSlots.Length);
             coreReaction = 0f;
             reactiveEventIntensity = 0f;
             stageView.BeginCombatVfxFrame();
@@ -947,7 +951,7 @@ namespace PulseForge.Runtime.Unity.UI
             }
 
             center /= visibleTargetCount;
-            Vector2 indicatorPosition = GetIndicatorPosition(center);
+            Vector2 indicatorPosition = ReserveCompoundIndicatorPosition(center);
             RadialPresentationKey key = new RadialPresentationKey(
                 encounter.Data.eventId,
                 "compound",
@@ -1085,12 +1089,24 @@ namespace PulseForge.Runtime.Unity.UI
             double actionLayerStart = RadialPresentationMath.EvaluateActionLayerStart(
                 requirement.Data.targetTimeSeconds,
                 encounter.Data.telegraphLeadSeconds);
-            if (songTimeSeconds < actionLayerStart
-                || !TryGetGroupTimingPosition(
-                    encounter,
-                    requirement,
-                    songTimeSeconds,
-                    out Vector2 position))
+            if (songTimeSeconds < actionLayerStart)
+            {
+                return;
+            }
+            if (!TryGetInputOpportunity(
+                encounter,
+                requirement,
+                songTimeSeconds,
+                GetDifficultyLevel(),
+                out InputOpportunitySnapshot opportunity))
+            {
+                return;
+            }
+            if (!TryGetGroupTimingPosition(
+                encounter,
+                requirement,
+                songTimeSeconds,
+                out Vector2 position))
             {
                 return;
             }
@@ -1113,16 +1129,6 @@ namespace PulseForge.Runtime.Unity.UI
             if (!groupTimingView.Key.Equals(key))
             {
                 groupTimingView.Activate(key);
-            }
-
-            if (!TryGetInputOpportunity(
-                encounter,
-                requirement,
-                songTimeSeconds,
-                GetDifficultyLevel(),
-                out InputOpportunitySnapshot opportunity))
-            {
-                return;
             }
             groupTimingView.Render(
                 position,
@@ -1177,17 +1183,7 @@ namespace PulseForge.Runtime.Unity.UI
             }
 
             center /= count;
-            if (center.sqrMagnitude < 2500f)
-            {
-                position = new Vector2(0f, stageView.JudgementRadius + 92f);
-                return true;
-            }
-            float radius = Mathf.Min(
-                Mathf.Max(
-                    center.magnitude - 72f,
-                    stageView.JudgementRadius + 58f),
-                stageView.OuterRadius - 82f);
-            position = center.normalized * radius;
+            position = ReserveGroupTimingPosition(center);
             return true;
         }
 
@@ -1626,15 +1622,54 @@ namespace PulseForge.Runtime.Unity.UI
             return linkIndex;
         }
 
-        private Vector2 GetIndicatorPosition(Vector2 center)
+        private Vector2 ReserveCompoundIndicatorPosition(Vector2 center)
         {
-            if (center.sqrMagnitude < 2500f)
+            float radius = Mathf.Lerp(
+                stageView.JudgementRadius,
+                stageView.OuterRadius,
+                0.36f);
+            return ReserveOverlaySlot(center, compoundLayoutSlots, 22.5f, radius);
+        }
+
+        private Vector2 ReserveGroupTimingPosition(Vector2 center)
+        {
+            float radius = Mathf.Lerp(
+                stageView.JudgementRadius,
+                stageView.OuterRadius,
+                0.70f);
+            return ReserveOverlaySlot(center, groupTimingLayoutSlots, 45f, radius);
+        }
+
+        private static Vector2 ReserveOverlaySlot(
+            Vector2 preferredDirection,
+            bool[] occupiedSlots,
+            float firstSlotDegrees,
+            float radius)
+        {
+            float stepDegrees = 360f / occupiedSlots.Length;
+            float preferredDegrees = preferredDirection.sqrMagnitude < 0.001f
+                ? firstSlotDegrees
+                : Mathf.Atan2(preferredDirection.y, preferredDirection.x) * Mathf.Rad2Deg;
+            float normalizedDegrees = Mathf.Repeat(
+                preferredDegrees - firstSlotDegrees,
+                360f);
+            int preferredSlot = Mathf.RoundToInt(normalizedDegrees / stepDegrees)
+                % occupiedSlots.Length;
+            int selectedSlot = preferredSlot;
+            for (int offset = 0; offset < occupiedSlots.Length; offset++)
             {
-                return new Vector2(0f, stageView.JudgementRadius * 0.62f);
+                int candidate = (preferredSlot + offset) % occupiedSlots.Length;
+                if (!occupiedSlots[candidate])
+                {
+                    selectedSlot = candidate;
+                    break;
+                }
             }
-            return center.normalized * Mathf.Min(
-                center.magnitude,
-                stageView.JudgementRadius + 78f);
+
+            occupiedSlots[selectedSlot] = true;
+            float radians = (firstSlotDegrees + selectedSlot * stepDegrees)
+                * Mathf.Deg2Rad;
+            return new Vector2(Mathf.Cos(radians), Mathf.Sin(radians)) * radius;
         }
 
         private static void ApplyResolutionMotion(

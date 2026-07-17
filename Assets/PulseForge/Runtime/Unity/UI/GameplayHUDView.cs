@@ -119,6 +119,7 @@ namespace PulseForge.Runtime.Unity.UI
                 upcomingQueueView = RadialUpcomingQueueView.Create(root);
                 registerCreated?.Invoke(upcomingQueueView.gameObject);
             }
+            upcomingQueueView?.ApplyGameplayLayout();
 
             Transform existingAssist = root.Find("Timing Assist");
             if (existingAssist != null)

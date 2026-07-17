@@ -963,6 +963,9 @@ namespace PulseForge.Editor.UI
                 "Apply PulseForge M10CD VFX & Reactive Polish Setup");
             Undo.RecordObject(root, "Configure PulseForge M10CD VFX & Reactive Polish");
 
+            bool repairedInvalidScriptReferences =
+                RemoveInvalidM10CDScriptReferences(existingStage);
+
             RadialCombatStageView stage = RadialCombatVfxSetup.Apply(
                 root,
                 gameObject => Undo.RegisterCreatedObjectUndo(
@@ -984,8 +987,63 @@ namespace PulseForge.Editor.UI
             EditorGUIUtility.PingObject(stage == null ? (Object)root : stage);
             Undo.CollapseUndoOperations(undoGroup);
             Debug.Log(
-                "PulseForge M10CD VFX & Reactive Polish setup was applied. The scene is dirty and has not been saved automatically.",
+                "PulseForge M10CD VFX & Reactive Polish setup was applied"
+                    + (repairedInvalidScriptReferences
+                        ? " and invalid scene-local script references were repaired"
+                        : string.Empty)
+                    + ". The scene is dirty and has not been saved automatically.",
                 root);
+        }
+
+        private static bool RemoveInvalidM10CDScriptReferences(
+            RadialCombatStageView stage)
+        {
+            Transform presentationRoot = stage.transform.Find(
+                RadialCombatVfxSetup.PresentationRootName);
+            if (presentationRoot == null)
+            {
+                return false;
+            }
+
+            Transform[] transforms =
+                presentationRoot.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < transforms.Length; i++)
+            {
+                if (GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(
+                        transforms[i].gameObject) > 0)
+                {
+                    Undo.DestroyObjectImmediate(presentationRoot.gameObject);
+                    return true;
+                }
+            }
+
+            MonoBehaviour[] behaviours =
+                presentationRoot.GetComponentsInChildren<MonoBehaviour>(true);
+            for (int i = 0; i < behaviours.Length; i++)
+            {
+                MonoBehaviour behaviour = behaviours[i];
+                if (behaviour == null)
+                {
+                    continue;
+                }
+
+                SerializedObject serializedBehaviour = new SerializedObject(behaviour);
+                SerializedProperty scriptProperty =
+                    serializedBehaviour.FindProperty("m_Script");
+                Object script = scriptProperty == null
+                    ? null
+                    : scriptProperty.objectReferenceValue;
+                if (script != null
+                    && !string.IsNullOrEmpty(AssetDatabase.GetAssetPath(script)))
+                {
+                    continue;
+                }
+
+                Undo.DestroyObjectImmediate(presentationRoot.gameObject);
+                return true;
+            }
+
+            return false;
         }
 
         [MenuItem(ApplyM9F1ForecastMenu)]

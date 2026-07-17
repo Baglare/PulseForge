@@ -101,7 +101,7 @@ namespace PulseForge.Runtime.Unity.UI
         }
     }
 
-    public sealed class RadialCombatVfxLayer : MonoBehaviour
+    public abstract class RadialCombatVfxLayerBase : MonoBehaviour
     {
         [SerializeField] private RectTransform poolRoot;
         [SerializeField] private RadialCombatVfxView[] pool = Array.Empty<RadialCombatVfxView>();
@@ -261,7 +261,7 @@ namespace PulseForge.Runtime.Unity.UI
         }
     }
 
-    public sealed class RadialCombatVfxGraphic : MaskableGraphic
+    public abstract class RadialCombatVfxGraphicBase : MaskableGraphic
     {
         private RadialCombatVfxKind kind;
         private float progress = 1f;
