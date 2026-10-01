@@ -60,3 +60,6 @@ AGENTS.md
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# KnowledgeCompiler local operational state
+.knowledge-compiler/
