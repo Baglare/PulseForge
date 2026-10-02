@@ -51,7 +51,6 @@ __pycache__/
 prompts/
 checklists/
 START-HERE.md
-AGENTS.md
 
 # Local Codex / compile artifacts
 .codex-compile-temp/
