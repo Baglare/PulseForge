@@ -13,7 +13,22 @@ temeldir.
 
 ## Mevcut durum
 
-Şu ana kadar altı ana milestone tamamlandı:
+Mevcut kod, aşağıdaki tarihsel altı milestone'un ötesinde **C# Radial V2** hattını içerir:
+
+- `RadialAudioAnalyzerV2`: onset/feature extraction, tempo/beat grid ve section analizi.
+- `RadialEncounterPlanner`: seed tabanlı encounter üretimi, validation/repair ve versioned fingerprint.
+- Radial rhythm session, DSP timing/input, calibration/training ve Standard/Survival/OneLife modları.
+- Kullanıcı settings/profile, track library ve versioned audio/beatmap cache kalıcılığı.
+- Unity Editor Audio Pipeline penceresinde varsayılan Radial V2 ve ayrı Legacy Python V1 seçimi.
+
+Radial V2 ile Legacy Python çıktıları aynı sözleşme değildir. Aşağıdaki Guard/Strike,
+Python CLI ve eski demo adımları **Legacy Python V1 / ilk prototip** kapsamını anlatır.
+Legacy Editor örnekleri için önce `Pipeline = LegacyPythonV1` seçilir.
+Mevcut C# EditMode testleri analiz/planner, timing, game mode ve cache sözleşmelerini kapsar;
+bu README güncellemesi Unity test/build veya gerçek custom-song kabulünü yeniden çalıştırmaz.
+Her şarkı için doğru BPM veya kusursuz otomatik koreografi garantisi yoktur.
+
+Tarihsel ilk altı milestone:
 
 | Milestone | Durum | Açıklama |
 |---|---:|---|
@@ -46,7 +61,7 @@ Debug rhythm-combat prototype
 OnGUI + scene combat feedback
 ```
 
-Windows tester build'i ayrıca şu runtime akışını destekler:
+Milestone 6 Windows tester build'inin tarihsel quick-import akışı:
 
 ```text
 MP3 / WAV / M4A / AAC / FLAC / OGG / OPUS / WMA / AIFF
@@ -570,9 +585,9 @@ Sınırların açık tutulması, prototipin teknik hedefini ve değerlendirme ka
 
 ---
 
-## Roadmap
+## Tarihsel roadmap (Milestone 6 sonrası)
 
-Milestone 6 ile Windows Runtime Custom Song Import tamamlandı. Önerilen sıradaki hazırlık veya milestone başlıkları:
+Aşağıdaki liste eski hazırlık planıdır; bugünkü implementation en üstteki Radial V2 bölümünde ayrılmıştır. BPM/beat grid, section analizi, radial encounter/action ve cache kodları artık vardır; bunları hâlâ uygulanmamış özellikler olarak okumayın. Liste güncel milestone kabulü veya yeni bir geliştirme taahhüdü değildir:
 
 1. Project Cleanup / Demo Recording Prep
    - Demo sahnesi, README ve milestone dokümanlarını video kaydına hazır hale getirmek.
