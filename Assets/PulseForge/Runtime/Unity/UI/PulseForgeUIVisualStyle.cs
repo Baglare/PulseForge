@@ -27,6 +27,8 @@ namespace PulseForge.Runtime.Unity.UI
             StyleError(root.ErrorPanel);
         }
 
+        internal const string SkinFrameName = "Skin Frame";
+
         internal static void ApplyButtonStyle(Button button, PulseForgeButtonStyle style)
         {
             if (button == null)
@@ -35,36 +37,78 @@ namespace PulseForge.Runtime.Unity.UI
             }
 
             Image image = button.targetGraphic as Image ?? button.GetComponent<Image>();
+            ColorBlock colors = PulseForgeUITheme.CreateButtonColors(style);
             if (image != null)
             {
-                image.sprite = PulseForgeUIFactory.RoundedSprite;
-            image.type = image.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
-                image.color = PulseForgeUITheme.CreateButtonColors(style).normalColor;
+                image.sprite = PulseForgeSkinAssets.Plate;
+                image.type = Image.Type.Sliced;
+                image.pixelsPerUnitMultiplier = style == PulseForgeButtonStyle.Primary ? 1.15f : 1.6f;
+                // Tint multiplies the graphic colour, so keep the graphic white and let the block carry the exact colour.
+                image.color = Color.white;
                 image.raycastTarget = true;
             }
 
             button.transition = Selectable.Transition.ColorTint;
-            button.colors = PulseForgeUITheme.CreateButtonColors(style);
+            button.colors = colors;
             Navigation navigation = button.navigation;
             navigation.mode = Navigation.Mode.None;
             button.navigation = navigation;
 
-            Outline outline = GetOrAdd<Outline>(button.gameObject);
-            outline.useGraphicAlpha = true;
-            outline.effectDistance = new Vector2(1f, -1f);
-            outline.effectColor = GetButtonBorderColor(style);
-            outline.enabled = style != PulseForgeButtonStyle.Subtle;
+            Outline outline = button.GetComponent<Outline>();
+            if (outline != null)
+            {
+                outline.enabled = false;
+            }
+
+            ApplyFrame(button.transform, GetButtonBorderColor(style), image == null ? 1.6f : image.pixelsPerUnitMultiplier);
 
             Text label = button.GetComponentInChildren<Text>(true);
             if (label != null)
             {
-                label.fontSize = PulseForgeUITypography.MainButton;
+                label.font = PulseForgeUIFactory.DefaultFont;
+                if (label.fontSize < PulseForgeUITypography.MainButton)
+                {
+                    label.fontSize = PulseForgeUITypography.MainButton;
+                }
+
                 label.fontStyle = FontStyle.Bold;
-                label.color = style == PulseForgeButtonStyle.Subtle
-                    ? PulseForgeUITheme.SecondaryText
-                    : PulseForgeUITheme.PrimaryText;
+                label.color = style == PulseForgeButtonStyle.Primary || style == PulseForgeButtonStyle.Danger
+                    ? PulseForgeUITheme.DarkText
+                    : style == PulseForgeButtonStyle.Subtle || style == PulseForgeButtonStyle.Segment
+                        ? PulseForgeUITheme.SecondaryText
+                        : PulseForgeUITheme.PrimaryText;
                 label.alignment = TextAnchor.MiddleCenter;
+                label.resizeTextForBestFit = true;
+                label.resizeTextMinSize = 11;
+                label.resizeTextMaxSize = Mathf.Max(label.fontSize, PulseForgeUITypography.MainButton);
             }
+        }
+
+        /// <summary>Adds (or recolours) a non-interactive chamfered border behind a plate's content.</summary>
+        internal static Image ApplyFrame(Transform target, Color color, float pixelsPerUnitMultiplier)
+        {
+            if (target == null)
+            {
+                return null;
+            }
+
+            Transform existing = target.Find(SkinFrameName);
+            Image frameImage = existing == null ? null : existing.GetComponent<Image>();
+            if (frameImage == null)
+            {
+                RectTransform frameRect = PulseForgeUIFactory.CreateStretchRect(SkinFrameName, target);
+                frameImage = frameRect.gameObject.AddComponent<Image>();
+                frameRect.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+                frameRect.SetAsFirstSibling();
+            }
+
+            frameImage.sprite = PulseForgeSkinAssets.Frame;
+            frameImage.type = Image.Type.Sliced;
+            frameImage.pixelsPerUnitMultiplier = pixelsPerUnitMultiplier;
+            frameImage.color = color;
+            frameImage.raycastTarget = false;
+            frameImage.enabled = color.a > 0.001f;
+            return frameImage;
         }
 
         private static void StyleCanvas(PulseForgeSceneUIRoot root)
@@ -629,12 +673,15 @@ namespace PulseForge.Runtime.Unity.UI
             switch (style)
             {
                 case PulseForgeButtonStyle.Primary:
+                    return PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Heat, 0.85f);
                 case PulseForgeButtonStyle.SelectedSegment:
-                    return PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Primary, 0.92f);
+                    return PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Ember, 0.95f);
                 case PulseForgeButtonStyle.Danger:
                     return PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Miss, 0.92f);
                 case PulseForgeButtonStyle.Subtle:
                     return Color.clear;
+                case PulseForgeButtonStyle.Segment:
+                    return PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Border, 0.55f);
                 default:
                     return PulseForgeUITheme.WithAlpha(PulseForgeUITheme.Border, 0.94f);
             }
