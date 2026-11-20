@@ -15,25 +15,29 @@ namespace PulseForge.Runtime.Unity.UI
 
     internal static class PulseForgeUITheme
     {
-        public static readonly Color Backdrop = Hex(0x08, 0x0D, 0x16);
-        public static readonly Color BackgroundSecondary = Hex(0x0D, 0x14, 0x20);
-        public static readonly Color Surface = Hex(0x12, 0x1C, 0x2A, 0.98f);
-        public static readonly Color SurfaceRaised = Hex(0x18, 0x25, 0x36, 0.98f);
-        public static readonly Color SurfaceSoft = Hex(0x1B, 0x2A, 0x3C, 0.88f);
-        public static readonly Color Overlay = Hex(0x05, 0x09, 0x11, 0.76f);
-        public static readonly Color PrimaryText = Hex(0xEA, 0xF2, 0xF8);
-        public static readonly Color SecondaryText = Hex(0x8F, 0xA3, 0xB8);
-        public static readonly Color Divider = Hex(0x29, 0x3B, 0x50, 0.82f);
-        public static readonly Color Border = Hex(0x29, 0x3B, 0x50);
-        public static readonly Color Primary = Hex(0x3B, 0xBF, 0xF3);
-        public static readonly Color AccentSoft = Hex(0x1D, 0x6F, 0x95);
+        // Forge-at-night palette: warm blackened iron, ember accent, tempered-steel guard.
+        public static readonly Color Backdrop = Hex(0x0B, 0x09, 0x08);
+        public static readonly Color BackgroundSecondary = Hex(0x13, 0x0F, 0x0D);
+        public static readonly Color Surface = Hex(0x17, 0x12, 0x0F, 0.96f);
+        public static readonly Color SurfaceRaised = Hex(0x22, 0x1A, 0x15, 0.98f);
+        public static readonly Color SurfaceSoft = Hex(0x2C, 0x22, 0x1B, 0.90f);
+        public static readonly Color Overlay = Hex(0x06, 0x04, 0x03, 0.82f);
+        public static readonly Color PrimaryText = Hex(0xF5, 0xEC, 0xE2);
+        public static readonly Color SecondaryText = Hex(0xA9, 0x98, 0x8A);
+        public static readonly Color Divider = Hex(0x3B, 0x2E, 0x25, 0.82f);
+        public static readonly Color Border = Hex(0x45, 0x36, 0x2B);
+        public static readonly Color Primary = Hex(0xFF, 0x7A, 0x1F);
+        public static readonly Color AccentSoft = Hex(0x7A, 0x34, 0x10);
         public static readonly Color Guard = Hex(0x35, 0xD3, 0xF3);
         public static readonly Color Strike = Hex(0xFF, 0x75, 0x47);
         public static readonly Color Perfect = Hex(0xFF, 0xD1, 0x66);
         public static readonly Color Good = Hex(0x50, 0xD8, 0x90);
         public static readonly Color Miss = Hex(0xFF, 0x4F, 0x61);
-        public static readonly Color Disabled = Hex(0x23, 0x30, 0x40, 0.72f);
-        public static readonly Color DarkText = Hex(0x05, 0x12, 0x1B);
+        public static readonly Color Disabled = Hex(0x26, 0x1F, 0x1A, 0.72f);
+        public static readonly Color DarkText = Hex(0x1A, 0x0B, 0x03);
+        public static readonly Color Ember = Hex(0xFF, 0x7A, 0x1F);
+        public static readonly Color EmberDeep = Hex(0xC2, 0x3B, 0x0C);
+        public static readonly Color Heat = Hex(0xFF, 0xB8, 0x4D);
 
         public const float ReferenceWidth = 1920f;
         public const float ReferenceHeight = 1080f;
@@ -75,10 +79,11 @@ namespace PulseForge.Runtime.Unity.UI
                     selected = highlighted;
                     break;
                 case PulseForgeButtonStyle.SelectedSegment:
-                    normal = Color.Lerp(AccentSoft, Primary, 0.34f);
-                    highlighted = Color.Lerp(normal, Color.white, 0.10f);
+                    normal = Color.Lerp(SurfaceRaised, Primary, 0.30f);
+                    normal.a = 1f;
+                    highlighted = Color.Lerp(normal, Primary, 0.18f);
                     pressed = Color.Lerp(normal, Color.black, 0.20f);
-                    selected = Color.Lerp(normal, Primary, 0.18f);
+                    selected = normal;
                     break;
                 case PulseForgeButtonStyle.Secondary:
                     normal = SurfaceRaised;
@@ -93,8 +98,8 @@ namespace PulseForge.Runtime.Unity.UI
                     selected = SurfaceSoft;
                     break;
                 default:
-                    normal = WithAlpha(SurfaceRaised, 0.78f);
-                    highlighted = Color.Lerp(SurfaceRaised, AccentSoft, 0.18f);
+                    normal = WithAlpha(SurfaceRaised, 0.86f);
+                    highlighted = Color.Lerp(SurfaceRaised, AccentSoft, 0.30f);
                     pressed = Color.Lerp(SurfaceRaised, Color.black, 0.25f);
                     selected = Color.Lerp(SurfaceRaised, AccentSoft, 0.26f);
                     break;
@@ -105,9 +110,11 @@ namespace PulseForge.Runtime.Unity.UI
             colors.highlightedColor = highlighted;
             colors.pressedColor = pressed;
             colors.selectedColor = selected;
-            colors.disabledColor = Disabled;
+            colors.disabledColor = style == PulseForgeButtonStyle.Primary
+                ? Color.Lerp(Primary, SecondaryText, 0.55f)
+                : Disabled;
             colors.colorMultiplier = 1f;
-            colors.fadeDuration = 0.08f;
+            colors.fadeDuration = 0.06f;
             return colors;
         }
 

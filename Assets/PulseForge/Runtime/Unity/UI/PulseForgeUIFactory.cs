@@ -296,7 +296,7 @@ namespace PulseForge.Runtime.Unity.UI
                 return defaultFont;
             }
 
-            defaultFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            defaultFont = PulseForgeSkinAssets.GameFont;
             if (defaultFont == null)
             {
                 defaultFont = Font.CreateDynamicFontFromOSFont("Arial", PulseForgeUITheme.BodyFontSize);
@@ -312,9 +312,8 @@ namespace PulseForge.Runtime.Unity.UI
                 return roundedSprite;
             }
 
-            // Unity 6 no longer exposes the legacy UGUI skin sprite at the old built-in path.
-            // Keep the style asset-free and fall back to Image + Outline/Shadow instead.
-            roundedSprite = null;
+            // Asset-free chamfered plate generated at runtime (see PulseForgeSkinAssets).
+            roundedSprite = PulseForgeSkinAssets.Plate;
             return roundedSprite;
         }
 

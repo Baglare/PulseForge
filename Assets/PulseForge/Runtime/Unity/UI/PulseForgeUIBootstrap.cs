@@ -68,6 +68,7 @@ namespace PulseForge.Runtime.Unity.UI
             root.ProcessingPanel?.EnsureV2Stages();
             root.ReadyPanel?.EnsureV2SummaryFields();
             PulseForgeTooltipSetup.Apply(root);
+            PulseForgeGameSkin.Apply(root);
             root.SetEnableMotion(controller.MotionEnabledSetting);
             EventSystem eventSystem = EnsureEventSystem(root, UsedRuntimeFallback);
             root.AssignEventSystem(eventSystem);
